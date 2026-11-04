@@ -1,0 +1,11 @@
+{
+  "domain": "floorplan_3d",
+  "name": "3D Floorplan Editor & Card",
+  "codeowners": ["@JohNan"],
+  "config_flow": true,
+  "dependencies": ["frontend", "http", "lovelace", "websocket_api"],
+  "documentation": "https://github.com/JohNan/homeassistant-floorplan_3d",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/JohNan/homeassistant-floorplan_3d/issues",
+  "version": "0.1.0"
+}

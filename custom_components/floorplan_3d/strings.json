@@ -1,0 +1,13 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "3D Floorplan Editor & Card",
+        "description": "Do you want to enable the 3D Floorplan Editor sidebar panel and Lovelace card?"
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Only a single instance of 3D Floorplan Editor & Card is allowed."
+    }
+  }
+}
