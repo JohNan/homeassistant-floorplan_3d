@@ -1,18 +1,20 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 
+const rootDir = import.meta.dirname;
+
 export default defineConfig({
   build: {
-    outDir: resolve(__dirname, 'custom_components/floorplan_3d/frontend/dist'),
+    outDir: resolve(rootDir, 'custom_components/floorplan_3d/frontend/dist'),
     emptyOutDir: true,
     sourcemap: false,
-    minify: 'esbuild',
+    minify: true,
     target: 'es2022',
     chunkSizeWarningLimit: 700,
     rollupOptions: {
       input: {
-        'floorplan-panel': resolve(__dirname, 'src/editor/floorplan-editor-panel.ts'),
-        'floorplan-card': resolve(__dirname, 'src/card/floorplan-3d-card.ts')
+        'floorplan-panel': resolve(rootDir, 'src/editor/floorplan-editor-panel.ts'),
+        'floorplan-card': resolve(rootDir, 'src/card/floorplan-3d-card.ts')
       },
       output: {
         format: 'es',
@@ -37,3 +39,4 @@ export default defineConfig({
     globals: true
   }
 });
+
