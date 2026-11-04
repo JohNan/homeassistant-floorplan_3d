@@ -96,6 +96,7 @@ export class PropertyInspector extends LitElement {
   @property({ attribute: false }) public document?: FloorplanDocument;
   @property({ attribute: false }) public floor?: FloorLevel;
   @property({ attribute: false }) public selection: EditorSelection = { kind: 'none', id: null };
+  @property({ type: Boolean, reflect: true }) public mobile = false;
 
   static styles = css`
     :host {
@@ -103,19 +104,26 @@ export class PropertyInspector extends LitElement {
       flex-direction: column;
       width: 320px;
       height: 100%;
-      background: #0f172a;
-      border-left: 1px solid #334155;
-      color: #f8fafc;
+      background: var(--card-background-color, #0f172a);
+      border-left: 1px solid var(--divider-color, #334155);
+      color: var(--primary-text-color, #f8fafc);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 13px;
       box-sizing: border-box;
       user-select: none;
     }
 
+    :host([mobile]) {
+      width: 100%;
+      border: none;
+      height: auto;
+      max-height: 100%;
+    }
+
     .inspector-header {
       padding: 12px 14px;
-      background: #1e293b;
-      border-bottom: 1px solid #334155;
+      background: var(--secondary-background-color, #1e293b);
+      border-bottom: 1px solid var(--divider-color, #334155);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -124,7 +132,7 @@ export class PropertyInspector extends LitElement {
     .inspector-title {
       font-size: 13px;
       font-weight: 700;
-      color: #f8fafc;
+      color: var(--primary-text-color, #f8fafc);
       display: flex;
       align-items: center;
       gap: 6px;
@@ -136,7 +144,7 @@ export class PropertyInspector extends LitElement {
       text-transform: uppercase;
       padding: 2px 6px;
       border-radius: 4px;
-      background: #3b82f6;
+      background: var(--primary-color, #3b82f6);
       color: #ffffff;
     }
 
@@ -155,13 +163,13 @@ export class PropertyInspector extends LitElement {
     }
 
     .inspector-body::-webkit-scrollbar-thumb {
-      background: #334155;
+      background: var(--divider-color, #334155);
       border-radius: 2px;
     }
 
     .section-card {
-      background: #1e293b;
-      border: 1px solid #334155;
+      background: var(--secondary-background-color, #1e293b);
+      border: 1px solid var(--divider-color, #334155);
       border-radius: 6px;
       padding: 12px;
       display: flex;
@@ -174,8 +182,8 @@ export class PropertyInspector extends LitElement {
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      color: #94a3b8;
-      border-bottom: 1px solid #334155;
+      color: var(--secondary-text-color, #94a3b8);
+      border-bottom: 1px solid var(--divider-color, #334155);
       padding-bottom: 6px;
       margin-bottom: 2px;
     }
@@ -196,73 +204,77 @@ export class PropertyInspector extends LitElement {
     label {
       font-size: 11px;
       font-weight: 500;
-      color: #94a3b8;
+      color: var(--secondary-text-color, #94a3b8);
     }
 
     input[type='text'],
     input[type='number'],
     select {
-      background: #0f172a;
-      border: 1px solid #475569;
+      background: var(--primary-background-color, #0f172a);
+      border: 1px solid var(--divider-color, #475569);
       border-radius: 4px;
-      padding: 6px 8px;
-      color: #f8fafc;
-      font-size: 12px;
+      padding: 6px 10px;
+      color: var(--primary-text-color, #f8fafc);
+      font-size: 13px;
       outline: none;
       box-sizing: border-box;
       width: 100%;
+      min-height: 36px;
     }
 
     input[type='text']:focus,
     input[type='number']:focus,
     select:focus {
-      border-color: #3b82f6;
+      border-color: var(--primary-color, #3b82f6);
     }
 
     input[type='color'] {
       background: transparent;
-      border: 1px solid #475569;
+      border: 1px solid var(--divider-color, #475569);
       border-radius: 4px;
-      width: 38px;
-      height: 28px;
+      width: 44px;
+      height: 36px;
       cursor: pointer;
       padding: 0;
     }
 
     input[type='range'] {
       width: 100%;
-      accent-color: #3b82f6;
+      accent-color: var(--primary-color, #3b82f6);
       cursor: pointer;
     }
 
     .checkbox-row {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       font-size: 12px;
-      color: #cbd5e1;
+      color: var(--primary-text-color, #cbd5e1);
       cursor: pointer;
+      min-height: 32px;
     }
 
     .checkbox-row input[type='checkbox'] {
-      accent-color: #3b82f6;
+      accent-color: var(--primary-color, #3b82f6);
       cursor: pointer;
+      width: 18px;
+      height: 18px;
     }
 
     .slider-val {
       font-size: 11px;
       font-weight: 600;
-      color: #38bdf8;
+      color: var(--primary-color, #38bdf8);
       min-width: 42px;
       text-align: right;
     }
 
     .btn {
-      background: #334155;
-      color: #f8fafc;
-      border: 1px solid #475569;
+      background: var(--secondary-background-color, #334155);
+      color: var(--primary-text-color, #f8fafc);
+      border: 1px solid var(--divider-color, #475569);
       border-radius: 4px;
-      padding: 6px 12px;
+      padding: 8px 14px;
       font-size: 12px;
       font-weight: 500;
       cursor: pointer;
@@ -270,32 +282,32 @@ export class PropertyInspector extends LitElement {
       align-items: center;
       justify-content: center;
       gap: 6px;
+      min-height: 36px;
       transition: background 0.15s, border-color 0.15s;
     }
 
     .btn:hover {
-      background: #475569;
+      background: var(--primary-background-color, #475569);
     }
 
     .btn-danger {
-      background: #7f1d1d;
+      background: var(--error-color, #7f1d1d);
       color: #fecaca;
-      border-color: #991b1b;
+      border-color: var(--error-color, #991b1b);
     }
 
     .btn-danger:hover {
-      background: #991b1b;
-      border-color: #ef4444;
+      filter: brightness(1.1);
     }
 
     .btn-primary {
-      background: #2563eb;
+      background: var(--primary-color, #2563eb);
       color: #ffffff;
-      border-color: #3b82f6;
+      border-color: var(--primary-color, #3b82f6);
     }
 
     .btn-primary:hover {
-      background: #1d4ed8;
+      filter: brightness(1.1);
     }
 
     .grid-2col {
@@ -314,16 +326,18 @@ export class PropertyInspector extends LitElement {
       display: flex;
       align-items: center;
       gap: 8px;
-      background: #0f172a;
-      padding: 6px 8px;
+      background: var(--primary-background-color, #0f172a);
+      padding: 8px 10px;
       border-radius: 4px;
-      border: 1px solid #334155;
-      font-size: 11px;
+      border: 1px solid var(--divider-color, #334155);
+      font-size: 12px;
+      min-height: 36px;
+      box-sizing: border-box;
     }
 
     .state-badge {
       font-weight: 700;
-      color: #38bdf8;
+      color: var(--primary-color, #38bdf8);
     }
   `;
 

@@ -361,9 +361,12 @@ Home Assistant invokes `set hass(newHass)` on custom Lovelace cards whenever *an
 ## 6. User Experience Specifications
 
 ### 6.1 Custom Sidebar Editor Panel (`<floorplan-editor-panel>`)
-- **Workspace Layout**:
+- **Home Assistant Theme & Navigation Integration**:
+  - Uses Home Assistant CSS custom properties (`--app-header-background-color`, `--app-header-text-color`, `--primary-background-color`, `--secondary-background-color`, `--card-background-color`, `--primary-text-color`, `--secondary-text-color`, `--primary-color`, `--divider-color`, `--error-color`, `--success-color`, `--warning-color`) across all UI chrome and the 2D CAD grid/canvas so both Light and Dark HA themes are natively respected.
+  - Preserves Home Assistant navigation drawer access on both desktop and mobile (`narrow=true`) via an app-header hamburger button dispatching `hass-toggle-menu` (`bubbles: true, composed: true`).
+- **Desktop Workspace Layout**:
   - **Top Bar**:
-    - Floorplan selector dropdown + `New / Rename / Delete / Import JSON / Export JSON` actions.
+    - HA sidebar toggle button (`hass-toggle-menu`), Floorplan selector dropdown + `New / Rename / Delete / Import JSON / Export JSON` actions.
     - Floor Level Switcher (`Ground Floor`, `+ Add Floor`, `Duplicate Perimeter from Below`, and `Onion-Skin Ghost Trace` toggle).
     - Active Tool Bar: `Select/Move (V)`, `Draw Wall (W)`, `Draw Room Polygon (R)`, `Add Door/Window (O)`, `Calibrate Blueprint (B)`, `Measure (M)`.
     - Snap Settings: Grid snap toggle (`0.05m`, `0.1m`, `0.25m`), Angle snap (`15° / 45° / 90°`), Node/Edge magnetic snap.
@@ -382,6 +385,15 @@ Home Assistant invokes `set hass(newHass)` on custom Lovelace cards whenever *an
     - **When a Room Polygon is selected**: Room name, bind to HA `area_id` (auto-populates area temperature/humidity/motion entities), floor material & tint color, room tap action.
     - **When an Opening is selected**: Opening type (`door_single`, `window_standard`, etc.), width, sill/head heights, swing direction, and **Bound Contact `binary_sensor` Entity Picker**.
     - **When an Entity Placement is selected**: `entity_id`, Z-elevation slider (`0.0m - 3.0m`), Light fixture kind (`point`, `spot`, `strip`, `wall_sconce`), light radius & intensity multiplier, 3D mesh representation, floating badge style, and `tap_action` / `hold_action` / `double_tap_action`.
+- **Mobile & Narrow Viewport Ergonomics (`narrow` or `<768px`)**:
+  - **Streamlined Top App Header**: Hamburger menu button (`hass-toggle-menu`), compact Floorplan & Floor selectors, Undo/Redo icon buttons, `2D`/`3D` single-viewport toggle, `Save` button, and a `⋮` More overflow menu for secondary floorplan/floor/grid/blueprint/JSON actions.
+  - **Thumb-Friendly Bottom CAD Dock & Slide-Up Bottom Sheets**:
+    - Bottom dock with 44px touch buttons for CAD tools (`Select`, `Wall`, `Room`, `Opening`, `Measure`), `[+ Add]` (opens the Entity/Catalog Palette bottom sheet), and `[Props]` (opens the Property Inspector bottom sheet).
+    - Tapping `+ Place` / `+ Add` in the Palette places the item at the current 2D viewport center (`getViewportCenterWorld()`), selects it, and auto-closes the Palette sheet so the canvas is unobstructed for dragging.
+    - Selecting an item on mobile displays a compact floating selection bar (`Edit Properties` / `Delete`) above the bottom dock without blocking the canvas.
+  - **Touch CAD Gestures (`<floorplan-canvas-2d>`)**:
+    - Two-finger pinch-to-zoom and two-finger pan in all tool modes, plus single-finger pan on empty canvas in `Select` mode.
+    - Floating on-screen `Finish Wall`, `Complete Room`, `Cancel`, and `Delete` action pills for keyboardless operation, plus on-screen `+ / − / Fit` zoom buttons and `r="18"` (36px) touch hit targets on wall nodes, rotation handles, and entity badges.
 
 ### 6.2 Custom 3D Lovelace Card (`<floorplan-3d-card>`)
 - **Card Configuration Schema (`FloorplanCardConfig`)**:

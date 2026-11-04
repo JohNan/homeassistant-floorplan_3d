@@ -31,6 +31,7 @@ import './components/PropertyInspector';
 
 /**
  * Admin Sidebar CAD Editor Panel for 2D/3D Floorplans (`<floorplan-editor-panel>`).
+ * Responsive desktop sidebar & mobile thumb-friendly CAD dock + slide-up sheets.
  */
 @customElement('floorplan-editor-panel')
 export class FloorplanEditorPanel extends LitElement {
@@ -51,6 +52,8 @@ export class FloorplanEditorPanel extends LitElement {
   @state() private canUndo = false;
   @state() private canRedo = false;
   @state() private toastMessage: string | null = null;
+  @state() private isViewportNarrow = false;
+  @state() private activeMobileSheet: 'none' | 'palette' | 'inspector' = 'none';
 
   private history!: EditorHistory<FloorplanDocument>;
   private wsClient!: FloorplanWsClient;
@@ -59,6 +62,7 @@ export class FloorplanEditorPanel extends LitElement {
   private sceneContainerEl: HTMLElement | null = null;
   private toastTimer: number | null = null;
   private isWsInitialized = false;
+  private hostResizeObserver: ResizeObserver | null = null;
 
   static styles = css`
     :host {
@@ -66,8 +70,8 @@ export class FloorplanEditorPanel extends LitElement {
       flex-direction: column;
       width: 100%;
       height: 100vh;
-      background: #090d16;
-      color: #f8fafc;
+      background: var(--primary-background-color, #090d16);
+      color: var(--primary-text-color, #f8fafc);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       overflow: hidden;
       box-sizing: border-box;
@@ -81,12 +85,16 @@ export class FloorplanEditorPanel extends LitElement {
       position: relative;
     }
 
+    .editor-body.mobile {
+      flex-direction: column;
+    }
+
     .center-viewport {
       display: flex;
       flex: 1;
       min-width: 0;
       min-height: 0;
-      background: #090d16;
+      background: var(--primary-background-color, #090d16);
       position: relative;
     }
 
@@ -104,9 +112,9 @@ export class FloorplanEditorPanel extends LitElement {
 
     .viewport-divider {
       width: 4px;
-      background: #1e293b;
-      border-left: 1px solid #334155;
-      border-right: 1px solid #334155;
+      background: var(--secondary-background-color, #1e293b);
+      border-left: 1px solid var(--divider-color, #334155);
+      border-right: 1px solid var(--divider-color, #334155);
       cursor: col-resize;
       flex-shrink: 0;
     }
@@ -115,7 +123,7 @@ export class FloorplanEditorPanel extends LitElement {
       width: 100%;
       height: 100%;
       position: relative;
-      background: #0f172a;
+      background: var(--card-background-color, #0f172a);
     }
 
     .toast-overlay {
@@ -123,9 +131,9 @@ export class FloorplanEditorPanel extends LitElement {
       bottom: 24px;
       left: 50%;
       transform: translateX(-50%);
-      background: #1e293b;
-      color: #f8fafc;
-      border: 1px solid #3b82f6;
+      background: var(--card-background-color, #1e293b);
+      color: var(--primary-text-color, #f8fafc);
+      border: 1px solid var(--primary-color, #3b82f6);
       border-radius: 8px;
       padding: 8px 16px;
       font-size: 13px;
@@ -151,8 +159,184 @@ export class FloorplanEditorPanel extends LitElement {
       display: none;
     }
 
-    /* Narrow mode styling */
-    :host([narrow]) .editor-body {
+    /* Mobile Bottom CAD Dock */
+    .mobile-bottom-dock {
+      height: 58px;
+      background: var(--card-background-color, #0f172a);
+      border-top: 1px solid var(--divider-color, #334155);
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      padding: 0 4px;
+      box-sizing: border-box;
+      flex-shrink: 0;
+      z-index: 50;
+    }
+
+    .dock-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: none;
+      color: var(--secondary-text-color, #94a3b8);
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 6px;
+      min-height: 44px;
+      flex: 1;
+      min-width: 0;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .dock-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .dock-btn.active {
+      color: var(--primary-color, #38bdf8);
+      background: rgba(59, 130, 246, 0.12);
+    }
+
+    .dock-icon {
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .dock-label {
+      font-size: 10px;
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    .dock-divider {
+      width: 1px;
+      height: 28px;
+      background: var(--divider-color, #334155);
+      margin: 0 2px;
+      flex-shrink: 0;
+    }
+
+    /* Floating Selection Bar on Mobile */
+    .mobile-selection-bar {
+      position: absolute;
+      bottom: 66px;
+      left: 12px;
+      right: 12px;
+      background: var(--card-background-color, #1e293b);
+      border: 1px solid var(--primary-color, #3b82f6);
+      border-radius: 8px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 60;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+      animation: fadeIn 0.15s ease-out;
+    }
+
+    .selection-text {
+      font-size: 12px;
+      color: var(--primary-text-color, #f8fafc);
+    }
+
+    .selection-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-sel-edit {
+      background: var(--primary-color, #2563eb);
+      color: #ffffff;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-sel-delete {
+      background: var(--error-color, #7f1d1d);
+      color: #fecaca;
+      border: 1px solid var(--error-color, #991b1b);
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Slide-up Bottom Sheets */
+    .mobile-sheet-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 100;
+      backdrop-filter: blur(2px);
+    }
+
+    .mobile-sheet-drawer {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      max-height: 75vh;
+      background: var(--card-background-color, #0f172a);
+      border-top: 1px solid var(--divider-color, #334155);
+      border-radius: 16px 16px 0 0;
+      z-index: 110;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.5);
+      animation: slideUp 0.2s ease-out;
+    }
+
+    @keyframes slideUp {
+      from {
+        transform: translateY(100%);
+      }
+      to {
+        transform: translateY(0);
+      }
+    }
+
+    .mobile-sheet-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--secondary-background-color, #1e293b);
+      border-bottom: 1px solid var(--divider-color, #334155);
+    }
+
+    .sheet-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary-text-color, #f8fafc);
+    }
+
+    .sheet-close-btn {
+      background: transparent;
+      border: none;
+      color: var(--secondary-text-color, #94a3b8);
+      font-size: 18px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    .sheet-close-btn:hover {
+      color: var(--primary-text-color, #ffffff);
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .mobile-sheet-content {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
       flex-direction: column;
     }
   `;
@@ -169,16 +353,39 @@ export class FloorplanEditorPanel extends LitElement {
     this.wsClient = new FloorplanWsClient(() => this.hass);
 
     window.addEventListener('keydown', this.handleKeyDown);
+
+    if (typeof ResizeObserver !== 'undefined') {
+      this.hostResizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const width = entry.contentRect.width;
+          this.isViewportNarrow = width > 0 && width < 768;
+        }
+      });
+      this.hostResizeObserver.observe(this);
+    }
   }
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     window.removeEventListener('keydown', this.handleKeyDown);
+    this.hostResizeObserver?.disconnect();
+    this.hostResizeObserver = null;
     if (this.toastTimer) {
       window.clearTimeout(this.toastTimer);
     }
     this.scene3d?.dispose();
     this.scene3d = null;
+  }
+
+  override willUpdate(changedProperties: PropertyValues): void {
+    super.willUpdate(changedProperties);
+    if (
+      (changedProperties.has('narrow') || changedProperties.has('isViewportNarrow')) &&
+      this.isMobile &&
+      this.viewLayout === 'split'
+    ) {
+      this.viewLayout = '2d';
+    }
   }
 
   override updated(changedProperties: PropertyValues): void {
@@ -200,6 +407,10 @@ export class FloorplanEditorPanel extends LitElement {
     if (changedProperties.has('viewLayout')) {
       this.handleLayoutChangeEffect();
     }
+  }
+
+  private get isMobile(): boolean {
+    return this.narrow || this.isViewportNarrow;
   }
 
   private async loadInitialData(): Promise<void> {
@@ -362,6 +573,12 @@ export class FloorplanEditorPanel extends LitElement {
         floor.nodes = floor.nodes.filter((n) => n.id !== id);
         floor.walls = floor.walls.filter((w) => !removedWallIds.has(w.id));
         floor.openings = floor.openings.filter((o) => !removedWallIds.has(o.wall_id));
+        floor.rooms = floor.rooms
+          .map((r) => ({
+            ...r,
+            points: r.points.filter((p) => p.node_id !== id)
+          }))
+          .filter((r) => r.points.length >= 3);
         break;
       }
       case 'wall':
@@ -422,7 +639,7 @@ export class FloorplanEditorPanel extends LitElement {
         projection: 'perspective',
         showRoomLabels: true,
         showEntityBadges: true,
-        onCameraChanged: (bookmark) => {
+        onCameraChanged: (_bookmark) => {
           // Keep active floor camera bookmark in sync if desired
         }
       });
@@ -667,6 +884,20 @@ export class FloorplanEditorPanel extends LitElement {
     this.pushHistory(ev.detail.document, ev.detail.description);
   }
 
+  private handleCanvasFloorChange(
+    ev: CustomEvent<{ floor: FloorLevel; description: string }>
+  ): void {
+    const { floor, description } = ev.detail;
+    const doc = structuredClone(this.currentDocument);
+    const idx = doc.floors.findIndex((f) => f.id === floor.id);
+    if (idx !== -1) {
+      doc.floors[idx] = floor;
+    } else {
+      doc.floors.push(floor);
+    }
+    this.pushHistory(doc, description || 'Edit Floor Canvas');
+  }
+
   private handleSelectionChange(
     ev: CustomEvent<{ selection: EditorSelection }>
   ): void {
@@ -680,14 +911,25 @@ export class FloorplanEditorPanel extends LitElement {
     const floor = doc.floors.find((f) => f.id === this.activeFloorId);
     if (!floor) return;
 
+    // Viewport-centered placement
+    const canvas = this.renderRoot.querySelector('floorplan-canvas-2d') as any;
+    const center =
+      canvas?.getViewportCenterWorld?.() ??
+      (typeof canvas?.panX === 'number' && typeof canvas?.panY === 'number'
+        ? { x: canvas.panX, y: canvas.panY }
+        : { x: 0, y: 0 });
+
+    const spawnX = Number(center.x.toFixed(2));
+    const spawnY = Number(center.y.toFixed(2));
+
     if (payload.kind === 'entity' && payload.entityId) {
       const newEntity = {
         id: `ent_${Math.random().toString(36).substring(2, 9)}`,
         entity_id: payload.entityId,
         domain: payload.domain || payload.entityId.split('.')[0] || 'sensor',
         room_id: null,
-        x: 0,
-        y: 0,
+        x: spawnX,
+        y: spawnY,
         z_elevation: payload.domain === 'light' ? 2.4 : 1.2,
         rotation_deg: 0,
         mesh_type: (payload.domain === 'light' ? 'ceiling_light' : 'none') as any,
@@ -711,8 +953,8 @@ export class FloorplanEditorPanel extends LitElement {
         id: `furn_${Math.random().toString(36).substring(2, 9)}`,
         catalog_type: payload.furnitureType,
         label: payload.label || 'Furniture',
-        x: 0,
-        y: 0,
+        x: spawnX,
+        y: spawnY,
         z_elevation: 0,
         width: payload.defaultWidth ?? 1.5,
         depth: payload.defaultDepth ?? 0.8,
@@ -746,6 +988,9 @@ export class FloorplanEditorPanel extends LitElement {
       this.pushHistory(doc, `Add ${payload.label || 'Opening'}`);
       this.showToast(`Added ${payload.label || 'Opening'} to wall`);
     }
+
+    // Auto-close sheet after placing on mobile
+    this.activeMobileSheet = 'none';
   }
 
   private handleBlueprintCalibrated(
@@ -787,6 +1032,8 @@ export class FloorplanEditorPanel extends LitElement {
           .sort((a, b) => b.level_index - a.level_index)[0] ?? null
       : null;
 
+    const isMobile = this.isMobile;
+
     return html`
       <!-- Top CAD Command Bar -->
       <floorplan-editor-toolbar
@@ -802,6 +1049,7 @@ export class FloorplanEditorPanel extends LitElement {
         .viewLayout=${this.viewLayout}
         .isDirty=${this.isDirty}
         .onionSkin=${this.onionSkin}
+        .narrow=${isMobile}
         @floorplan-change=${this.handleFloorplanChange}
         @floorplan-new=${this.handleFloorplanNew}
         @floorplan-delete=${this.handleFloorplanDelete}
@@ -827,57 +1075,7 @@ export class FloorplanEditorPanel extends LitElement {
         @save-floorplan=${this.handleSaveFloorplan}
       ></floorplan-editor-toolbar>
 
-      <!-- Main Editor Body -->
-      <div class="editor-body">
-        <!-- Left Dock: Entity & Catalog Palette -->
-        <floorplan-entity-palette
-          .hass=${this.hass}
-          .activeFloor=${activeFloor}
-          .selectedRoomAreaId=${selectedRoomAreaId}
-          @palette-place=${this.handlePalettePlace}
-        ></floorplan-entity-palette>
-
-        <!-- Center Viewport: 2D CAD Canvas + Split/3D Live Preview -->
-        <div class="center-viewport">
-          <!-- 2D Viewport Pane -->
-          <div class="viewport-pane ${this.viewLayout === '3d' ? 'hidden' : ''}">
-            <floorplan-canvas-2d
-              .document=${this.currentDocument}
-              .floor=${activeFloor}
-              .tool=${this.activeTool}
-              .gridSize=${this.gridSize}
-              .snapToGrid=${this.snapToGrid}
-              .onionSkinFloor=${this.onionSkin ? floorBelow : null}
-              .selection=${this.selection}
-              .hass=${this.hass}
-              @selection-change=${this.handleSelectionChange}
-              @document-mutate=${this.handleDocumentMutate}
-              @open-blueprint-modal=${() => (this.isBlueprintModalOpen = true)}
-              @palette-place=${this.handlePalettePlace}
-            ></floorplan-canvas-2d>
-          </div>
-
-          ${this.viewLayout === 'split'
-            ? html`<div class="viewport-divider"></div>`
-            : ''}
-
-          <!-- 3D Preview Pane -->
-          <div class="viewport-pane ${this.viewLayout === '2d' ? 'hidden' : ''}">
-            <div class="scene-3d-container" id="scene-3d-root"></div>
-          </div>
-        </div>
-
-        <!-- Right Dock: Context-Sensitive Property Inspector -->
-        <floorplan-property-inspector
-          .hass=${this.hass}
-          .document=${this.currentDocument}
-          .floor=${activeFloor}
-          .selection=${this.selection}
-          @document-mutate=${this.handleDocumentMutate}
-          @delete-selected=${() => this.deleteSelection()}
-          @open-blueprint-modal=${() => (this.isBlueprintModalOpen = true)}
-        ></floorplan-property-inspector>
-      </div>
+      ${isMobile ? this.renderMobileLayout(activeFloor, selectedRoomAreaId, floorBelow) : this.renderDesktopLayout(activeFloor, selectedRoomAreaId, floorBelow)}
 
       <!-- Blueprint 2-Point Calibration Modal -->
       <floorplan-blueprint-modal
@@ -908,6 +1106,257 @@ export class FloorplanEditorPanel extends LitElement {
         accept=".json,application/json"
         @change=${this.handleJsonFileSelected}
       />
+    `;
+  }
+
+  private renderDesktopLayout(
+    activeFloor: FloorLevel | undefined,
+    selectedRoomAreaId: string | null,
+    floorBelow: FloorLevel | null
+  ) {
+    return html`
+      <div class="editor-body">
+        <!-- Left Dock: Entity & Catalog Palette -->
+        <floorplan-entity-palette
+          .hass=${this.hass}
+          .activeFloor=${activeFloor}
+          .selectedRoomAreaId=${selectedRoomAreaId}
+          @palette-place=${this.handlePalettePlace}
+        ></floorplan-entity-palette>
+
+        <!-- Center Viewport: 2D CAD Canvas + Split/3D Live Preview -->
+        <div class="center-viewport">
+          <!-- 2D Viewport Pane -->
+          <div class="viewport-pane ${this.viewLayout === '3d' ? 'hidden' : ''}">
+            <floorplan-canvas-2d
+              .document=${this.currentDocument}
+              .floor=${activeFloor ?? null}
+              .toolMode=${this.activeTool}
+              .tool=${this.activeTool}
+              .gridSize=${this.gridSize}
+              .snapToGrid=${this.snapToGrid}
+              .ghostFloor=${this.onionSkin ? floorBelow : null}
+              .onionSkinFloor=${this.onionSkin ? floorBelow : null}
+              .selection=${this.selection}
+              .hass=${this.hass}
+              @selection-change=${this.handleSelectionChange}
+              @floor-change=${this.handleCanvasFloorChange}
+              @document-mutate=${this.handleDocumentMutate}
+              @open-blueprint-modal=${() => (this.isBlueprintModalOpen = true)}
+              @palette-place=${this.handlePalettePlace}
+            ></floorplan-canvas-2d>
+          </div>
+
+          ${this.viewLayout === 'split'
+            ? html`<div class="viewport-divider"></div>`
+            : ''}
+
+          <!-- 3D Preview Pane -->
+          <div class="viewport-pane ${this.viewLayout === '2d' ? 'hidden' : ''}">
+            <div class="scene-3d-container" id="scene-3d-root"></div>
+          </div>
+        </div>
+
+        <!-- Right Dock: Context-Sensitive Property Inspector -->
+        <floorplan-property-inspector
+          .hass=${this.hass}
+          .document=${this.currentDocument}
+          .floor=${activeFloor}
+          .selection=${this.selection}
+          @document-mutate=${this.handleDocumentMutate}
+          @delete-selected=${() => this.deleteSelection()}
+          @open-blueprint-modal=${() => (this.isBlueprintModalOpen = true)}
+        ></floorplan-property-inspector>
+      </div>
+    `;
+  }
+
+  private renderMobileLayout(
+    activeFloor: FloorLevel | undefined,
+    selectedRoomAreaId: string | null,
+    floorBelow: FloorLevel | null
+  ) {
+    return html`
+      <div class="editor-body mobile">
+        <!-- Viewport takes entire height minus header and bottom dock -->
+        <div class="center-viewport mobile">
+          <!-- 2D Viewport Pane -->
+          <div class="viewport-pane ${this.viewLayout === '3d' ? 'hidden' : ''}">
+            <floorplan-canvas-2d
+              .document=${this.currentDocument}
+              .floor=${activeFloor ?? null}
+              .toolMode=${this.activeTool}
+              .tool=${this.activeTool}
+              .gridSize=${this.gridSize}
+              .snapToGrid=${this.snapToGrid}
+              .ghostFloor=${this.onionSkin ? floorBelow : null}
+              .onionSkinFloor=${this.onionSkin ? floorBelow : null}
+              .selection=${this.selection}
+              .hass=${this.hass}
+              @selection-change=${this.handleSelectionChange}
+              @floor-change=${this.handleCanvasFloorChange}
+              @document-mutate=${this.handleDocumentMutate}
+              @open-blueprint-modal=${() => (this.isBlueprintModalOpen = true)}
+              @palette-place=${this.handlePalettePlace}
+            ></floorplan-canvas-2d>
+          </div>
+
+          <!-- 3D Preview Pane -->
+          <div class="viewport-pane ${this.viewLayout === '2d' ? 'hidden' : ''}">
+            <div class="scene-3d-container" id="scene-3d-root"></div>
+          </div>
+        </div>
+
+        <!-- Compact Floating Selection Bar (Non-blocking) -->
+        ${this.selection.kind !== 'none' && this.activeMobileSheet === 'none'
+          ? html`
+              <div class="mobile-selection-bar">
+                <span class="selection-text">Selected: <strong>${this.selection.kind}</strong></span>
+                <div class="selection-actions">
+                  <button
+                    class="btn-sel-edit"
+                    @click=${() => (this.activeMobileSheet = 'inspector')}
+                  >
+                    Edit Properties
+                  </button>
+                  <button
+                    class="btn-sel-delete"
+                    @click=${() => this.deleteSelection()}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            `
+          : ''}
+
+        <!-- Thumb-Friendly Bottom CAD Dock -->
+        <div class="mobile-bottom-dock">
+          <button
+            class="dock-btn ${this.activeTool === 'select' && this.activeMobileSheet === 'none' ? 'active' : ''}"
+            @click=${() => {
+              this.activeTool = 'select';
+              this.activeMobileSheet = 'none';
+            }}
+          >
+            <span class="dock-icon">↖</span>
+            <span class="dock-label">Select</span>
+          </button>
+          <button
+            class="dock-btn ${this.activeTool === 'draw_wall' && this.activeMobileSheet === 'none' ? 'active' : ''}"
+            @click=${() => {
+              this.activeTool = 'draw_wall';
+              this.activeMobileSheet = 'none';
+            }}
+          >
+            <span class="dock-icon">🧱</span>
+            <span class="dock-label">Wall</span>
+          </button>
+          <button
+            class="dock-btn ${this.activeTool === 'draw_room' && this.activeMobileSheet === 'none' ? 'active' : ''}"
+            @click=${() => {
+              this.activeTool = 'draw_room';
+              this.activeMobileSheet = 'none';
+            }}
+          >
+            <span class="dock-icon">⬚</span>
+            <span class="dock-label">Room</span>
+          </button>
+          <button
+            class="dock-btn ${this.activeTool === 'add_opening' && this.activeMobileSheet === 'none' ? 'active' : ''}"
+            @click=${() => {
+              this.activeTool = 'add_opening';
+              this.activeMobileSheet = 'none';
+            }}
+          >
+            <span class="dock-icon">🚪</span>
+            <span class="dock-label">Opening</span>
+          </button>
+          <button
+            class="dock-btn ${this.activeTool === 'measure' && this.activeMobileSheet === 'none' ? 'active' : ''}"
+            @click=${() => {
+              this.activeTool = 'measure';
+              this.activeMobileSheet = 'none';
+            }}
+          >
+            <span class="dock-icon">📏</span>
+            <span class="dock-label">Measure</span>
+          </button>
+
+          <div class="dock-divider"></div>
+
+          <button
+            class="dock-btn ${this.activeMobileSheet === 'palette' ? 'active' : ''}"
+            @click=${() => {
+              this.activeMobileSheet =
+                this.activeMobileSheet === 'palette' ? 'none' : 'palette';
+            }}
+          >
+            <span class="dock-icon">+</span>
+            <span class="dock-label">Add</span>
+          </button>
+          <button
+            class="dock-btn ${this.activeMobileSheet === 'inspector' ? 'active' : ''}"
+            @click=${() => {
+              this.activeMobileSheet =
+                this.activeMobileSheet === 'inspector' ? 'none' : 'inspector';
+            }}
+          >
+            <span class="dock-icon">⚙</span>
+            <span class="dock-label">Props</span>
+          </button>
+        </div>
+
+        <!-- Slide-Up Bottom Sheets -->
+        ${this.activeMobileSheet !== 'none'
+          ? html`
+              <div
+                class="mobile-sheet-backdrop"
+                @click=${() => (this.activeMobileSheet = 'none')}
+              ></div>
+              <div class="mobile-sheet-drawer">
+                <div class="mobile-sheet-header">
+                  <span class="sheet-title">
+                    ${this.activeMobileSheet === 'palette'
+                      ? 'Entities & Furniture Catalog'
+                      : 'Property Inspector'}
+                  </span>
+                  <button
+                    class="sheet-close-btn"
+                    aria-label="Close sheet"
+                    @click=${() => (this.activeMobileSheet = 'none')}
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div class="mobile-sheet-content">
+                  ${this.activeMobileSheet === 'palette'
+                    ? html`
+                        <floorplan-entity-palette
+                          ?mobile=${true}
+                          .hass=${this.hass}
+                          .activeFloor=${activeFloor}
+                          .selectedRoomAreaId=${selectedRoomAreaId}
+                          @palette-place=${this.handlePalettePlace}
+                        ></floorplan-entity-palette>
+                      `
+                    : html`
+                        <floorplan-property-inspector
+                          ?mobile=${true}
+                          .hass=${this.hass}
+                          .document=${this.currentDocument}
+                          .floor=${activeFloor}
+                          .selection=${this.selection}
+                          @document-mutate=${this.handleDocumentMutate}
+                          @delete-selected=${() => this.deleteSelection()}
+                          @open-blueprint-modal=${() => (this.isBlueprintModalOpen = true)}
+                        ></floorplan-property-inspector>
+                      `}
+                </div>
+              </div>
+            `
+          : ''}
+      </div>
     `;
   }
 }

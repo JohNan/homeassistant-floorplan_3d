@@ -72,12 +72,14 @@ const DOMAIN_FILTERS = [
 
 /**
  * Left-dock Palette for Home Assistant Entities, Openings & Procedural 3D Furniture.
+ * Adapts to desktop sidebar and mobile slide-up bottom sheets.
  */
 @customElement('floorplan-entity-palette')
 export class EntityPalette extends LitElement {
   @property({ attribute: false }) public hass?: HomeAssistant;
   @property({ attribute: false }) public activeFloor?: FloorLevel;
   @property({ type: String }) public selectedRoomAreaId: string | null = null;
+  @property({ type: Boolean, reflect: true }) public mobile = false;
 
   @state() private activeTab: 'entities' | 'catalog' = 'entities';
   @state() private searchQuery = '';
@@ -92,42 +94,51 @@ export class EntityPalette extends LitElement {
       flex-direction: column;
       width: 320px;
       height: 100%;
-      background: #0f172a;
-      border-right: 1px solid #334155;
-      color: #f8fafc;
+      background: var(--card-background-color, #0f172a);
+      border-right: 1px solid var(--divider-color, #334155);
+      color: var(--primary-text-color, #f8fafc);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 13px;
       box-sizing: border-box;
       user-select: none;
     }
 
+    :host([mobile]) {
+      width: 100%;
+      border: none;
+      height: auto;
+      max-height: 100%;
+    }
+
     .tabs-header {
       display: flex;
-      background: #1e293b;
-      border-bottom: 1px solid #334155;
+      background: var(--secondary-background-color, #1e293b);
+      border-bottom: 1px solid var(--divider-color, #334155);
     }
 
     .tab-button {
       flex: 1;
-      padding: 10px 8px;
+      padding: 12px 8px;
+      min-height: 44px;
       text-align: center;
       background: transparent;
       border: none;
-      color: #94a3b8;
-      font-size: 12px;
+      color: var(--secondary-text-color, #94a3b8);
+      font-size: 13px;
       font-weight: 600;
       cursor: pointer;
       border-bottom: 2px solid transparent;
       transition: color 0.15s, border-color 0.15s;
+      box-sizing: border-box;
     }
 
     .tab-button:hover {
-      color: #f8fafc;
+      color: var(--primary-text-color, #f8fafc);
     }
 
     .tab-button.active {
-      color: #3b82f6;
-      border-bottom-color: #3b82f6;
+      color: var(--primary-color, #3b82f6);
+      border-bottom-color: var(--primary-color, #3b82f6);
       background: rgba(59, 130, 246, 0.05);
     }
 
@@ -146,7 +157,7 @@ export class EntityPalette extends LitElement {
     }
 
     .tab-content::-webkit-scrollbar-thumb {
-      background: #334155;
+      background: var(--divider-color, #334155);
       border-radius: 2px;
     }
 
@@ -157,69 +168,78 @@ export class EntityPalette extends LitElement {
     .search-box input {
       width: 100%;
       box-sizing: border-box;
-      background: #1e293b;
-      border: 1px solid #475569;
+      background: var(--secondary-background-color, #1e293b);
+      border: 1px solid var(--divider-color, #475569);
       border-radius: 6px;
-      padding: 7px 10px;
-      color: #f8fafc;
-      font-size: 12px;
+      padding: 8px 12px;
+      color: var(--primary-text-color, #f8fafc);
+      font-size: 13px;
       outline: none;
+      min-height: 38px;
     }
 
     .search-box input:focus {
-      border-color: #3b82f6;
+      border-color: var(--primary-color, #3b82f6);
     }
 
     .chips-bar {
       display: flex;
       flex-wrap: wrap;
-      gap: 4px;
+      gap: 6px;
     }
 
     .chip {
-      background: #1e293b;
-      color: #94a3b8;
-      border: 1px solid #334155;
-      border-radius: 12px;
-      padding: 3px 8px;
-      font-size: 11px;
+      background: var(--secondary-background-color, #1e293b);
+      color: var(--secondary-text-color, #94a3b8);
+      border: 1px solid var(--divider-color, #334155);
+      border-radius: 16px;
+      padding: 6px 12px;
+      font-size: 12px;
       cursor: pointer;
+      min-height: 34px;
+      box-sizing: border-box;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       transition: background 0.15s, color 0.15s;
     }
 
     .chip:hover {
-      color: #f8fafc;
-      border-color: #64748b;
+      color: var(--primary-text-color, #f8fafc);
+      border-color: var(--divider-color, #64748b);
     }
 
     .chip.active {
-      background: #2563eb;
+      background: var(--primary-color, #2563eb);
       color: #ffffff;
-      border-color: #3b82f6;
+      border-color: var(--primary-color, #3b82f6);
     }
 
     .toggles-bar {
       display: flex;
       flex-direction: column;
-      gap: 6px;
-      background: #1e293b;
-      padding: 8px 10px;
+      gap: 8px;
+      background: var(--secondary-background-color, #1e293b);
+      padding: 10px 12px;
       border-radius: 6px;
-      border: 1px solid #334155;
+      border: 1px solid var(--divider-color, #334155);
     }
 
     .toggle-row {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       font-size: 12px;
-      color: #cbd5e1;
+      color: var(--primary-text-color, #cbd5e1);
       cursor: pointer;
+      min-height: 30px;
     }
 
     .toggle-row input[type='checkbox'] {
       cursor: pointer;
-      accent-color: #3b82f6;
+      accent-color: var(--primary-color, #3b82f6);
+      width: 18px;
+      height: 18px;
     }
 
     .section-title {
@@ -227,31 +247,33 @@ export class EntityPalette extends LitElement {
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      color: #64748b;
+      color: var(--secondary-text-color, #64748b);
       margin-top: 4px;
     }
 
     .items-list {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
     }
 
     .item-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      background: #1e293b;
-      border: 1px solid #334155;
+      background: var(--secondary-background-color, #1e293b);
+      border: 1px solid var(--divider-color, #334155);
       border-radius: 6px;
-      padding: 8px 10px;
+      padding: 8px 12px;
       cursor: grab;
+      min-height: 44px;
+      box-sizing: border-box;
       transition: border-color 0.15s, background 0.15s;
     }
 
     .item-row:hover {
-      background: #273549;
-      border-color: #475569;
+      background: rgba(255, 255, 255, 0.05);
+      border-color: var(--divider-color, #475569);
     }
 
     .item-row:active {
@@ -261,15 +283,15 @@ export class EntityPalette extends LitElement {
     .item-left {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       min-width: 0;
       flex: 1;
     }
 
     .item-icon {
-      font-size: 16px;
+      font-size: 18px;
       flex-shrink: 0;
-      width: 22px;
+      width: 24px;
       text-align: center;
     }
 
@@ -277,12 +299,13 @@ export class EntityPalette extends LitElement {
       display: flex;
       flex-direction: column;
       min-width: 0;
+      gap: 2px;
     }
 
     .item-name {
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 600;
-      color: #f8fafc;
+      color: var(--primary-text-color, #f8fafc);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -290,34 +313,37 @@ export class EntityPalette extends LitElement {
 
     .item-subtext {
       font-size: 11px;
-      color: #94a3b8;
+      color: var(--secondary-text-color, #94a3b8);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
     .place-btn {
-      background: #334155;
-      color: #f8fafc;
-      border: none;
+      background: var(--secondary-background-color, #334155);
+      color: var(--primary-text-color, #f8fafc);
+      border: 1px solid var(--divider-color, #475569);
       border-radius: 4px;
-      padding: 4px 8px;
-      font-size: 11px;
+      padding: 6px 12px;
+      font-size: 12px;
       font-weight: 600;
       cursor: pointer;
       flex-shrink: 0;
+      min-height: 34px;
       transition: background 0.15s;
     }
 
     .place-btn:hover {
-      background: #2563eb;
+      background: var(--primary-color, #2563eb);
+      color: #ffffff;
+      border-color: var(--primary-color, #3b82f6);
     }
 
     .placed-pill {
       font-size: 10px;
       font-weight: 700;
       background: rgba(34, 197, 94, 0.2);
-      color: #4ade80;
+      color: var(--success-color, #4ade80);
       border: 1px solid rgba(34, 197, 94, 0.4);
       padding: 1px 5px;
       border-radius: 8px;
@@ -327,8 +353,8 @@ export class EntityPalette extends LitElement {
     .empty-state {
       padding: 24px 12px;
       text-align: center;
-      color: #64748b;
-      font-size: 12px;
+      color: var(--secondary-text-color, #64748b);
+      font-size: 13px;
     }
   `;
 

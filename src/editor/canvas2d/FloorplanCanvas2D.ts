@@ -36,6 +36,9 @@ import type { WallMiterFootprint } from '../../engine/contracts';
  * Provides metric pan/zoom viewport, interactive wall miter drafting, opening placement,
  * room polygon tracing, furniture and entity manipulation, snap engine, onion-skin trace,
  * calibrated blueprint background, and HTML5 palette drag-and-drop.
+ *
+ * Wave 4: Multi-touch pinch-to-zoom & two-finger pan, enlarged touch hit-targets,
+ * on-screen touch action pills, floating zoom controls, and Home Assistant theme integration.
  */
 @customElement('floorplan-canvas-2d')
 export class FloorplanCanvas2D extends LitElement {
@@ -46,7 +49,7 @@ export class FloorplanCanvas2D extends LitElement {
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: #0b0f19;
+      background: var(--primary-background-color, #0b0f19);
       user-select: none;
       -webkit-user-select: none;
       touch-action: none;
@@ -83,7 +86,7 @@ export class FloorplanCanvas2D extends LitElement {
     }
 
     .wall-node:hover {
-      transform: scale(1.25);
+      transform: scale(1.2);
     }
 
     .room-polygon {
@@ -131,50 +134,50 @@ export class FloorplanCanvas2D extends LitElement {
       display: flex;
       flex-direction: column;
       align-items: flex-start;
-      background: rgba(15, 23, 42, 0.85);
+      background: var(--card-background-color, rgba(15, 23, 42, 0.9));
+      color: var(--primary-text-color, #f8fafc);
       backdrop-filter: blur(4px);
       padding: 0.35rem 0.6rem;
       border-radius: 6px;
-      border: 1px solid #334155;
-      color: #94a3b8;
+      border: 1px solid var(--divider-color, #334155);
       font-size: 0.75rem;
       font-weight: 500;
     }
 
     .scale-ruler {
       height: 4px;
-      border: 1px solid #38bdf8;
+      border: 1px solid var(--primary-color, #38bdf8);
       border-top: none;
       background: rgba(56, 189, 248, 0.2);
       margin-top: 2px;
     }
 
     .hud-coords {
-      background: rgba(15, 23, 42, 0.85);
+      background: var(--card-background-color, rgba(15, 23, 42, 0.9));
+      color: var(--primary-text-color, #f8fafc);
       backdrop-filter: blur(4px);
       padding: 0.35rem 0.6rem;
       border-radius: 6px;
-      border: 1px solid #334155;
-      color: #94a3b8;
+      border: 1px solid var(--divider-color, #334155);
       font-size: 0.75rem;
       display: flex;
       gap: 0.75rem;
     }
 
     .hud-coords strong {
-      color: #f8fafc;
+      color: var(--primary-text-color, #f8fafc);
     }
 
     .hud-tool-badge {
       position: absolute;
       top: 1rem;
       left: 1rem;
-      background: rgba(15, 23, 42, 0.85);
+      background: var(--card-background-color, rgba(15, 23, 42, 0.9));
+      color: var(--primary-color, #38bdf8);
       backdrop-filter: blur(4px);
       padding: 0.35rem 0.75rem;
       border-radius: 6px;
-      border: 1px solid #334155;
-      color: #38bdf8;
+      border: 1px solid var(--divider-color, #334155);
       font-size: 0.8125rem;
       font-weight: 600;
       pointer-events: none;
@@ -183,10 +186,116 @@ export class FloorplanCanvas2D extends LitElement {
       gap: 0.5rem;
     }
 
+    .touch-action-bar {
+      position: absolute;
+      top: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.5rem;
+      z-index: 10;
+      pointer-events: auto;
+      max-width: 90vw;
+    }
+
+    .touch-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      padding: 0.4rem 0.85rem;
+      border-radius: 9999px;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--divider-color, #334155);
+      background: var(--card-background-color, rgba(15, 23, 42, 0.9));
+      color: var(--primary-text-color, #f8fafc);
+      backdrop-filter: blur(4px);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+      transition: transform 0.1s, opacity 0.15s, background-color 0.15s;
+      min-height: 36px;
+    }
+
+    .touch-pill:hover:not(:disabled) {
+      transform: translateY(-1px);
+    }
+
+    .touch-pill:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    .touch-pill:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .touch-pill-success {
+      background: var(--success-color, #10b981);
+      color: #ffffff;
+      border-color: transparent;
+    }
+
+    .touch-pill-danger {
+      background: var(--error-color, #ef4444);
+      color: #ffffff;
+      border-color: transparent;
+    }
+
+    .touch-pill-warning {
+      background: var(--warning-color, #f59e0b);
+      color: #ffffff;
+      border-color: transparent;
+    }
+
+    .zoom-controls {
+      position: absolute;
+      bottom: 1rem;
+      right: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      z-index: 10;
+      pointer-events: auto;
+    }
+
+    .zoom-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 36px;
+      min-height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--divider-color, #334155);
+      background: var(--card-background-color, rgba(15, 23, 42, 0.9));
+      color: var(--primary-text-color, #f8fafc);
+      backdrop-filter: blur(4px);
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+      transition: background-color 0.15s, transform 0.1s;
+    }
+
+    .zoom-btn:hover {
+      background: var(--secondary-background-color, #334155);
+    }
+
+    .zoom-btn:active {
+      transform: scale(0.95);
+    }
+
+    .zoom-btn-fit {
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
     .dimension-label {
       font-size: 10px;
       font-weight: 600;
-      fill: #cbd5e1;
+      fill: var(--primary-text-color, #cbd5e1);
       text-anchor: middle;
       pointer-events: none;
       user-select: none;
@@ -215,6 +324,13 @@ export class FloorplanCanvas2D extends LitElement {
   @state() private panStartScreen: Point2D = { x: 0, y: 0 };
   @state() private panStartWorld: Point2D = { x: 0, y: 0 };
   @state() private spaceHeld = false;
+  private didPanMove = false;
+  private panStartedOnSelectable = false;
+
+  // Multi-Touch Pointer Tracking
+  private activePointers = new Map<number, Point2D>();
+  private prevPinchDist: number | null = null;
+  private prevPinchCenter: Point2D | null = null;
 
   // Active Tool States
   @state() private cursorWorld: Point2D = { x: 0, y: 0 };
@@ -240,10 +356,8 @@ export class FloorplanCanvas2D extends LitElement {
   // Selection Drag State
   private dragKind: 'node' | 'furniture' | 'furniture_rotate' | 'entity' | 'opening' | 'strip_point' | null = null;
   private dragItemId: string | null = null;
-  private dragStripIndex = -1;
   private dragStartWorld: Point2D = { x: 0, y: 0 };
   private itemOriginalPos: Point2D = { x: 0, y: 0 };
-  private itemOriginalAngle = 0;
   private isItemDragging = false;
 
   private resizeObserver?: ResizeObserver;
@@ -267,6 +381,7 @@ export class FloorplanCanvas2D extends LitElement {
     window.addEventListener('keyup', this.handleGlobalKeyUp);
     window.addEventListener('pointermove', this.handleGlobalPointerMove);
     window.addEventListener('pointerup', this.handleGlobalPointerUp);
+    window.addEventListener('pointercancel', this.handleGlobalPointerUp);
   }
 
   override disconnectedCallback(): void {
@@ -276,6 +391,7 @@ export class FloorplanCanvas2D extends LitElement {
     window.removeEventListener('keyup', this.handleGlobalKeyUp);
     window.removeEventListener('pointermove', this.handleGlobalPointerMove);
     window.removeEventListener('pointerup', this.handleGlobalPointerUp);
+    window.removeEventListener('pointercancel', this.handleGlobalPointerUp);
   }
 
   private hasInitialFit = false;
@@ -312,6 +428,32 @@ export class FloorplanCanvas2D extends LitElement {
 
   private sy(wy: number): number {
     return this.canvasHeight / 2 + (wy - this.panY) * this.pixelsPerMeter;
+  }
+
+  /**
+   * Returns current world coordinates (meters) at center of viewport.
+   */
+  public getViewportCenterWorld(): Point2D {
+    return {
+      x: Number(this.panX.toFixed(3)),
+      y: Number(this.panY.toFixed(3))
+    };
+  }
+
+  /**
+   * Zooms in by a factor of 1.25.
+   */
+  public zoomIn(): void {
+    this.pixelsPerMeter = Math.max(20, Math.min(250, this.pixelsPerMeter * 1.25));
+    this.requestUpdate();
+  }
+
+  /**
+   * Zooms out by a factor of 0.8.
+   */
+  public zoomOut(): void {
+    this.pixelsPerMeter = Math.max(20, Math.min(250, this.pixelsPerMeter * 0.8));
+    this.requestUpdate();
   }
 
   /**
@@ -470,6 +612,8 @@ export class FloorplanCanvas2D extends LitElement {
 
   // Pointer Interaction
   private handleSvgPointerDown(e: PointerEvent): void {
+    this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
     const isPanTrigger = e.button === 1 || e.button === 2 || (e.button === 0 && this.spaceHeld);
 
     if (isPanTrigger) {
@@ -477,10 +621,20 @@ export class FloorplanCanvas2D extends LitElement {
       this.isPanning = true;
       this.panStartScreen = { x: e.clientX, y: e.clientY };
       this.panStartWorld = { x: this.panX, y: this.panY };
+      this.didPanMove = false;
       return;
     }
 
     if (e.button !== 0 || !this.floor) return;
+
+    // Single-Finger Empty-Canvas Pan in 'select' Mode
+    if (this.toolMode === 'select' && !this.isItemDragging && this.activePointers.size === 1) {
+      this.isPanning = true;
+      this.panStartScreen = { x: e.clientX, y: e.clientY };
+      this.panStartWorld = { x: this.panX, y: this.panY };
+      this.didPanMove = false;
+      return;
+    }
 
     const rect = this.getBoundingClientRect();
     const screenX = e.clientX - rect.left;
@@ -495,20 +649,64 @@ export class FloorplanCanvas2D extends LitElement {
       this.handleAddOpeningClick();
     } else if (this.toolMode === 'measure') {
       this.handleMeasureClick(worldPt);
-    } else if (this.toolMode === 'select') {
-      // Empty canvas click in select mode clears selection
-      if (!this.isItemDragging) {
-        this.emitSelectionChange({ kind: 'none', id: null });
-      }
     }
   }
 
   private handleGlobalPointerMove = (e: PointerEvent): void => {
+    if (this.activePointers.has(e.pointerId)) {
+      this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+
+    // Multi-Touch Pinch-to-Zoom & Two-Finger Pan (All Tool Modes)
+    if (this.activePointers.size === 2) {
+      if (this.isItemDragging) {
+        this.isItemDragging = false;
+        this.dragKind = null;
+        this.dragItemId = null;
+      }
+      this.isPanning = false;
+
+      const pts = Array.from(this.activePointers.values());
+      const rect = this.getBoundingClientRect();
+      const s1 = { x: pts[0].x - rect.left, y: pts[0].y - rect.top };
+      const s2 = { x: pts[1].x - rect.left, y: pts[1].y - rect.top };
+
+      const dist = Math.hypot(s2.x - s1.x, s2.y - s1.y);
+      const center = { x: (s1.x + s2.x) / 2, y: (s1.y + s2.y) / 2 };
+
+      if (this.prevPinchDist && this.prevPinchCenter && this.prevPinchDist > 10) {
+        const ratio = dist / this.prevPinchDist;
+        const newPpm = Math.max(20, Math.min(250, this.pixelsPerMeter * ratio));
+
+        // Keep the world point under prevPinchCenter anchored while applying center translation
+        const worldUnderPrevCenter = {
+          x: this.panX + (this.prevPinchCenter.x - this.canvasWidth / 2) / this.pixelsPerMeter,
+          y: this.panY + (this.prevPinchCenter.y - this.canvasHeight / 2) / this.pixelsPerMeter
+        };
+
+        this.panX = worldUnderPrevCenter.x - (center.x - this.canvasWidth / 2) / newPpm;
+        this.panY = worldUnderPrevCenter.y - (center.y - this.canvasHeight / 2) / newPpm;
+        this.pixelsPerMeter = newPpm;
+      }
+
+      this.prevPinchDist = dist;
+      this.prevPinchCenter = center;
+      return;
+    }
+
+    if (this.activePointers.size < 2) {
+      this.prevPinchDist = null;
+      this.prevPinchCenter = null;
+    }
+
     if (this.isPanning) {
       const dx = (e.clientX - this.panStartScreen.x) / this.pixelsPerMeter;
       const dy = (e.clientY - this.panStartScreen.y) / this.pixelsPerMeter;
       this.panX = this.panStartWorld.x - dx;
       this.panY = this.panStartWorld.y - dy;
+      if (Math.hypot(e.clientX - this.panStartScreen.x, e.clientY - this.panStartScreen.y) > 5) {
+        this.didPanMove = true;
+      }
       return;
     }
 
@@ -538,9 +736,20 @@ export class FloorplanCanvas2D extends LitElement {
     }
   };
 
-  private handleGlobalPointerUp = (_e: PointerEvent): void => {
+  private handleGlobalPointerUp = (e: PointerEvent): void => {
+    this.activePointers.delete(e.pointerId);
+    if (this.activePointers.size < 2) {
+      this.prevPinchDist = null;
+      this.prevPinchCenter = null;
+    }
+
     if (this.isPanning) {
       this.isPanning = false;
+      // If was in select mode and user tapped empty background (not a room/wall) without panning, clear selection
+      if (this.toolMode === 'select' && !this.didPanMove && !this.panStartedOnSelectable) {
+        this.emitSelectionChange({ kind: 'none', id: null });
+      }
+      this.panStartedOnSelectable = false;
     }
 
     if (this.isItemDragging && this.floor) {
@@ -748,9 +957,16 @@ export class FloorplanCanvas2D extends LitElement {
   }
 
   // Item Dragging Logic in 'select' Mode
+  private updateCursorFromPointerEvent(e: PointerEvent): void {
+    const rect = this.getBoundingClientRect();
+    this.cursorWorld = this.screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+  }
+
   private startNodeDrag(e: PointerEvent, node: WallNode): void {
     if (this.toolMode !== 'select' || e.button !== 0) return;
     e.stopPropagation();
+    this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    this.updateCursorFromPointerEvent(e);
     this.emitSelectionChange({ kind: 'node', id: node.id });
     this.dragKind = 'node';
     this.dragItemId = node.id;
@@ -762,10 +978,12 @@ export class FloorplanCanvas2D extends LitElement {
   private startFurnitureDrag(e: PointerEvent, furniture: FurnitureItem): void {
     if (this.toolMode !== 'select' || e.button !== 0) return;
     e.stopPropagation();
+    this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    this.updateCursorFromPointerEvent(e);
     this.emitSelectionChange({ kind: 'furniture', id: furniture.id });
     this.dragKind = 'furniture';
     this.dragItemId = furniture.id;
-    this.dragStartWorld = this.cursorWorld;
+    this.dragStartWorld = { ...this.cursorWorld };
     this.itemOriginalPos = { x: furniture.x, y: furniture.y };
     this.isItemDragging = true;
   }
@@ -773,21 +991,24 @@ export class FloorplanCanvas2D extends LitElement {
   private startFurnitureRotate(e: PointerEvent, furniture: FurnitureItem): void {
     if (this.toolMode !== 'select' || e.button !== 0) return;
     e.stopPropagation();
+    this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    this.updateCursorFromPointerEvent(e);
     this.emitSelectionChange({ kind: 'furniture', id: furniture.id });
     this.dragKind = 'furniture_rotate';
     this.dragItemId = furniture.id;
     this.itemOriginalPos = { x: furniture.x, y: furniture.y };
-    this.itemOriginalAngle = furniture.rotation_deg;
     this.isItemDragging = true;
   }
 
   private startEntityDrag(e: PointerEvent, entity: EntityPlacement): void {
     if (this.toolMode !== 'select' || e.button !== 0) return;
     e.stopPropagation();
+    this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    this.updateCursorFromPointerEvent(e);
     this.emitSelectionChange({ kind: 'entity', id: entity.id });
     this.dragKind = 'entity';
     this.dragItemId = entity.id;
-    this.dragStartWorld = this.cursorWorld;
+    this.dragStartWorld = { ...this.cursorWorld };
     this.itemOriginalPos = { x: entity.x, y: entity.y };
     this.isItemDragging = true;
   }
@@ -795,6 +1016,8 @@ export class FloorplanCanvas2D extends LitElement {
   private startOpeningDrag(e: PointerEvent, opening: WallOpening): void {
     if (this.toolMode !== 'select' || e.button !== 0) return;
     e.stopPropagation();
+    this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    this.updateCursorFromPointerEvent(e);
     this.emitSelectionChange({ kind: 'opening', id: opening.id });
     this.dragKind = 'opening';
     this.dragItemId = opening.id;
@@ -1113,7 +1336,7 @@ export class FloorplanCanvas2D extends LitElement {
           lines.push(svg`
             <line
               x1="${this.sx(x)}" y1="0" x2="${this.sx(x)}" y2="${this.canvasHeight}"
-              stroke="#1e293b" stroke-width="0.5" stroke-opacity="0.5"
+              stroke="var(--divider-color, #1e293b)" stroke-width="0.5" stroke-opacity="0.25"
             />
           `);
         }
@@ -1123,7 +1346,7 @@ export class FloorplanCanvas2D extends LitElement {
           lines.push(svg`
             <line
               x1="0" y1="${this.sy(y)}" x2="${this.canvasWidth}" y2="${this.sy(y)}"
-              stroke="#1e293b" stroke-width="0.5" stroke-opacity="0.5"
+              stroke="var(--divider-color, #1e293b)" stroke-width="0.5" stroke-opacity="0.25"
             />
           `);
         }
@@ -1136,9 +1359,9 @@ export class FloorplanCanvas2D extends LitElement {
       lines.push(svg`
         <line
           x1="${this.sx(x)}" y1="0" x2="${this.sx(x)}" y2="${this.canvasHeight}"
-          stroke="${isOrigin ? '#475569' : '#334155'}"
+          stroke="var(--divider-color, #334155)"
           stroke-width="${isOrigin ? 1.5 : 0.8}"
-          stroke-opacity="${isOrigin ? 0.8 : 0.4}"
+          stroke-opacity="${isOrigin ? 0.9 : 0.45}"
         />
       `);
     }
@@ -1148,9 +1371,9 @@ export class FloorplanCanvas2D extends LitElement {
       lines.push(svg`
         <line
           x1="0" y1="${this.sy(y)}" x2="${this.canvasWidth}" y2="${this.sy(y)}"
-          stroke="${isOrigin ? '#475569' : '#334155'}"
+          stroke="var(--divider-color, #334155)"
           stroke-width="${isOrigin ? 1.5 : 0.8}"
-          stroke-opacity="${isOrigin ? 0.8 : 0.4}"
+          stroke-opacity="${isOrigin ? 0.9 : 0.45}"
         />
       `);
     }
@@ -1254,7 +1477,15 @@ export class FloorplanCanvas2D extends LitElement {
             @pointerdown="${(e: PointerEvent) => {
               if (this.toolMode === 'select' && e.button === 0) {
                 e.stopPropagation();
+                this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
                 this.emitSelectionChange({ kind: 'room', id: room.id });
+                if (this.activePointers.size === 1) {
+                  this.isPanning = true;
+                  this.panStartScreen = { x: e.clientX, y: e.clientY };
+                  this.panStartWorld = { x: this.panX, y: this.panY };
+                  this.didPanMove = false;
+                  this.panStartedOnSelectable = true;
+                }
               }
             }}"
           />
@@ -1339,7 +1570,15 @@ export class FloorplanCanvas2D extends LitElement {
             @pointerdown="${(e: PointerEvent) => {
               if (this.toolMode === 'select' && e.button === 0) {
                 e.stopPropagation();
+                this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
                 this.emitSelectionChange({ kind: 'wall', id: wall.id });
+                if (this.activePointers.size === 1) {
+                  this.isPanning = true;
+                  this.panStartScreen = { x: e.clientX, y: e.clientY };
+                  this.panStartWorld = { x: this.panX, y: this.panY };
+                  this.didPanMove = false;
+                  this.panStartedOnSelectable = true;
+                }
               }
             }}"
           />
@@ -1411,12 +1650,12 @@ export class FloorplanCanvas2D extends LitElement {
           class="opening-item"
           @pointerdown="${(e: PointerEvent) => this.startOpeningDrag(e, opening)}"
         >
-          <!-- Transparent clickable hit box -->
+          <!-- Transparent enlarged touch hit-box -->
           <line
             x1="${this.sx(p1.x)}" y1="${this.sy(p1.y)}"
             x2="${this.sx(p2.x)}" y2="${this.sy(p2.y)}"
             stroke="transparent"
-            stroke-width="24"
+            stroke-width="32"
           />
 
           <!-- Wall cutout line -->
@@ -1485,6 +1724,9 @@ export class FloorplanCanvas2D extends LitElement {
           transform="translate(${nx}, ${ny})"
           @pointerdown="${(e: PointerEvent) => this.startNodeDrag(e, node)}"
         >
+          <!-- Enlarged touch target -->
+          <circle r="18" fill="transparent" />
+
           ${isSelected
             ? svg`
                 <circle r="12" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="2,2" />
@@ -1551,7 +1793,7 @@ export class FloorplanCanvas2D extends LitElement {
             ${item.label}
           </text>
 
-          <!-- Interactive Rotation Handle (When Selected) -->
+          <!-- Interactive Rotation Handle (When Selected) with Enlarged Touch Target -->
           ${isSelected
             ? svg`
                 <line
@@ -1561,6 +1803,15 @@ export class FloorplanCanvas2D extends LitElement {
                   stroke-width="1.5"
                   stroke-dasharray="3,2"
                 />
+                <!-- Enlarged 18px touch hit-target -->
+                <circle
+                  cx="0"
+                  cy="${-rotHandleDist}"
+                  r="18"
+                  fill="transparent"
+                  class="rotation-handle"
+                  @pointerdown="${(e: PointerEvent) => this.startFurnitureRotate(e, item)}"
+                />
                 <circle
                   class="rotation-handle"
                   cx="0"
@@ -1569,7 +1820,7 @@ export class FloorplanCanvas2D extends LitElement {
                   fill="#38bdf8"
                   stroke="#ffffff"
                   stroke-width="2"
-                  @pointerdown="${(e: PointerEvent) => this.startFurnitureRotate(e, item)}"
+                  style="pointer-events: none;"
                 />
               `
             : nothing}
@@ -1619,6 +1870,9 @@ export class FloorplanCanvas2D extends LitElement {
           transform="translate(${ex}, ${ey})"
           @pointerdown="${(e: PointerEvent) => this.startEntityDrag(e, entity)}"
         >
+          <!-- Enlarged 20px Touch Hit-Target -->
+          <circle r="20" fill="transparent" />
+
           <!-- Light Falloff Circle Preview when selected -->
           ${isSelected && entity.light_config && entity.light_config.radius_m
             ? svg`
@@ -1767,7 +2021,7 @@ export class FloorplanCanvas2D extends LitElement {
             width="80"
             height="20"
             rx="4"
-            fill="#0f172a"
+            fill="var(--card-background-color, #0f172a)"
             stroke="#f59e0b"
             stroke-width="1"
           />
@@ -1786,6 +2040,60 @@ export class FloorplanCanvas2D extends LitElement {
     }
 
     return previews;
+  }
+
+  private renderTouchActionBar() {
+    if (this.toolMode === 'draw_wall' && this.wallDrawStartPoint) {
+      return html`
+        <div class="touch-action-bar">
+          <button class="touch-pill touch-pill-success" @click="${() => this.cancelActiveOperation()}">
+            ✓ Finish Wall
+          </button>
+          <button class="touch-pill touch-pill-danger" @click="${() => this.cancelActiveOperation()}">
+            ✕ Cancel
+          </button>
+        </div>
+      `;
+    }
+
+    if (this.toolMode === 'draw_room' && this.roomDrawPoints.length > 0) {
+      return html`
+        <div class="touch-action-bar">
+          <button
+            class="touch-pill touch-pill-success"
+            ?disabled="${this.roomDrawPoints.length < 3}"
+            @click="${() => this.finishRoomPolygon()}"
+          >
+            ✓ Complete Room (${this.roomDrawPoints.length})
+          </button>
+          <button class="touch-pill touch-pill-danger" @click="${() => this.cancelActiveOperation()}">
+            ✕ Cancel
+          </button>
+        </div>
+      `;
+    }
+
+    if (this.toolMode === 'measure' && this.measureP1) {
+      return html`
+        <div class="touch-action-bar">
+          <button class="touch-pill touch-pill-warning" @click="${() => this.cancelActiveOperation()}">
+            ✕ Clear Measure
+          </button>
+        </div>
+      `;
+    }
+
+    if (this.selection.kind !== 'none' && this.selection.id) {
+      return html`
+        <div class="touch-action-bar">
+          <button class="touch-pill touch-pill-danger" @click="${() => this.deleteSelected()}">
+            🗑 Delete ${this.selection.kind}
+          </button>
+        </div>
+      `;
+    }
+
+    return nothing;
   }
 
   override render() {
@@ -1865,6 +2173,9 @@ export class FloorplanCanvas2D extends LitElement {
           ${this.renderActiveToolPreviews()}
         </svg>
 
+        <!-- Floating On-Screen Touch Action Pills -->
+        ${this.renderTouchActionBar()}
+
         <!-- Metric Scale & Coordinates HUD Overlay -->
         <div class="hud-overlay">
           <div class="hud-scale-bar">
@@ -1881,6 +2192,13 @@ export class FloorplanCanvas2D extends LitElement {
         <!-- Tool Mode Badge -->
         <div class="hud-tool-badge">
           <span>Tool: <strong>${this.toolMode.toUpperCase()}</strong></span>
+        </div>
+
+        <!-- Floating Zoom & Fit Controls -->
+        <div class="zoom-controls">
+          <button class="zoom-btn" title="Zoom In" @click="${() => this.zoomIn()}">+</button>
+          <button class="zoom-btn" title="Zoom Out" @click="${() => this.zoomOut()}">−</button>
+          <button class="zoom-btn zoom-btn-fit" title="Fit to Floor" @click="${() => this.fitViewToFloor()}">⊡ Fit</button>
         </div>
       </div>
     `;

@@ -125,4 +125,80 @@ describe('Wave 3 UI Components (<floorplan-3d-card> & <floorplan-editor-panel>)'
       expect(spy).not.toHaveBeenCalled();
     }
   });
+
+  it('switches to mobile layout when narrow=true, dispatches hass-toggle-menu once, and places items at viewport center', async () => {
+    const panel = document.createElement('floorplan-editor-panel') as FloorplanEditorPanel;
+    panel.narrow = true;
+    document.body.appendChild(panel);
+    await panel.updateComplete;
+
+    const anyPanel = panel as unknown as {
+      viewLayout: string;
+      activeMobileSheet: string;
+      currentDocument: {
+        floors: Array<{
+          entities: Array<{ entity_id: string; x: number; y: number }>;
+        }>;
+      };
+    };
+
+    // Split mode automatically collapses to single 2d viewport on mobile
+    expect(anyPanel.viewLayout).toBe('2d');
+
+    // Bottom CAD dock is rendered
+    const bottomDock = panel.shadowRoot?.querySelector('.mobile-bottom-dock');
+    expect(bottomDock).not.toBeNull();
+
+    // Hamburger menu button in toolbar dispatches hass-toggle-menu exactly once
+    const toolbar = panel.shadowRoot?.querySelector('floorplan-editor-toolbar');
+    expect(toolbar).not.toBeNull();
+    await toolbar?.updateComplete;
+
+    let toggleMenuCount = 0;
+    panel.addEventListener('hass-toggle-menu', () => {
+      toggleMenuCount++;
+    });
+
+    const menuBtn = toolbar?.shadowRoot?.querySelector('.ha-menu-btn') as HTMLButtonElement | null;
+    expect(menuBtn).not.toBeNull();
+    menuBtn?.click();
+    expect(toggleMenuCount).toBe(1);
+
+    // Pan 2D canvas to (2.5, -1.5) and place an entity from palette while sheet is open
+    anyPanel.activeMobileSheet = 'palette';
+    await panel.updateComplete;
+
+    const canvas2d = panel.shadowRoot?.querySelector('floorplan-canvas-2d') as unknown as {
+      panX: number;
+      panY: number;
+      zoomIn: () => void;
+      zoomOut: () => void;
+      getViewportCenterWorld: () => { x: number; y: number };
+    };
+    expect(canvas2d).not.toBeNull();
+    canvas2d.panX = 2.5;
+    canvas2d.panY = -1.5;
+    expect(canvas2d.getViewportCenterWorld()).toEqual({ x: 2.5, y: -1.5 });
+    canvas2d.zoomIn();
+    canvas2d.zoomOut();
+
+    panel.renderRoot
+      .querySelector('floorplan-entity-palette')
+      ?.dispatchEvent(
+        new CustomEvent('palette-place', {
+          bubbles: true,
+          composed: true,
+          detail: { kind: 'entity', entityId: 'light.kitchen_spot', domain: 'light' }
+        })
+      );
+
+    // Sheet auto-closes and entity spawns at (2.5, -1.5)
+    expect(anyPanel.activeMobileSheet).toBe('none');
+    const placed = anyPanel.currentDocument.floors[0].entities.find(
+      (e) => e.entity_id === 'light.kitchen_spot'
+    );
+    expect(placed).toBeDefined();
+    expect(placed?.x).toBe(2.5);
+    expect(placed?.y).toBe(-1.5);
+  });
 });

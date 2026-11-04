@@ -10,6 +10,8 @@ import { computeCalibrationMetersPerPixel } from '../../utils/geometry2d';
  * Allows administrators to upload an architectural blueprint image (PNG/JPG/WEBP/SVG),
  * calibrate metric scale by clicking two known reference points, configure visual opacity,
  * and save the calibrated blueprint into Home Assistant storage.
+ *
+ * Fully integrated with Home Assistant theme CSS variables and mobile-responsive layout.
  */
 @customElement('floorplan-blueprint-modal')
 export class BlueprintModal extends LitElement {
@@ -21,7 +23,7 @@ export class BlueprintModal extends LitElement {
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(15, 23, 42, 0.75);
+      background: rgba(0, 0, 0, 0.75);
       backdrop-filter: blur(4px);
       z-index: 1000;
       display: flex;
@@ -32,8 +34,8 @@ export class BlueprintModal extends LitElement {
     }
 
     .modal-dialog {
-      background: #1e293b;
-      border: 1px solid #334155;
+      background: var(--card-background-color, #1e293b);
+      border: 1px solid var(--divider-color, #334155);
       border-radius: 12px;
       box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
       width: 100%;
@@ -41,25 +43,25 @@ export class BlueprintModal extends LitElement {
       max-height: 90vh;
       display: flex;
       flex-direction: column;
-      color: #f8fafc;
+      color: var(--primary-text-color, #f8fafc);
       overflow: hidden;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
 
     .modal-header {
       padding: 1rem 1.5rem;
-      border-bottom: 1px solid #334155;
+      border-bottom: 1px solid var(--divider-color, #334155);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      background: #0f172a;
+      background: var(--secondary-background-color, #0f172a);
     }
 
     .modal-header h2 {
       margin: 0;
       font-size: 1.25rem;
       font-weight: 600;
-      color: #f8fafc;
+      color: var(--primary-text-color, #f8fafc);
       display: flex;
       align-items: center;
       gap: 0.5rem;
@@ -68,7 +70,7 @@ export class BlueprintModal extends LitElement {
     .close-btn {
       background: transparent;
       border: none;
-      color: #94a3b8;
+      color: var(--secondary-text-color, #94a3b8);
       cursor: pointer;
       font-size: 1.5rem;
       line-height: 1;
@@ -78,8 +80,8 @@ export class BlueprintModal extends LitElement {
     }
 
     .close-btn:hover {
-      color: #f8fafc;
-      background: #334155;
+      color: var(--primary-text-color, #f8fafc);
+      background: var(--divider-color, #334155);
     }
 
     .modal-body {
@@ -92,17 +94,17 @@ export class BlueprintModal extends LitElement {
     }
 
     .instructions-card {
-      background: #0f172a;
-      border: 1px solid #334155;
+      background: var(--secondary-background-color, #0f172a);
+      border: 1px solid var(--divider-color, #334155);
       border-radius: 8px;
       padding: 0.75rem 1rem;
       font-size: 0.875rem;
-      color: #94a3b8;
+      color: var(--secondary-text-color, #94a3b8);
       line-height: 1.5;
     }
 
     .instructions-card strong {
-      color: #38bdf8;
+      color: var(--primary-color, #38bdf8);
     }
 
     .control-row {
@@ -110,10 +112,10 @@ export class BlueprintModal extends LitElement {
       flex-wrap: wrap;
       gap: 1rem;
       align-items: flex-end;
-      background: #0f172a;
+      background: var(--secondary-background-color, #0f172a);
       padding: 1rem;
       border-radius: 8px;
-      border: 1px solid #334155;
+      border: 1px solid var(--divider-color, #334155);
     }
 
     .form-group {
@@ -129,14 +131,14 @@ export class BlueprintModal extends LitElement {
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      color: #94a3b8;
+      color: var(--secondary-text-color, #94a3b8);
     }
 
     .form-input {
-      background: #1e293b;
-      border: 1px solid #475569;
+      background: var(--card-background-color, #1e293b);
+      border: 1px solid var(--divider-color, #475569);
       border-radius: 6px;
-      color: #f8fafc;
+      color: var(--primary-text-color, #f8fafc);
       padding: 0.5rem 0.75rem;
       font-size: 0.875rem;
       outline: none;
@@ -144,7 +146,7 @@ export class BlueprintModal extends LitElement {
     }
 
     .form-input:focus {
-      border-color: #38bdf8;
+      border-color: var(--primary-color, #38bdf8);
     }
 
     .file-input-wrapper {
@@ -177,28 +179,28 @@ export class BlueprintModal extends LitElement {
     }
 
     .btn-secondary {
-      background: #334155;
-      color: #f8fafc;
-      border-color: #475569;
+      background: var(--secondary-background-color, #334155);
+      color: var(--primary-text-color, #f8fafc);
+      border-color: var(--divider-color, #475569);
     }
 
     .btn-secondary:hover:not(:disabled) {
-      background: #475569;
+      background: var(--divider-color, #475569);
     }
 
     .btn-primary {
-      background: #0284c7;
+      background: var(--primary-color, #0284c7);
       color: #ffffff;
     }
 
     .btn-primary:hover:not(:disabled) {
-      background: #0369a1;
+      filter: brightness(1.1);
     }
 
     .preview-container {
       position: relative;
-      background: #090d16;
-      border: 2px dashed #334155;
+      background: var(--primary-background-color, #090d16);
+      border: 2px dashed var(--divider-color, #334155);
       border-radius: 8px;
       min-height: 340px;
       max-height: 50vh;
@@ -207,11 +209,12 @@ export class BlueprintModal extends LitElement {
       align-items: center;
       justify-content: center;
       user-select: none;
+      touch-action: pan-x pan-y;
     }
 
     .preview-container.has-image {
       border-style: solid;
-      border-color: #475569;
+      border-color: var(--divider-color, #475569);
       cursor: crosshair;
     }
 
@@ -220,28 +223,29 @@ export class BlueprintModal extends LitElement {
       max-width: 100%;
       height: auto;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+      touch-action: none;
     }
 
     .stats-bar {
       display: flex;
       flex-wrap: wrap;
       gap: 1.5rem;
-      background: #0f172a;
+      background: var(--secondary-background-color, #0f172a);
       padding: 0.75rem 1rem;
       border-radius: 6px;
-      border: 1px solid #334155;
+      border: 1px solid var(--divider-color, #334155);
       font-size: 0.8125rem;
-      color: #94a3b8;
+      color: var(--secondary-text-color, #94a3b8);
     }
 
     .stats-item strong {
-      color: #f8fafc;
+      color: var(--primary-text-color, #f8fafc);
     }
 
     .error-banner {
-      background: #7f1d1d;
-      border: 1px solid #dc2626;
-      color: #fecaca;
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid var(--error-color, #dc2626);
+      color: var(--error-color, #fecaca);
       padding: 0.75rem 1rem;
       border-radius: 6px;
       font-size: 0.875rem;
@@ -249,12 +253,36 @@ export class BlueprintModal extends LitElement {
 
     .modal-footer {
       padding: 1rem 1.5rem;
-      border-top: 1px solid #334155;
+      border-top: 1px solid var(--divider-color, #334155);
       display: flex;
       align-items: center;
       justify-content: flex-end;
       gap: 0.75rem;
-      background: #0f172a;
+      background: var(--secondary-background-color, #0f172a);
+    }
+
+    @media (max-width: 768px) {
+      .modal-backdrop {
+        padding: 0.5rem;
+      }
+
+      .modal-dialog {
+        max-height: 95vh;
+      }
+
+      .control-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .btn {
+        min-height: 40px;
+      }
+
+      .stats-bar {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
     }
   `;
 
@@ -279,6 +307,8 @@ export class BlueprintModal extends LitElement {
   @state() private opacity = 0.5;
   @state() private isUploading = false;
   @state() private errorMessage: string | null = null;
+
+  private pointerDownPos: { x: number; y: number } | null = null;
 
   override updated(changedProperties: PropertyValues): void {
     if (changedProperties.has('open') && this.open) {
@@ -334,7 +364,18 @@ export class BlueprintModal extends LitElement {
     img.src = url;
   }
 
-  private handleSvgClick(e: MouseEvent): void {
+  private handleSvgPointerDown(e: PointerEvent): void {
+    this.pointerDownPos = { x: e.clientX, y: e.clientY };
+  }
+
+  private handleSvgPointerUp(e: PointerEvent): void {
+    if (!this.pointerDownPos) return;
+    const moveDist = Math.hypot(e.clientX - this.pointerDownPos.x, e.clientY - this.pointerDownPos.y);
+    this.pointerDownPos = null;
+
+    // Discard pointer releases that were panning/dragging movements on touchscreen
+    if (moveDist > 8) return;
+
     if (!this.naturalWidth || !this.naturalHeight) return;
     const svgEl = e.currentTarget as SVGSVGElement;
     const rect = svgEl.getBoundingClientRect();
@@ -590,9 +631,12 @@ export class BlueprintModal extends LitElement {
     const pxPerMeter = mpp > 0 ? 1 / mpp : 0;
 
     return html`
-      <div class="modal-backdrop" @click="${(e: MouseEvent) => {
-        if (e.target === e.currentTarget) this.handleClose();
-      }}">
+      <div
+        class="modal-backdrop"
+        @click="${(e: MouseEvent) => {
+          if (e.target === e.currentTarget) this.handleClose();
+        }}"
+      >
         <div class="modal-dialog">
           <div class="modal-header">
             <h2>
@@ -607,8 +651,8 @@ export class BlueprintModal extends LitElement {
 
           <div class="modal-body">
             <div class="instructions-card">
-              <strong>Interactive 2-Point Calibration:</strong> Select a blueprint image, click two distinct reference points
-              along a wall or landmark with known length (Point 1 and Point 2), enter the real-world distance in meters, and click Apply.
+              <strong>Interactive 2-Point Calibration:</strong> Select a blueprint image, tap or click two distinct reference points
+              along a wall or landmark of known length (Point 1 and Point 2), enter the real-world distance in meters, and click Apply.
             </div>
 
             ${this.errorMessage
@@ -684,7 +728,8 @@ export class BlueprintModal extends LitElement {
                     <svg
                       class="blueprint-svg"
                       viewBox="0 0 ${this.naturalWidth} ${this.naturalHeight}"
-                      @click="${this.handleSvgClick}"
+                      @pointerdown="${this.handleSvgPointerDown}"
+                      @pointerup="${this.handleSvgPointerUp}"
                     >
                       <image
                         href="${this.imageUrl}"
@@ -695,7 +740,7 @@ export class BlueprintModal extends LitElement {
                     </svg>
                   `
                 : html`
-                    <div style="color: #64748b; text-align: center; padding: 2rem;">
+                    <div style="color: var(--secondary-text-color, #64748b); text-align: center; padding: 2rem;">
                       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 0.5rem;">
                         <rect x="3" y="3" width="18" height="18" rx="2" />
                         <circle cx="8.5" cy="8.5" r="1.5" />
