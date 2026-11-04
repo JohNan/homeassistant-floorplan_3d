@@ -1,0 +1,700 @@
+import{i as m,n as w,r as c,a as y,F as x,A as f,b as n,t as C,W as D,c as S,e as P}from"./chunks/ws-client-S5oyb1qv.js";const M="modulepreload",z=function(e){return"/"+e},b={},W=function(t,o,i){let s=Promise.resolve();if(o&&o.length>0){document.getElementsByTagName("link");const a=document.querySelector("meta[property=csp-nonce]"),h=a?.nonce||a?.getAttribute("nonce");s=Promise.allSettled(o.map(u=>{if(u=z(u),u in b)return;b[u]=!0;const v=u.endsWith(".css"),$=v?'[rel="stylesheet"]':"";if(document.querySelector(`link[href="${u}"]${$}`))return;const _=document.createElement("link");if(_.rel=v?"stylesheet":M,v||(_.as="script"),_.crossOrigin="",_.href=u,h&&_.setAttribute("nonce",h),document.head.appendChild(_),v)return new Promise((F,k)=>{_.addEventListener("load",F),_.addEventListener("error",()=>k(new Error(`Unable to preload CSS for ${u}`)))})}))}function r(a){const h=new Event("vite:preloadError",{cancelable:!0});if(h.payload=a,window.dispatchEvent(h),!h.defaultPrevented)throw a}return s.then(a=>{for(const h of a||[])h.status==="rejected"&&r(h.reason);return t().catch(r)})};/**
+ * @license
+ * Copyright 2017 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */const L=(e,t,o)=>(o.configurable=!0,o.enumerable=!0,Reflect.decorate&&typeof t!="object"&&Object.defineProperty(e,t,o),o);/**
+ * @license
+ * Copyright 2017 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */function j(e,t){return(o,i,s)=>{const r=a=>a.renderRoot?.querySelector(e)??null;return L(o,i,{get(){return r(this)}})}}var E=Object.defineProperty,R=Object.getOwnPropertyDescriptor,g=(e,t,o,i)=>{for(var s=i>1?void 0:i?R(t,o):t,r=e.length-1,a;r>=0;r--)(a=e[r])&&(s=(i?a(t,o,s):a(s))||s);return i&&s&&E(t,o,s),s};let p=class extends y{constructor(){super(...arguments),this._floorplans=[],this._loadingFloorplans=!1,this._floorplansLoaded=!1}set hass(e){this._hass=e,!this._floorplansLoaded&&!this._loadingFloorplans&&this._fetchFloorplans()}get hass(){return this._hass}setConfig(e){this._config={...e},this._hass&&!this._floorplansLoaded&&!this._loadingFloorplans&&this._fetchFloorplans()}async _fetchFloorplans(){if(this._hass){this._loadingFloorplans=!0;try{const e=new x(()=>this._hass);this._floorplans=await e.listFloorplans(),this._floorplansLoaded=!0}catch(e){console.warn("[floorplan-3d-card-editor] Could not list floorplans:",e)}finally{this._loadingFloorplans=!1,this.requestUpdate()}}}_valueChanged(e){if(!this._config)return;const t=e.target,o=t.dataset.field;if(!o)return;let i;t instanceof HTMLInputElement&&t.type==="checkbox"?i=t.checked:t instanceof HTMLInputElement&&t.type==="number"?i=t.value?Number(t.value):void 0:i=t.value;const s={...this._config,[o]:i};(i===void 0||i==="")&&delete s[o],this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:s},bubbles:!0,composed:!0}))}render(){if(!this._config)return f;const e=this._config.floorplan_id||"",o=this._floorplans.find(i=>i.id===e)?.floors||[];return n`
+      <div class="editor-container">
+        <!-- Section: Floorplan Source -->
+        <div class="form-section">
+          <div class="section-header">Floorplan Source</div>
+
+          <div class="form-group">
+            <label class="form-label" for="floorplan_id">Floorplan Model</label>
+            <select
+              id="floorplan_id"
+              class="form-control"
+              data-field="floorplan_id"
+              .value=${e}
+              @change=${this._valueChanged}
+            >
+              ${this._floorplans.length===0?n`
+                    <option value="${e||"main_house"}">
+                      ${e||"main_house (custom)"}
+                    </option>
+                  `:this._floorplans.map(i=>n`
+                      <option
+                        value="${i.id}"
+                        ?selected=${i.id===e}
+                      >
+                        ${i.name||i.id} (rev ${i.revision})
+                      </option>
+                    `)}
+            </select>
+            <div class="helper-text">
+              Select a floorplan authored in the sidebar 2D Floorplan Editor.
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="default_floor_id">Default Starting Floor</label>
+            <select
+              id="default_floor_id"
+              class="form-control"
+              data-field="default_floor_id"
+              .value=${this._config.default_floor_id||""}
+              @change=${this._valueChanged}
+            >
+              <option value="">Auto (Ground Floor / Index 0)</option>
+              ${o.map(i=>n`
+                  <option
+                    value="${i.id}"
+                    ?selected=${i.id===this._config?.default_floor_id}
+                  >
+                    ${i.name||i.id} (Level ${i.level_index})
+                  </option>
+                `)}
+            </select>
+            <div class="helper-text">
+              The initial floor active when the card loads.
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Dimensions & Presentation -->
+        <div class="form-section">
+          <div class="section-header">Dimensions & Camera</div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label" for="height">Card Height (px)</label>
+              <input
+                id="height"
+                type="number"
+                class="form-control"
+                data-field="height"
+                min="240"
+                max="1600"
+                step="20"
+                .value=${String(this._config.height??520)}
+                @input=${this._valueChanged}
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="camera_projection">Camera Projection</label>
+              <select
+                id="camera_projection"
+                class="form-control"
+                data-field="camera_projection"
+                .value=${this._config.camera_projection??"perspective"}
+                @change=${this._valueChanged}
+              >
+                <option value="perspective">Perspective (True 3D)</option>
+                <option value="orthographic">Orthographic (Isometric)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="wall_mode">Wall Cutaway Mode</label>
+            <select
+              id="wall_mode"
+              class="form-control"
+              data-field="wall_mode"
+              .value=${this._config.wall_mode??"auto_cutaway"}
+              @change=${this._valueChanged}
+            >
+              <option value="auto_cutaway">Auto Cutaway (Sims-Style Camera Facing)</option>
+              <option value="half">Half Walls (Low Architectural Cross-Section)</option>
+              <option value="full">Full Walls (Full Height Room Enclosure)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Section: Environment & Performance -->
+        <div class="form-section">
+          <div class="section-header">Environment & Performance</div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label" for="ambient_mode">Ambient Lighting</label>
+              <select
+                id="ambient_mode"
+                class="form-control"
+                data-field="ambient_mode"
+                .value=${this._config.ambient_mode??"adaptive_contrast"}
+                @change=${this._valueChanged}
+              >
+                <option value="adaptive_contrast">Adaptive Contrast (Recommended)</option>
+                <option value="sun_sync">Sun Sync (Tracks sun.sun elevation)</option>
+                <option value="dark">Dark Theme / Night Mode</option>
+                <option value="daylight">Daylight Mode</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="quality_tier">Performance Tier</label>
+              <select
+                id="quality_tier"
+                class="form-control"
+                data-field="quality_tier"
+                .value=${this._config.quality_tier??"auto"}
+                @change=${this._valueChanged}
+              >
+                <option value="auto">Auto (Detect Platform & DPR)</option>
+                <option value="tablet">Wall Tablet (Optimized 0-FPS)</option>
+                <option value="high">High (Desktop / MSAA / 8 PointLights)</option>
+                <option value="low">Low (Legacy / 256px Lightmap)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: HUD & Interactivity Toggles -->
+        <div class="form-section">
+          <div class="section-header">Overlay Controls & Gestures</div>
+
+          <div class="switch-row">
+            <label class="switch-label" for="show_floor_selector">
+              <span class="switch-title">Floor Switcher & Dollhouse Bar</span>
+              <span class="switch-description">Show floor selector pills in top-left</span>
+            </label>
+            <input
+              id="show_floor_selector"
+              type="checkbox"
+              class="switch-control"
+              data-field="show_floor_selector"
+              ?checked=${this._config.show_floor_selector??!0}
+              @change=${this._valueChanged}
+            />
+          </div>
+
+          <div class="switch-row">
+            <label class="switch-label" for="show_wall_mode_toggle">
+              <span class="switch-title">Wall Cutaway Button</span>
+              <span class="switch-description">Allow toggling cutaway / half / full walls</span>
+            </label>
+            <input
+              id="show_wall_mode_toggle"
+              type="checkbox"
+              class="switch-control"
+              data-field="show_wall_mode_toggle"
+              ?checked=${this._config.show_wall_mode_toggle??!0}
+              @change=${this._valueChanged}
+            />
+          </div>
+
+          <div class="switch-row">
+            <label class="switch-label" for="show_reset_camera">
+              <span class="switch-title">Reset Camera Button</span>
+              <span class="switch-description">Allow quick camera return to saved default bookmark</span>
+            </label>
+            <input
+              id="show_reset_camera"
+              type="checkbox"
+              class="switch-control"
+              data-field="show_reset_camera"
+              ?checked=${this._config.show_reset_camera??!0}
+              @change=${this._valueChanged}
+            />
+          </div>
+
+          <div class="switch-row">
+            <label class="switch-label" for="show_room_labels">
+              <span class="switch-title">Floating Room Labels</span>
+              <span class="switch-description">Show room titles and area sensor metrics</span>
+            </label>
+            <input
+              id="show_room_labels"
+              type="checkbox"
+              class="switch-control"
+              data-field="show_room_labels"
+              ?checked=${this._config.show_room_labels??!0}
+              @change=${this._valueChanged}
+            />
+          </div>
+
+          <div class="switch-row">
+            <label class="switch-label" for="show_entity_badges">
+              <span class="switch-title">Floating Entity Badges</span>
+              <span class="switch-description">Display touch-interactive entity icons & status pills</span>
+            </label>
+            <input
+              id="show_entity_badges"
+              type="checkbox"
+              class="switch-control"
+              data-field="show_entity_badges"
+              ?checked=${this._config.show_entity_badges??!0}
+              @change=${this._valueChanged}
+            />
+          </div>
+
+          <div class="switch-row">
+            <label class="switch-label" for="enable_room_zoom_on_tap">
+              <span class="switch-title">Room Zoom on Tap</span>
+              <span class="switch-description">Smoothly center camera when tapping a room floor or label</span>
+            </label>
+            <input
+              id="enable_room_zoom_on_tap"
+              type="checkbox"
+              class="switch-control"
+              data-field="enable_room_zoom_on_tap"
+              ?checked=${this._config.enable_room_zoom_on_tap??!1}
+              @change=${this._valueChanged}
+            />
+          </div>
+        </div>
+      </div>
+    `}};p.styles=m`
+    :host {
+      display: block;
+      box-sizing: border-box;
+      padding: 16px 0;
+      color: var(--primary-text-color, #f1f5f9);
+      font-family: inherit;
+    }
+
+    .editor-container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .form-section {
+      background: var(--card-background-color, rgba(30, 41, 59, 0.45));
+      border: 1px solid var(--divider-color, rgba(255, 255, 255, 0.08));
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .section-header {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--primary-color, #3b82f6);
+      margin-bottom: 2px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    @media (max-width: 500px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--primary-text-color, #e2e8f0);
+    }
+
+    .form-control {
+      appearance: none;
+      background: var(--input-fill-color, rgba(15, 23, 42, 0.7));
+      color: var(--primary-text-color, #f8fafc);
+      border: 1px solid var(--divider-color, rgba(255, 255, 255, 0.14));
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s ease;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .form-control:focus {
+      border-color: var(--primary-color, #3b82f6);
+      box-shadow: 0 0 0 1px var(--primary-color, #3b82f6);
+    }
+
+    select.form-control {
+      cursor: pointer;
+      background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394a3b8%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E');
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 32px;
+    }
+
+    .helper-text {
+      font-size: 11px;
+      color: var(--secondary-text-color, #94a3b8);
+      line-height: 1.3;
+    }
+
+    .switch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--divider-color, rgba(255, 255, 255, 0.05));
+    }
+
+    .switch-row:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .switch-label {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      cursor: pointer;
+    }
+
+    .switch-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--primary-text-color, #e2e8f0);
+    }
+
+    .switch-description {
+      font-size: 11px;
+      color: var(--secondary-text-color, #94a3b8);
+    }
+
+    .switch-control {
+      appearance: none;
+      width: 38px;
+      height: 22px;
+      background: rgba(148, 163, 184, 0.3);
+      border-radius: 9999px;
+      position: relative;
+      cursor: pointer;
+      outline: none;
+      transition: background 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .switch-control::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+      transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .switch-control:checked {
+      background: var(--primary-color, #3b82f6);
+    }
+
+    .switch-control:checked::after {
+      transform: translateX(16px);
+    }
+  `;g([w({attribute:!1})],p.prototype,"hass",1);g([c()],p.prototype,"_config",2);g([c()],p.prototype,"_floorplans",2);g([c()],p.prototype,"_loadingFloorplans",2);g([c()],p.prototype,"_floorplansLoaded",2);p=g([C("floorplan-3d-card-editor")],p);const T=Object.freeze(Object.defineProperty({__proto__:null,get Floorplan3DCardEditor(){return p}},Symbol.toStringTag,{value:"Module"}));var q=Object.defineProperty,O=Object.getOwnPropertyDescriptor,d=(e,t,o,i)=>{for(var s=i>1?void 0:i?O(t,o):t,r=e.length-1,a;r>=0;r--)(a=e[r])&&(s=(i?a(t,o,s):a(s))||s);return i&&s&&q(t,o,s),s};window.customCards=window.customCards||[];window.customCards.some(e=>e.type==="floorplan-3d-card")||window.customCards.push({type:"floorplan-3d-card",name:"3D Floorplan Card",description:"Interactive 3D bird's-eye floorplan with dynamic lighting and live Home Assistant entities",preview:!0});let l=class extends y{constructor(){super(...arguments),this._document=null,this._activeFloorId=null,this._isDollhouse=!1,this._currentWallMode="auto_cutaway",this._currentProjection="perspective",this._loading=!1,this._errorMessage=null,this._scene3d=null,this._stateDiffer=new D,this._wsClient=null}static async getConfigElement(){return await W(()=>Promise.resolve().then(()=>T),void 0),document.createElement("floorplan-3d-card-editor")}static getStubConfig(){return{type:"custom:floorplan-3d-card",floorplan_id:"main_house",wall_mode:"auto_cutaway",camera_projection:"perspective",ambient_mode:"adaptive_contrast",quality_tier:"auto",show_floor_selector:!0,show_wall_mode_toggle:!0,show_reset_camera:!0,show_room_labels:!0,show_entity_badges:!0}}set hass(e){const t=!this._hass;if(this._hass=e,!!this._config){if(!this._document&&!this._loading){this._loadFloorplan();return}if(this._document){t&&this._stateDiffer.rebuildWatchedSet(this._document,e);const o=this._stateDiffer.diffStates(e);o.length>0&&this._scene3d&&this._scene3d.updateHassStates(e,o)}}}get hass(){return this._hass}setConfig(e){if(!e||!e.floorplan_id)throw new Error("Please define floorplan_id in your 3D Floorplan Card configuration.");const t=this._config?.floorplan_id;this._config={...e},this._currentWallMode=e.wall_mode??"auto_cutaway",this._currentProjection=e.camera_projection??"perspective",this._scene3d&&(this._scene3d.setWallMode(this._currentWallMode),this._scene3d.setProjection(this._currentProjection),e.ambient_mode&&this._scene3d.setAmbientMode(e.ambient_mode),e.quality_tier&&this._scene3d.setQualityTier(e.quality_tier),this._scene3d.setOverlayVisibility({showRoomLabels:e.show_room_labels??!0,showEntityBadges:e.show_entity_badges??!0})),t&&t!==e.floorplan_id&&(this._teardownWs(),this._document=null,this._hass&&this._loadFloorplan())}getCardSize(){return Math.max(1,Math.round((this._config?.height??520)/50))}connectedCallback(){super.connectedCallback(),!this._scene3d&&this._document&&this._viewportContainer&&this._initScene()}disconnectedCallback(){this._teardownWs(),this._scene3d&&(this._scene3d.dispose(),this._scene3d=null),super.disconnectedCallback()}firstUpdated(){this._viewportContainer&&this._document&&!this._scene3d&&this._initScene()}async _loadFloorplan(){if(!(!this._hass||!this._config?.floorplan_id||this._loading)){this._loading=!0,this._errorMessage=null,this.requestUpdate();try{this._wsClient=new x(()=>this._hass);const e=await this._wsClient.getFloorplan(this._config.floorplan_id);this._document=e,this._stateDiffer.rebuildWatchedSet(e,this._hass);let t=e.floors.find(o=>o.id===this._config.default_floor_id);if(t||(t=e.floors.find(o=>o.level_index===0)??e.floors[0]),this._activeFloorId=t?.id??null,!this._unsubscribeWs)try{this._unsubscribeWs=await this._wsClient.subscribeFloorplan(this._config.floorplan_id,o=>{o.event==="updated"&&o.floorplan?this._onFloorplanHotReload(o.floorplan):o.event==="deleted"&&(this._errorMessage=`Floorplan '${this._config.floorplan_id}' was deleted.`,this._document=null,this.requestUpdate())})}catch(o){console.warn("[floorplan-3d-card] Real-time WS subscription notice:",o)}this._loading=!1,this.requestUpdate(),await this.updateComplete,this._initScene()}catch(e){this._loading=!1,this._errorMessage=e instanceof Error?e.message:`Failed to load floorplan '${this._config.floorplan_id}'.`,this.requestUpdate()}}}_onFloorplanHotReload(e){this._document=e,this._stateDiffer.rebuildWatchedSet(e,this._hass),this._activeFloorId&&!e.floors.some(t=>t.id===this._activeFloorId)&&(this._activeFloorId=e.floors[0]?.id??null),this._scene3d&&this._scene3d.setDocument(e,this._activeFloorId??void 0,this._hass),this.requestUpdate()}_initScene(){!this._viewportContainer||!this._document||(this._scene3d&&(this._scene3d.dispose(),this._scene3d=null),this._scene3d=new S(this._viewportContainer,{qualityTier:this._config.quality_tier??"auto",wallMode:this._currentWallMode,projection:this._currentProjection,ambientMode:this._config.ambient_mode,showRoomLabels:this._config.show_room_labels??!0,showEntityBadges:this._config.show_entity_badges??!0,onEntityAction:e=>{P(this,this._hass,e),this._config.enable_room_zoom_on_tap&&e.room&&this._scene3d?.focusOnRoom(e.room.id,!0)}}),this._scene3d.setDocument(this._document,this._activeFloorId??void 0,this._hass),this._isDollhouse&&this._scene3d.setStackedDollhouse(!0))}_teardownWs(){this._unsubscribeWs&&(this._unsubscribeWs().catch(()=>{}),this._unsubscribeWs=void 0)}_handleFloorSelect(e){this._activeFloorId!==e&&(this._activeFloorId=e,this._scene3d?.setActiveFloor(e,this._isDollhouse),this.requestUpdate())}_handleToggleDollhouse(){this._isDollhouse=!this._isDollhouse,this._scene3d?.setStackedDollhouse(this._isDollhouse),this.requestUpdate()}_handleCycleWallMode(){const t={auto_cutaway:"half",half:"full",full:"auto_cutaway"}[this._currentWallMode]??"auto_cutaway";this._currentWallMode=t,this._scene3d?.setWallMode(t),this.requestUpdate()}_handleToggleProjection(){const e=this._currentProjection==="orthographic"?"perspective":"orthographic";this._currentProjection=e,this._scene3d?.setProjection(e),this.requestUpdate()}_handleResetCamera(){this._scene3d?.resetCameraToDefault(!0)}_getHeightStyle(){return this._config?.height?`${this._config.height}px`:"520px"}_getWallModeLabel(){switch(this._currentWallMode){case"auto_cutaway":return"Cutaway";case"half":return"Half";case"full":return"Full";default:return"Walls"}}render(){const e=this._getHeightStyle(),t=[...this._document?.floors||[]].sort((r,a)=>r.level_index-a.level_index),o=(this._config?.show_floor_selector??!0)&&t.length>0,i=this._config?.show_wall_mode_toggle??!0,s=this._config?.show_reset_camera??!0;return n`
+      <div class="card-root" style="height: ${e};">
+        <!-- 3D Three.js WebGL & CSS2D Container -->
+        <div class="viewport-container"></div>
+
+        <!-- Top-Left Overlay: Floor Switcher & Dollhouse Mode -->
+        ${o?n`
+              <div class="hud-overlay hud-top-left">
+                <div class="glass-pill-bar">
+                  ${t.map(r=>n`
+                      <button
+                        type="button"
+                        class="pill-btn ${this._activeFloorId===r.id?"active":""}"
+                        @click=${()=>this._handleFloorSelect(r.id)}
+                        title="${r.name} (Level ${r.level_index})"
+                      >
+                        ${r.name||`Level ${r.level_index}`}
+                      </button>
+                    `)}
+                  ${t.length>1?n`
+                        <button
+                          type="button"
+                          class="pill-btn icon-pill ${this._isDollhouse?"active":""}"
+                          @click=${this._handleToggleDollhouse}
+                          title="Dollhouse View (Stacked Floors)"
+                        >
+                          <svg viewBox="0 0 24 24" class="hud-icon">
+                            <path
+                              fill="currentColor"
+                              d="M12 3L2 9l10 6 10-6-10-6zm0 8.5L4.5 7.5 12 4.5l7.5 3L12 11.5zM2 13l10 6 10-6v2l-10 6-10-6v-2zm0 4l10 6 10-6v2l-10 6-10-6v-2z"
+                            />
+                          </svg>
+                          <span>Dollhouse</span>
+                        </button>
+                      `:f}
+                </div>
+              </div>
+            `:f}
+
+        <!-- Top-Right Overlay: Wall Cutaway, Camera Projection, Reset View -->
+        <div class="hud-overlay hud-top-right">
+          <div class="glass-pill-bar">
+            ${i?n`
+                  <button
+                    type="button"
+                    class="pill-btn icon-pill"
+                    @click=${this._handleCycleWallMode}
+                    title="Wall Display Mode (${this._getWallModeLabel()})"
+                  >
+                    <svg viewBox="0 0 24 24" class="hud-icon">
+                      <path
+                        fill="currentColor"
+                        d="M19 4H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4h-6V6h6v2zm-8-2v2H5V6h6zm-6 4h6v2H5v-2zm8 0h6v2h-6v-2zm6 4h-6v2h6v-2zm-8 2H5v-2h6v2z"
+                      />
+                    </svg>
+                    <span>${this._getWallModeLabel()}</span>
+                  </button>
+                `:f}
+
+            <button
+              type="button"
+              class="pill-btn icon-pill"
+              @click=${this._handleToggleProjection}
+              title="Camera Projection (${this._currentProjection==="orthographic"?"Isometric":"3D Perspective"})"
+            >
+              <svg viewBox="0 0 24 24" class="hud-icon">
+                <path
+                  fill="currentColor"
+                  d="M21 16.5l-9 5.25-9-5.25V7.5L12 2.25l9 5.25v9zM12 4.15L5.05 8.2 12 12.25l6.95-4.05L12 4.15zM4.5 9.87v5.52l6.75 3.94v-5.52L4.5 9.87zm15 0l-6.75 3.94v5.52l6.75-3.94V9.87z"
+                />
+              </svg>
+              <span>${this._currentProjection==="orthographic"?"Iso":"3D"}</span>
+            </button>
+
+            ${s?n`
+                  <button
+                    type="button"
+                    class="pill-btn icon-only"
+                    @click=${this._handleResetCamera}
+                    title="Reset Camera to Saved Default Bookmark"
+                  >
+                    <svg viewBox="0 0 24 24" class="hud-icon">
+                      <path
+                        fill="currentColor"
+                        d="M12 5V2L8 6l4 4V7c3.31 0 6 2.69 6 6 0 2.97-2.16 5.44-5 5.92v2.02c3.95-.49 7-3.85 7-7.94 0-4.42-3.58-8-8-8zm-6 8c0-1.66.67-3.15 1.76-4.24L6.34 7.34C4.9 8.79 4 10.79 4 13c0 4.09 3.05 7.45 7 7.94v-2.02c-2.84-.48-5-2.95-5-5.92z"
+                      />
+                    </svg>
+                  </button>
+                `:f}
+          </div>
+        </div>
+
+        <!-- Loading State Overlay -->
+        ${this._loading?n`
+              <div class="status-overlay">
+                <div class="spinner"></div>
+                <div class="status-text">Loading 3D Floorplan...</div>
+              </div>
+            `:f}
+
+        <!-- Error State Overlay -->
+        ${this._errorMessage?n`
+              <div class="status-overlay error">
+                <div class="error-card">
+                  <div class="error-title">Floorplan Unavailable</div>
+                  <div class="error-detail">${this._errorMessage}</div>
+                  <button type="button" class="retry-btn" @click=${this._loadFloorplan}>
+                    Retry
+                  </button>
+                </div>
+              </div>
+            `:f}
+      </div>
+    `}};l.styles=m`
+    :host {
+      display: block;
+      position: relative;
+      box-sizing: border-box;
+      width: 100%;
+    }
+
+    .card-root {
+      position: relative;
+      width: 100%;
+      overflow: hidden;
+      border-radius: var(--ha-card-border-radius, 12px);
+      background-color: #0f172a;
+      box-shadow: var(--ha-card-box-shadow, 0 4px 16px rgba(0, 0, 0, 0.25));
+      border: var(--ha-card-border-width, 1px) solid var(--ha-card-border-color, rgba(255, 255, 255, 0.08));
+    }
+
+    .viewport-container {
+      width: 100%;
+      height: 100%;
+      display: block;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    /* Floating Glassmorphic HUD */
+    .hud-overlay {
+      position: absolute;
+      top: 12px;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .hud-top-left {
+      left: 12px;
+      max-width: 60%;
+    }
+
+    .hud-top-right {
+      right: 12px;
+    }
+
+    .glass-pill-bar {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 6px;
+      background: rgba(15, 23, 42, 0.76);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 9999px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+      pointer-events: auto;
+      user-select: none;
+    }
+
+    .pill-btn {
+      appearance: none;
+      border: none;
+      outline: none;
+      background: transparent;
+      color: #94a3b8;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1;
+      padding: 6px 10px;
+      border-radius: 9999px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.18s ease;
+      min-height: 28px;
+    }
+
+    .pill-btn:hover {
+      color: #f1f5f9;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .pill-btn.active {
+      color: #ffffff;
+      background: var(--primary-color, #3b82f6);
+      font-weight: 600;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    }
+
+    .pill-btn.icon-only {
+      padding: 6px 8px;
+    }
+
+    .hud-icon {
+      width: 14px;
+      height: 14px;
+      display: block;
+    }
+
+    /* Loading and Error Overlays */
+    .status-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      z-index: 20;
+      color: #f8fafc;
+      gap: 12px;
+    }
+
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(255, 255, 255, 0.15);
+      border-top-color: var(--primary-color, #3b82f6);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .status-text {
+      font-size: 14px;
+      font-weight: 500;
+      color: #cbd5e1;
+    }
+
+    .error-card {
+      max-width: 380px;
+      padding: 20px;
+      background: rgba(30, 41, 59, 0.95);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .error-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #f87171;
+      margin-bottom: 8px;
+    }
+
+    .error-detail {
+      font-size: 13px;
+      color: #cbd5e1;
+      margin-bottom: 16px;
+      line-height: 1.4;
+    }
+
+    .retry-btn {
+      appearance: none;
+      border: none;
+      background: var(--primary-color, #3b82f6);
+      color: white;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 8px 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .retry-btn:hover {
+      opacity: 0.9;
+    }
+  `;d([w({attribute:!1})],l.prototype,"hass",1);d([c()],l.prototype,"_config",2);d([c()],l.prototype,"_document",2);d([c()],l.prototype,"_activeFloorId",2);d([c()],l.prototype,"_isDollhouse",2);d([c()],l.prototype,"_currentWallMode",2);d([c()],l.prototype,"_currentProjection",2);d([c()],l.prototype,"_loading",2);d([c()],l.prototype,"_errorMessage",2);d([j(".viewport-container")],l.prototype,"_viewportContainer",2);l=d([C("floorplan-3d-card")],l);
