@@ -1,0 +1,20 @@
+[tools]
+node = "22"
+python = "3.14"
+ruff = "latest"
+
+[tasks.lint]
+run = "npm run lint && ruff check custom_components tests/python"
+description = "Run TypeScript typecheck and Python Ruff linter"
+
+[tasks.test]
+run = "npm test"
+description = "Run Vitest unit test suite"
+
+[tasks."test:py"]
+run = "pytest tests/python"
+description = "Run Python backend pytest suite"
+
+[tasks.build]
+run = "npm run build"
+description = "Build production frontend bundles into custom_components/floorplan_3d/frontend/dist"

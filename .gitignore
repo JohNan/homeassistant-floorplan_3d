@@ -1,0 +1,15 @@
+node_modules/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+coverage/
+.DS_Store
+*.log
+.env
+.env.*
+
+# NOTE: custom_components/floorplan_3d/frontend/dist/ is intentionally tracked in Git
+# so HACS users can install the integration without needing Node.js on Home Assistant OS.
