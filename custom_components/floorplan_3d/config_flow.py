@@ -5,8 +5,12 @@ from __future__ import annotations
 from typing import Any
 
 try:
+    import voluptuous as vol
+except ImportError:
+    vol = None  # type: ignore[assignment]
+
+try:
     from homeassistant import config_entries
-    from homeassistant.data_entry_flow import FlowResult
 except ImportError:
     # Standalone fallback for testing environments without homeassistant installed
     class _MockConfigEntries:
@@ -39,7 +43,6 @@ except ImportError:
                 return {"type": "create_entry", "title": title, "data": data}
 
     config_entries = _MockConfigEntries()  # type: ignore[assignment]
-    FlowResult = dict[str, Any]  # type: ignore[misc, assignment]
 
 from .const import DOMAIN
 
@@ -51,12 +54,13 @@ class Floorplan3DConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> Any:
         """Handle the initial step."""
         if self._async_current_entries():
             return self.async_abort(reason="single_instance_allowed")
 
         if user_input is not None:
-            return self.async_create_entry(title="Floorplan 3D", data={})
+            return self.async_create_entry(title="3D Floorplan Editor & Card", data={})
 
-        return self.async_show_form(step_id="user")
+        schema = vol.Schema({}) if vol is not None else None
+        return self.async_show_form(step_id="user", data_schema=schema)

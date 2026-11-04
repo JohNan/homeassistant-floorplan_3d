@@ -32,8 +32,6 @@ async def async_setup(hass: Any, config: dict[str, Any]) -> bool:
 async def _async_register_static_paths(hass: Any) -> None:
     """Register static path for pre-compiled frontend bundles."""
     dist_path = Path(__file__).parent / "frontend" / "dist"
-    if not dist_path.exists():
-        dist_path.mkdir(parents=True, exist_ok=True)
 
     http = getattr(hass, "http", None)
     if http is None:
@@ -62,6 +60,33 @@ async def _async_register_static_paths(hass: Any) -> None:
 async def _async_register_panel(hass: Any) -> None:
     """Register admin-only 2D/3D editor sidebar panel."""
     panel_module_url = f"{STATIC_URL_PATH}/{PANEL_BUNDLE_FILENAME}?v={VERSION}"
+    custom_panel_config = {
+        "_panel_custom": {
+            "name": PANEL_COMPONENT_NAME,
+            "embed_iframe": False,
+            "trust_external": False,
+            "module_url": panel_module_url,
+        },
+        "module_url": panel_module_url,
+    }
+
+    try:
+        from homeassistant.components import panel_custom
+
+        if hasattr(panel_custom, "async_register_panel"):
+            await panel_custom.async_register_panel(
+                hass,
+                webcomponent_name=PANEL_COMPONENT_NAME,
+                frontend_url_path=PANEL_URL_PATH,
+                sidebar_title=PANEL_TITLE,
+                sidebar_icon=PANEL_ICON,
+                module_url=panel_module_url,
+                embed_iframe=False,
+                require_admin=True,
+            )
+            return
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.debug("Could not register panel via panel_custom: %s", exc)
 
     try:
         from homeassistant.components import frontend
@@ -69,12 +94,12 @@ async def _async_register_panel(hass: Any) -> None:
         if hasattr(frontend, "async_register_built_in_panel"):
             res = frontend.async_register_built_in_panel(
                 hass,
-                component_name=PANEL_COMPONENT_NAME,
+                component_name="custom",
                 sidebar_title=PANEL_TITLE,
                 sidebar_icon=PANEL_ICON,
                 frontend_url_path=PANEL_URL_PATH,
                 require_admin=True,
-                config={"module_url": panel_module_url},
+                config=custom_panel_config,
                 update=True,
             )
             if hasattr(res, "__await__"):
@@ -92,22 +117,22 @@ async def _async_register_panel(hass: Any) -> None:
             try:
                 res = func(
                     hass,
-                    component_name=PANEL_COMPONENT_NAME,
+                    component_name="custom",
                     sidebar_title=PANEL_TITLE,
                     sidebar_icon=PANEL_ICON,
                     frontend_url_path=PANEL_URL_PATH,
                     require_admin=True,
-                    config={"module_url": panel_module_url},
+                    config=custom_panel_config,
                     update=True,
                 )
             except TypeError:
                 res = func(
-                    component_name=PANEL_COMPONENT_NAME,
+                    component_name="custom",
                     sidebar_title=PANEL_TITLE,
                     sidebar_icon=PANEL_ICON,
                     frontend_url_path=PANEL_URL_PATH,
                     require_admin=True,
-                    config={"module_url": panel_module_url},
+                    config=custom_panel_config,
                     update=True,
                 )
             if hasattr(res, "__await__"):

@@ -41,7 +41,14 @@ from custom_components.floorplan_3d.storage import (
     create_default_floorplan,
 )
 from custom_components.floorplan_3d.websocket_api import (
+    SCHEMA_WS_DELETE,
+    SCHEMA_WS_GET,
+    SCHEMA_WS_LIST,
+    SCHEMA_WS_SAVE,
+    SCHEMA_WS_SUBSCRIBE,
+    SCHEMA_WS_UPLOAD_BLUEPRINT,
     WS_HANDLERS,
+    _decorate_ws,
     async_register_websocket_commands,
     event_message,
 )
@@ -622,11 +629,34 @@ async def test_ws_subscribe_realtime_push(tmp_path: Path) -> None:
 
 
 async def test_websocket_helpers() -> None:
-    """Test event_message helper and websocket command registration."""
+    """Test event_message helper, schema dicts, and HA 2026.11 websocket_command compatibility."""
+    import inspect
+
     msg = event_message(99, {"foo": "bar"})
     assert msg == {"id": 99, "type": "event", "event": {"foo": "bar"}}
     # Should run cleanly without throwing
     async_register_websocket_commands(None)
+
+    # Verify all WS schemas are plain dicts (not vol.Schema instances) so HA 2026.11
+    # websocket_command(schema) does not fail with AttributeError: 'Schema' object has no attribute 'validators'
+    for expected_type, schema in (
+        ("floorplan_3d/list", SCHEMA_WS_LIST),
+        ("floorplan_3d/get", SCHEMA_WS_GET),
+        ("floorplan_3d/save", SCHEMA_WS_SAVE),
+        ("floorplan_3d/delete", SCHEMA_WS_DELETE),
+        ("floorplan_3d/upload_blueprint", SCHEMA_WS_UPLOAD_BLUEPRINT),
+        ("floorplan_3d/subscribe", SCHEMA_WS_SUBSCRIBE),
+    ):
+        assert isinstance(schema, dict)
+        assert schema["type"] == expected_type
+
+    # Simulate HA Core websocket_api.async_response + websocket_api.websocket_command
+    for admin_only in (False, True):
+        async def dummy_handler(hass: Any, connection: Any, msg: dict[str, Any]) -> None:
+            pass
+
+        decorated = _decorate_ws(SCHEMA_WS_SAVE, admin_only=admin_only)(dummy_handler)
+        assert inspect.iscoroutinefunction(decorated)
 
 
 # ---------------------------------------------------------------------------
@@ -645,7 +675,7 @@ async def test_config_flow() -> None:
     # Step user: submit
     create_result = await flow.async_step_user({})
     assert create_result["type"] == "create_entry"
-    assert create_result["title"] == "Floorplan 3D"
+    assert create_result["title"] == "3D Floorplan Editor & Card"
 
     # Abort if entry already exists
     flow._async_current_entries = lambda: ["existing_entry"]  # type: ignore[assignment]
@@ -673,7 +703,8 @@ async def test_integration_lifecycle(tmp_path: Path) -> None:
     # Panel registered
     assert PANEL_URL_PATH in hass.frontend.panels
     panel_info = hass.frontend.panels[PANEL_URL_PATH]
-    assert panel_info["component_name"] == PANEL_COMPONENT_NAME
+    assert panel_info["component_name"] == "custom"
+    assert panel_info["config"]["_panel_custom"]["name"] == PANEL_COMPONENT_NAME
     assert panel_info["require_admin"] is True
     assert f"{STATIC_URL_PATH}/{PANEL_BUNDLE_FILENAME}?v={VERSION}" in panel_info["config"]["module_url"]
 

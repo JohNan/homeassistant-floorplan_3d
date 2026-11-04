@@ -91,10 +91,31 @@ def create_default_floorplan(
                     "target": [0.0, 0.0, 0.0],
                     "zoom": 1.0,
                 },
-                "nodes": [],
-                "walls": [],
+                "nodes": [
+                    {"id": "n1", "x": -4.0, "y": -3.0},
+                    {"id": "n2", "x": 4.0, "y": -3.0},
+                    {"id": "n3", "x": 4.0, "y": 3.0},
+                    {"id": "n4", "x": -4.0, "y": 3.0},
+                ],
+                "walls": [
+                    {"id": "w1", "start_node_id": "n1", "end_node_id": "n2", "thickness": 0.15},
+                    {"id": "w2", "start_node_id": "n2", "end_node_id": "n3", "thickness": 0.15},
+                    {"id": "w3", "start_node_id": "n3", "end_node_id": "n4", "thickness": 0.15},
+                    {"id": "w4", "start_node_id": "n4", "end_node_id": "n1", "thickness": 0.15},
+                ],
                 "openings": [],
-                "rooms": [],
+                "rooms": [
+                    {
+                        "id": "r1",
+                        "name": "Living Room",
+                        "node_ids": ["n1", "n2", "n3", "n4"],
+                        "ha_area_id": None,
+                        "floor_material": "wood_oak",
+                        "floor_color": None,
+                        "area_m2": 48.0,
+                        "centroid": [0.0, 0.0],
+                    }
+                ],
                 "furniture": [],
                 "entities": [],
             }

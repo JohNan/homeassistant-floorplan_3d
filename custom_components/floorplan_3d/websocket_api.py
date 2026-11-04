@@ -41,47 +41,35 @@ def event_message(msg_id: int, event: Any) -> dict[str, Any]:
     return {"id": msg_id, "type": "event", "event": event}
 
 
-# Schema definitions
-if HAVE_HA and vol is not None and hasattr(websocket_api, "BASE_COMMAND_MESSAGE_SCHEMA"):
-    SCHEMA_WS_LIST = websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
-        {
-            vol.Required("type"): "floorplan_3d/list",
-        }
-    )
-    SCHEMA_WS_GET = websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
-        {
-            vol.Required("type"): "floorplan_3d/get",
-            vol.Required("floorplan_id"): str,
-        }
-    )
-    SCHEMA_WS_SAVE = websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
-        {
-            vol.Required("type"): "floorplan_3d/save",
-            vol.Required("floorplan"): dict,
-            vol.Optional("expected_revision"): vol.Any(int, None),
-        }
-    )
-    SCHEMA_WS_DELETE = websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
-        {
-            vol.Required("type"): "floorplan_3d/delete",
-            vol.Required("floorplan_id"): str,
-        }
-    )
-    SCHEMA_WS_UPLOAD_BLUEPRINT = websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
-        {
-            vol.Required("type"): "floorplan_3d/upload_blueprint",
-            vol.Required("floorplan_id"): str,
-            vol.Required("floor_id"): str,
-            vol.Required("mime_type"): str,
-            vol.Required("data_base64"): str,
-        }
-    )
-    SCHEMA_WS_SUBSCRIBE = websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
-        {
-            vol.Required("type"): "floorplan_3d/subscribe",
-            vol.Optional("floorplan_id"): str,
-        }
-    )
+# Schema definitions (plain dicts as required by websocket_api.websocket_command)
+if vol is not None:
+    SCHEMA_WS_LIST: dict[Any, Any] = {
+        vol.Required("type"): "floorplan_3d/list",
+    }
+    SCHEMA_WS_GET: dict[Any, Any] = {
+        vol.Required("type"): "floorplan_3d/get",
+        vol.Required("floorplan_id"): str,
+    }
+    SCHEMA_WS_SAVE: dict[Any, Any] = {
+        vol.Required("type"): "floorplan_3d/save",
+        vol.Required("floorplan"): dict,
+        vol.Optional("expected_revision"): vol.Any(int, None),
+    }
+    SCHEMA_WS_DELETE: dict[Any, Any] = {
+        vol.Required("type"): "floorplan_3d/delete",
+        vol.Required("floorplan_id"): str,
+    }
+    SCHEMA_WS_UPLOAD_BLUEPRINT: dict[Any, Any] = {
+        vol.Required("type"): "floorplan_3d/upload_blueprint",
+        vol.Required("floorplan_id"): str,
+        vol.Required("floor_id"): str,
+        vol.Required("mime_type"): str,
+        vol.Required("data_base64"): str,
+    }
+    SCHEMA_WS_SUBSCRIBE: dict[Any, Any] = {
+        vol.Required("type"): "floorplan_3d/subscribe",
+        vol.Optional("floorplan_id"): str,
+    }
 else:
     SCHEMA_WS_LIST = {"type": "floorplan_3d/list"}
     SCHEMA_WS_GET = {"type": "floorplan_3d/get", "floorplan_id": str}
@@ -91,10 +79,14 @@ else:
     SCHEMA_WS_SUBSCRIBE = {"type": "floorplan_3d/subscribe"}
 
 
-def _decorate_ws(schema: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-    """Decorate function with websocket_command and async_response."""
+def _decorate_ws(
+    schema: dict[Any, Any], *, admin_only: bool = False
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    """Decorate coroutine handler with admin check, async_response, and websocket_command."""
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        if admin_only:
+            func = require_admin(func)
         if HAVE_HA and hasattr(websocket_api, "websocket_command"):
             func = websocket_api.async_response(func)
             func = websocket_api.websocket_command(schema)(func)
@@ -123,8 +115,7 @@ async def ws_get(hass: Any, connection: Any, msg: dict[str, Any]) -> None:
     connection.send_result(msg["id"], fp)
 
 
-@require_admin
-@_decorate_ws(SCHEMA_WS_SAVE)
+@_decorate_ws(SCHEMA_WS_SAVE, admin_only=True)
 async def ws_save(hass: Any, connection: Any, msg: dict[str, Any]) -> None:
     """Handle floorplan_3d/save command (Admin Only)."""
     manager: FloorplanStorageManager = hass.data[DOMAIN][DATA_STORAGE_MANAGER]
@@ -142,8 +133,7 @@ async def ws_save(hass: Any, connection: Any, msg: dict[str, Any]) -> None:
     connection.send_result(msg["id"], saved)
 
 
-@require_admin
-@_decorate_ws(SCHEMA_WS_DELETE)
+@_decorate_ws(SCHEMA_WS_DELETE, admin_only=True)
 async def ws_delete(hass: Any, connection: Any, msg: dict[str, Any]) -> None:
     """Handle floorplan_3d/delete command (Admin Only)."""
     manager: FloorplanStorageManager = hass.data[DOMAIN][DATA_STORAGE_MANAGER]
@@ -155,8 +145,7 @@ async def ws_delete(hass: Any, connection: Any, msg: dict[str, Any]) -> None:
     connection.send_result(msg["id"], {"success": True})
 
 
-@require_admin
-@_decorate_ws(SCHEMA_WS_UPLOAD_BLUEPRINT)
+@_decorate_ws(SCHEMA_WS_UPLOAD_BLUEPRINT, admin_only=True)
 async def ws_upload_blueprint(
     hass: Any, connection: Any, msg: dict[str, Any]
 ) -> None:
