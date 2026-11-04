@@ -8,6 +8,7 @@ export default defineConfig({
     sourcemap: false,
     minify: 'esbuild',
     target: 'es2022',
+    chunkSizeWarningLimit: 700,
     rollupOptions: {
       input: {
         'floorplan-panel': resolve(__dirname, 'src/editor/floorplan-editor-panel.ts'),
@@ -17,7 +18,16 @@ export default defineConfig({
         format: 'es',
         entryFileNames: '[name].js',
         chunkFileNames: 'chunks/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash][extname]'
+        assetFileNames: 'assets/[name]-[hash][extname]',
+        manualChunks(id) {
+          if (id.includes('node_modules/three')) {
+            return 'three-vendor';
+          }
+          if (id.includes('node_modules/lit') || id.includes('node_modules/@lit')) {
+            return 'lit-vendor';
+          }
+          return undefined;
+        }
       }
     }
   },

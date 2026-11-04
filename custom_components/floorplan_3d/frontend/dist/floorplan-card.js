@@ -1,12 +1,4 @@
-import{i as m,n as w,r as c,a as y,F as x,A as f,b as n,t as C,W as D,c as S,e as P}from"./chunks/ws-client-S5oyb1qv.js";const M="modulepreload",z=function(e){return"/"+e},b={},W=function(t,o,i){let s=Promise.resolve();if(o&&o.length>0){document.getElementsByTagName("link");const a=document.querySelector("meta[property=csp-nonce]"),h=a?.nonce||a?.getAttribute("nonce");s=Promise.allSettled(o.map(u=>{if(u=z(u),u in b)return;b[u]=!0;const v=u.endsWith(".css"),$=v?'[rel="stylesheet"]':"";if(document.querySelector(`link[href="${u}"]${$}`))return;const _=document.createElement("link");if(_.rel=v?"stylesheet":M,v||(_.as="script"),_.crossOrigin="",_.href=u,h&&_.setAttribute("nonce",h),document.head.appendChild(_),v)return new Promise((F,k)=>{_.addEventListener("load",F),_.addEventListener("error",()=>k(new Error(`Unable to preload CSS for ${u}`)))})}))}function r(a){const h=new Event("vite:preloadError",{cancelable:!0});if(h.payload=a,window.dispatchEvent(h),!h.defaultPrevented)throw a}return s.then(a=>{for(const h of a||[])h.status==="rejected"&&r(h.reason);return t().catch(r)})};/**
- * @license
- * Copyright 2017 Google LLC
- * SPDX-License-Identifier: BSD-3-Clause
- */const L=(e,t,o)=>(o.configurable=!0,o.enumerable=!0,Reflect.decorate&&typeof t!="object"&&Object.defineProperty(e,t,o),o);/**
- * @license
- * Copyright 2017 Google LLC
- * SPDX-License-Identifier: BSD-3-Clause
- */function j(e,t){return(o,i,s)=>{const r=a=>a.renderRoot?.querySelector(e)??null;return L(o,i,{get(){return r(this)}})}}var E=Object.defineProperty,R=Object.getOwnPropertyDescriptor,g=(e,t,o,i)=>{for(var s=i>1?void 0:i?R(t,o):t,r=e.length-1,a;r>=0;r--)(a=e[r])&&(s=(i?a(t,o,s):a(s))||s);return i&&s&&E(t,o,s),s};let p=class extends y{constructor(){super(...arguments),this._floorplans=[],this._loadingFloorplans=!1,this._floorplansLoaded=!1}set hass(e){this._hass=e,!this._floorplansLoaded&&!this._loadingFloorplans&&this._fetchFloorplans()}get hass(){return this._hass}setConfig(e){this._config={...e},this._hass&&!this._floorplansLoaded&&!this._loadingFloorplans&&this._fetchFloorplans()}async _fetchFloorplans(){if(this._hass){this._loadingFloorplans=!0;try{const e=new x(()=>this._hass);this._floorplans=await e.listFloorplans(),this._floorplansLoaded=!0}catch(e){console.warn("[floorplan-3d-card-editor] Could not list floorplans:",e)}finally{this._loadingFloorplans=!1,this.requestUpdate()}}}_valueChanged(e){if(!this._config)return;const t=e.target,o=t.dataset.field;if(!o)return;let i;t instanceof HTMLInputElement&&t.type==="checkbox"?i=t.checked:t instanceof HTMLInputElement&&t.type==="number"?i=t.value?Number(t.value):void 0:i=t.value;const s={...this._config,[o]:i};(i===void 0||i==="")&&delete s[o],this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:s},bubbles:!0,composed:!0}))}render(){if(!this._config)return f;const e=this._config.floorplan_id||"",o=this._floorplans.find(i=>i.id===e)?.floors||[];return n`
+import{i as _,n as f,r as n,a as g,A as p,b as r,t as v,e as m}from"./chunks/lit-vendor-C9pciB7t.js";import{F as b,W as w,a as x,e as y}from"./chunks/ws-client-BvAJobHw.js";import"./chunks/three-vendor-BR75RRxf.js";var C=Object.defineProperty,F=Object.getOwnPropertyDescriptor,u=(e,t,i,o)=>{for(var s=o>1?void 0:o?F(t,i):t,a=e.length-1,d;a>=0;a--)(d=e[a])&&(s=(o?d(t,i,s):d(s))||s);return o&&s&&C(t,i,s),s};let h=class extends g{constructor(){super(...arguments),this._floorplans=[],this._loadingFloorplans=!1,this._floorplansLoaded=!1}set hass(e){this._hass=e,!this._floorplansLoaded&&!this._loadingFloorplans&&this._fetchFloorplans()}get hass(){return this._hass}setConfig(e){this._config={...e},this._hass&&!this._floorplansLoaded&&!this._loadingFloorplans&&this._fetchFloorplans()}async _fetchFloorplans(){if(this._hass){this._loadingFloorplans=!0;try{const e=new b(()=>this._hass);this._floorplans=await e.listFloorplans(),this._floorplansLoaded=!0}catch(e){console.warn("[floorplan-3d-card-editor] Could not list floorplans:",e)}finally{this._loadingFloorplans=!1,this.requestUpdate()}}}_valueChanged(e){if(!this._config)return;const t=e.target,i=t.dataset.field;if(!i)return;let o;t instanceof HTMLInputElement&&t.type==="checkbox"?o=t.checked:t instanceof HTMLInputElement&&t.type==="number"?o=t.value?Number(t.value):void 0:o=t.value;const s={...this._config,[i]:o};(o===void 0||o==="")&&delete s[i],this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:s},bubbles:!0,composed:!0}))}render(){if(!this._config)return p;const e=this._config.floorplan_id||"",i=this._floorplans.find(o=>o.id===e)?.floors||[];return r`
       <div class="editor-container">
         <!-- Section: Floorplan Source -->
         <div class="form-section">
@@ -21,16 +13,16 @@ import{i as m,n as w,r as c,a as y,F as x,A as f,b as n,t as C,W as D,c as S,e a
               .value=${e}
               @change=${this._valueChanged}
             >
-              ${this._floorplans.length===0?n`
+              ${this._floorplans.length===0?r`
                     <option value="${e||"main_house"}">
                       ${e||"main_house (custom)"}
                     </option>
-                  `:this._floorplans.map(i=>n`
+                  `:this._floorplans.map(o=>r`
                       <option
-                        value="${i.id}"
-                        ?selected=${i.id===e}
+                        value="${o.id}"
+                        ?selected=${o.id===e}
                       >
-                        ${i.name||i.id} (rev ${i.revision})
+                        ${o.name||o.id} (rev ${o.revision})
                       </option>
                     `)}
             </select>
@@ -49,12 +41,12 @@ import{i as m,n as w,r as c,a as y,F as x,A as f,b as n,t as C,W as D,c as S,e a
               @change=${this._valueChanged}
             >
               <option value="">Auto (Ground Floor / Index 0)</option>
-              ${o.map(i=>n`
+              ${i.map(o=>r`
                   <option
-                    value="${i.id}"
-                    ?selected=${i.id===this._config?.default_floor_id}
+                    value="${o.id}"
+                    ?selected=${o.id===this._config?.default_floor_id}
                   >
-                    ${i.name||i.id} (Level ${i.level_index})
+                    ${o.name||o.id} (Level ${o.level_index})
                   </option>
                 `)}
             </select>
@@ -249,7 +241,7 @@ import{i as m,n as w,r as c,a as y,F as x,A as f,b as n,t as C,W as D,c as S,e a
           </div>
         </div>
       </div>
-    `}};p.styles=m`
+    `}};h.styles=_`
     :host {
       display: block;
       box-sizing: border-box;
@@ -406,26 +398,26 @@ import{i as m,n as w,r as c,a as y,F as x,A as f,b as n,t as C,W as D,c as S,e a
     .switch-control:checked::after {
       transform: translateX(16px);
     }
-  `;g([w({attribute:!1})],p.prototype,"hass",1);g([c()],p.prototype,"_config",2);g([c()],p.prototype,"_floorplans",2);g([c()],p.prototype,"_loadingFloorplans",2);g([c()],p.prototype,"_floorplansLoaded",2);p=g([C("floorplan-3d-card-editor")],p);const T=Object.freeze(Object.defineProperty({__proto__:null,get Floorplan3DCardEditor(){return p}},Symbol.toStringTag,{value:"Module"}));var q=Object.defineProperty,O=Object.getOwnPropertyDescriptor,d=(e,t,o,i)=>{for(var s=i>1?void 0:i?O(t,o):t,r=e.length-1,a;r>=0;r--)(a=e[r])&&(s=(i?a(t,o,s):a(s))||s);return i&&s&&q(t,o,s),s};window.customCards=window.customCards||[];window.customCards.some(e=>e.type==="floorplan-3d-card")||window.customCards.push({type:"floorplan-3d-card",name:"3D Floorplan Card",description:"Interactive 3D bird's-eye floorplan with dynamic lighting and live Home Assistant entities",preview:!0});let l=class extends y{constructor(){super(...arguments),this._document=null,this._activeFloorId=null,this._isDollhouse=!1,this._currentWallMode="auto_cutaway",this._currentProjection="perspective",this._loading=!1,this._errorMessage=null,this._scene3d=null,this._stateDiffer=new D,this._wsClient=null}static async getConfigElement(){return await W(()=>Promise.resolve().then(()=>T),void 0),document.createElement("floorplan-3d-card-editor")}static getStubConfig(){return{type:"custom:floorplan-3d-card",floorplan_id:"main_house",wall_mode:"auto_cutaway",camera_projection:"perspective",ambient_mode:"adaptive_contrast",quality_tier:"auto",show_floor_selector:!0,show_wall_mode_toggle:!0,show_reset_camera:!0,show_room_labels:!0,show_entity_badges:!0}}set hass(e){const t=!this._hass;if(this._hass=e,!!this._config){if(!this._document&&!this._loading){this._loadFloorplan();return}if(this._document){t&&this._stateDiffer.rebuildWatchedSet(this._document,e);const o=this._stateDiffer.diffStates(e);o.length>0&&this._scene3d&&this._scene3d.updateHassStates(e,o)}}}get hass(){return this._hass}setConfig(e){if(!e||!e.floorplan_id)throw new Error("Please define floorplan_id in your 3D Floorplan Card configuration.");const t=this._config?.floorplan_id;this._config={...e},this._currentWallMode=e.wall_mode??"auto_cutaway",this._currentProjection=e.camera_projection??"perspective",this._scene3d&&(this._scene3d.setWallMode(this._currentWallMode),this._scene3d.setProjection(this._currentProjection),e.ambient_mode&&this._scene3d.setAmbientMode(e.ambient_mode),e.quality_tier&&this._scene3d.setQualityTier(e.quality_tier),this._scene3d.setOverlayVisibility({showRoomLabels:e.show_room_labels??!0,showEntityBadges:e.show_entity_badges??!0})),t&&t!==e.floorplan_id&&(this._teardownWs(),this._document=null,this._hass&&this._loadFloorplan())}getCardSize(){return Math.max(1,Math.round((this._config?.height??520)/50))}connectedCallback(){super.connectedCallback(),!this._scene3d&&this._document&&this._viewportContainer&&this._initScene()}disconnectedCallback(){this._teardownWs(),this._scene3d&&(this._scene3d.dispose(),this._scene3d=null),super.disconnectedCallback()}firstUpdated(){this._viewportContainer&&this._document&&!this._scene3d&&this._initScene()}async _loadFloorplan(){if(!(!this._hass||!this._config?.floorplan_id||this._loading)){this._loading=!0,this._errorMessage=null,this.requestUpdate();try{this._wsClient=new x(()=>this._hass);const e=await this._wsClient.getFloorplan(this._config.floorplan_id);this._document=e,this._stateDiffer.rebuildWatchedSet(e,this._hass);let t=e.floors.find(o=>o.id===this._config.default_floor_id);if(t||(t=e.floors.find(o=>o.level_index===0)??e.floors[0]),this._activeFloorId=t?.id??null,!this._unsubscribeWs)try{this._unsubscribeWs=await this._wsClient.subscribeFloorplan(this._config.floorplan_id,o=>{o.event==="updated"&&o.floorplan?this._onFloorplanHotReload(o.floorplan):o.event==="deleted"&&(this._errorMessage=`Floorplan '${this._config.floorplan_id}' was deleted.`,this._document=null,this.requestUpdate())})}catch(o){console.warn("[floorplan-3d-card] Real-time WS subscription notice:",o)}this._loading=!1,this.requestUpdate(),await this.updateComplete,this._initScene()}catch(e){this._loading=!1,this._errorMessage=e instanceof Error?e.message:`Failed to load floorplan '${this._config.floorplan_id}'.`,this.requestUpdate()}}}_onFloorplanHotReload(e){this._document=e,this._stateDiffer.rebuildWatchedSet(e,this._hass),this._activeFloorId&&!e.floors.some(t=>t.id===this._activeFloorId)&&(this._activeFloorId=e.floors[0]?.id??null),this._scene3d&&this._scene3d.setDocument(e,this._activeFloorId??void 0,this._hass),this.requestUpdate()}_initScene(){!this._viewportContainer||!this._document||(this._scene3d&&(this._scene3d.dispose(),this._scene3d=null),this._scene3d=new S(this._viewportContainer,{qualityTier:this._config.quality_tier??"auto",wallMode:this._currentWallMode,projection:this._currentProjection,ambientMode:this._config.ambient_mode,showRoomLabels:this._config.show_room_labels??!0,showEntityBadges:this._config.show_entity_badges??!0,onEntityAction:e=>{P(this,this._hass,e),this._config.enable_room_zoom_on_tap&&e.room&&this._scene3d?.focusOnRoom(e.room.id,!0)}}),this._scene3d.setDocument(this._document,this._activeFloorId??void 0,this._hass),this._isDollhouse&&this._scene3d.setStackedDollhouse(!0))}_teardownWs(){this._unsubscribeWs&&(this._unsubscribeWs().catch(()=>{}),this._unsubscribeWs=void 0)}_handleFloorSelect(e){this._activeFloorId!==e&&(this._activeFloorId=e,this._scene3d?.setActiveFloor(e,this._isDollhouse),this.requestUpdate())}_handleToggleDollhouse(){this._isDollhouse=!this._isDollhouse,this._scene3d?.setStackedDollhouse(this._isDollhouse),this.requestUpdate()}_handleCycleWallMode(){const t={auto_cutaway:"half",half:"full",full:"auto_cutaway"}[this._currentWallMode]??"auto_cutaway";this._currentWallMode=t,this._scene3d?.setWallMode(t),this.requestUpdate()}_handleToggleProjection(){const e=this._currentProjection==="orthographic"?"perspective":"orthographic";this._currentProjection=e,this._scene3d?.setProjection(e),this.requestUpdate()}_handleResetCamera(){this._scene3d?.resetCameraToDefault(!0)}_getHeightStyle(){return this._config?.height?`${this._config.height}px`:"520px"}_getWallModeLabel(){switch(this._currentWallMode){case"auto_cutaway":return"Cutaway";case"half":return"Half";case"full":return"Full";default:return"Walls"}}render(){const e=this._getHeightStyle(),t=[...this._document?.floors||[]].sort((r,a)=>r.level_index-a.level_index),o=(this._config?.show_floor_selector??!0)&&t.length>0,i=this._config?.show_wall_mode_toggle??!0,s=this._config?.show_reset_camera??!0;return n`
+  `;u([f({attribute:!1})],h.prototype,"hass",1);u([n()],h.prototype,"_config",2);u([n()],h.prototype,"_floorplans",2);u([n()],h.prototype,"_loadingFloorplans",2);u([n()],h.prototype,"_floorplansLoaded",2);h=u([v("floorplan-3d-card-editor")],h);var $=Object.defineProperty,k=Object.getOwnPropertyDescriptor,c=(e,t,i,o)=>{for(var s=o>1?void 0:o?k(t,i):t,a=e.length-1,d;a>=0;a--)(d=e[a])&&(s=(o?d(t,i,s):d(s))||s);return o&&s&&$(t,i,s),s};window.customCards=window.customCards||[];window.customCards.some(e=>e.type==="floorplan-3d-card")||window.customCards.push({type:"floorplan-3d-card",name:"3D Floorplan Card",description:"Interactive 3D bird's-eye floorplan with dynamic lighting and live Home Assistant entities",preview:!0});let l=class extends g{constructor(){super(...arguments),this._document=null,this._activeFloorId=null,this._isDollhouse=!1,this._currentWallMode="auto_cutaway",this._currentProjection="perspective",this._loading=!1,this._errorMessage=null,this._scene3d=null,this._stateDiffer=new w,this._wsClient=null}static async getConfigElement(){return document.createElement("floorplan-3d-card-editor")}static getStubConfig(){return{type:"custom:floorplan-3d-card",floorplan_id:"main_house",wall_mode:"auto_cutaway",camera_projection:"perspective",ambient_mode:"adaptive_contrast",quality_tier:"auto",show_floor_selector:!0,show_wall_mode_toggle:!0,show_reset_camera:!0,show_room_labels:!0,show_entity_badges:!0}}set hass(e){const t=!this._hass;if(this._hass=e,!!this._config){if(!this._document&&!this._loading){this._loadFloorplan();return}if(this._document){t&&this._stateDiffer.rebuildWatchedSet(this._document,e);const i=this._stateDiffer.diffStates(e);i.length>0&&this._scene3d&&this._scene3d.updateHassStates(e,i)}}}get hass(){return this._hass}setConfig(e){if(!e||!e.floorplan_id)throw new Error("Please define floorplan_id in your 3D Floorplan Card configuration.");const t=this._config?.floorplan_id;this._config={...e},this._currentWallMode=e.wall_mode??"auto_cutaway",this._currentProjection=e.camera_projection??"perspective",this._scene3d&&(this._scene3d.setWallMode(this._currentWallMode),this._scene3d.setProjection(this._currentProjection),e.ambient_mode&&this._scene3d.setAmbientMode(e.ambient_mode),e.quality_tier&&this._scene3d.setQualityTier(e.quality_tier),this._scene3d.setOverlayVisibility({showRoomLabels:e.show_room_labels??!0,showEntityBadges:e.show_entity_badges??!0})),t&&t!==e.floorplan_id&&(this._teardownWs(),this._document=null,this._hass&&this._loadFloorplan())}getCardSize(){return Math.max(1,Math.round((this._config?.height??520)/50))}connectedCallback(){super.connectedCallback(),!this._scene3d&&this._document&&this._viewportContainer&&this._initScene()}disconnectedCallback(){this._teardownWs(),this._scene3d&&(this._scene3d.dispose(),this._scene3d=null),super.disconnectedCallback()}firstUpdated(){this._viewportContainer&&this._document&&!this._scene3d&&this._initScene()}async _loadFloorplan(){if(!(!this._hass||!this._config?.floorplan_id||this._loading)){this._loading=!0,this._errorMessage=null,this.requestUpdate();try{this._wsClient=new b(()=>this._hass);const e=await this._wsClient.getFloorplan(this._config.floorplan_id);this._document=e,this._stateDiffer.rebuildWatchedSet(e,this._hass);let t=e.floors.find(i=>i.id===this._config.default_floor_id);if(t||(t=e.floors.find(i=>i.level_index===0)??e.floors[0]),this._activeFloorId=t?.id??null,!this._unsubscribeWs)try{this._unsubscribeWs=await this._wsClient.subscribeFloorplan(this._config.floorplan_id,i=>{i.event==="updated"&&i.floorplan?this._onFloorplanHotReload(i.floorplan):i.event==="deleted"&&(this._errorMessage=`Floorplan '${this._config.floorplan_id}' was deleted.`,this._document=null,this.requestUpdate())})}catch(i){console.warn("[floorplan-3d-card] Real-time WS subscription notice:",i)}this._loading=!1,this.requestUpdate(),await this.updateComplete,this._initScene()}catch(e){this._loading=!1,this._errorMessage=e instanceof Error?e.message:`Failed to load floorplan '${this._config.floorplan_id}'.`,this.requestUpdate()}}}_onFloorplanHotReload(e){this._document=e,this._stateDiffer.rebuildWatchedSet(e,this._hass),this._activeFloorId&&!e.floors.some(t=>t.id===this._activeFloorId)&&(this._activeFloorId=e.floors[0]?.id??null),this._scene3d&&this._scene3d.setDocument(e,this._activeFloorId??void 0,this._hass),this.requestUpdate()}_initScene(){!this._viewportContainer||!this._document||(this._scene3d&&(this._scene3d.dispose(),this._scene3d=null),this._scene3d=new x(this._viewportContainer,{qualityTier:this._config.quality_tier??"auto",wallMode:this._currentWallMode,projection:this._currentProjection,ambientMode:this._config.ambient_mode,showRoomLabels:this._config.show_room_labels??!0,showEntityBadges:this._config.show_entity_badges??!0,onEntityAction:e=>{y(this,this._hass,e),this._config.enable_room_zoom_on_tap&&e.room&&this._scene3d?.focusOnRoom(e.room.id,!0)}}),this._scene3d.setDocument(this._document,this._activeFloorId??void 0,this._hass),this._isDollhouse&&this._scene3d.setStackedDollhouse(!0))}_teardownWs(){this._unsubscribeWs&&(this._unsubscribeWs().catch(()=>{}),this._unsubscribeWs=void 0)}_handleFloorSelect(e){this._activeFloorId!==e&&(this._activeFloorId=e,this._scene3d?.setActiveFloor(e,this._isDollhouse),this.requestUpdate())}_handleToggleDollhouse(){this._isDollhouse=!this._isDollhouse,this._scene3d?.setStackedDollhouse(this._isDollhouse),this.requestUpdate()}_handleCycleWallMode(){const t={auto_cutaway:"half",half:"full",full:"auto_cutaway"}[this._currentWallMode]??"auto_cutaway";this._currentWallMode=t,this._scene3d?.setWallMode(t),this.requestUpdate()}_handleToggleProjection(){const e=this._currentProjection==="orthographic"?"perspective":"orthographic";this._currentProjection=e,this._scene3d?.setProjection(e),this.requestUpdate()}_handleResetCamera(){this._scene3d?.resetCameraToDefault(!0)}_getHeightStyle(){return this._config?.height?`${this._config.height}px`:"520px"}_getWallModeLabel(){switch(this._currentWallMode){case"auto_cutaway":return"Cutaway";case"half":return"Half";case"full":return"Full";default:return"Walls"}}render(){const e=this._getHeightStyle(),t=[...this._document?.floors||[]].sort((a,d)=>a.level_index-d.level_index),i=(this._config?.show_floor_selector??!0)&&t.length>0,o=this._config?.show_wall_mode_toggle??!0,s=this._config?.show_reset_camera??!0;return r`
       <div class="card-root" style="height: ${e};">
         <!-- 3D Three.js WebGL & CSS2D Container -->
         <div class="viewport-container"></div>
 
         <!-- Top-Left Overlay: Floor Switcher & Dollhouse Mode -->
-        ${o?n`
+        ${i?r`
               <div class="hud-overlay hud-top-left">
                 <div class="glass-pill-bar">
-                  ${t.map(r=>n`
+                  ${t.map(a=>r`
                       <button
                         type="button"
-                        class="pill-btn ${this._activeFloorId===r.id?"active":""}"
-                        @click=${()=>this._handleFloorSelect(r.id)}
-                        title="${r.name} (Level ${r.level_index})"
+                        class="pill-btn ${this._activeFloorId===a.id?"active":""}"
+                        @click=${()=>this._handleFloorSelect(a.id)}
+                        title="${a.name} (Level ${a.level_index})"
                       >
-                        ${r.name||`Level ${r.level_index}`}
+                        ${a.name||`Level ${a.level_index}`}
                       </button>
                     `)}
-                  ${t.length>1?n`
+                  ${t.length>1?r`
                         <button
                           type="button"
                           class="pill-btn icon-pill ${this._isDollhouse?"active":""}"
@@ -440,15 +432,15 @@ import{i as m,n as w,r as c,a as y,F as x,A as f,b as n,t as C,W as D,c as S,e a
                           </svg>
                           <span>Dollhouse</span>
                         </button>
-                      `:f}
+                      `:p}
                 </div>
               </div>
-            `:f}
+            `:p}
 
         <!-- Top-Right Overlay: Wall Cutaway, Camera Projection, Reset View -->
         <div class="hud-overlay hud-top-right">
           <div class="glass-pill-bar">
-            ${i?n`
+            ${o?r`
                   <button
                     type="button"
                     class="pill-btn icon-pill"
@@ -463,7 +455,7 @@ import{i as m,n as w,r as c,a as y,F as x,A as f,b as n,t as C,W as D,c as S,e a
                     </svg>
                     <span>${this._getWallModeLabel()}</span>
                   </button>
-                `:f}
+                `:p}
 
             <button
               type="button"
@@ -480,7 +472,7 @@ import{i as m,n as w,r as c,a as y,F as x,A as f,b as n,t as C,W as D,c as S,e a
               <span>${this._currentProjection==="orthographic"?"Iso":"3D"}</span>
             </button>
 
-            ${s?n`
+            ${s?r`
                   <button
                     type="button"
                     class="pill-btn icon-only"
@@ -494,20 +486,20 @@ import{i as m,n as w,r as c,a as y,F as x,A as f,b as n,t as C,W as D,c as S,e a
                       />
                     </svg>
                   </button>
-                `:f}
+                `:p}
           </div>
         </div>
 
         <!-- Loading State Overlay -->
-        ${this._loading?n`
+        ${this._loading?r`
               <div class="status-overlay">
                 <div class="spinner"></div>
                 <div class="status-text">Loading 3D Floorplan...</div>
               </div>
-            `:f}
+            `:p}
 
         <!-- Error State Overlay -->
-        ${this._errorMessage?n`
+        ${this._errorMessage?r`
               <div class="status-overlay error">
                 <div class="error-card">
                   <div class="error-title">Floorplan Unavailable</div>
@@ -517,9 +509,9 @@ import{i as m,n as w,r as c,a as y,F as x,A as f,b as n,t as C,W as D,c as S,e a
                   </button>
                 </div>
               </div>
-            `:f}
+            `:p}
       </div>
-    `}};l.styles=m`
+    `}};l.styles=_`
     :host {
       display: block;
       position: relative;
@@ -697,4 +689,4 @@ import{i as m,n as w,r as c,a as y,F as x,A as f,b as n,t as C,W as D,c as S,e a
     .retry-btn:hover {
       opacity: 0.9;
     }
-  `;d([w({attribute:!1})],l.prototype,"hass",1);d([c()],l.prototype,"_config",2);d([c()],l.prototype,"_document",2);d([c()],l.prototype,"_activeFloorId",2);d([c()],l.prototype,"_isDollhouse",2);d([c()],l.prototype,"_currentWallMode",2);d([c()],l.prototype,"_currentProjection",2);d([c()],l.prototype,"_loading",2);d([c()],l.prototype,"_errorMessage",2);d([j(".viewport-container")],l.prototype,"_viewportContainer",2);l=d([C("floorplan-3d-card")],l);
+  `;c([f({attribute:!1})],l.prototype,"hass",1);c([n()],l.prototype,"_config",2);c([n()],l.prototype,"_document",2);c([n()],l.prototype,"_activeFloorId",2);c([n()],l.prototype,"_isDollhouse",2);c([n()],l.prototype,"_currentWallMode",2);c([n()],l.prototype,"_currentProjection",2);c([n()],l.prototype,"_loading",2);c([n()],l.prototype,"_errorMessage",2);c([m(".viewport-container")],l.prototype,"_viewportContainer",2);l=c([v("floorplan-3d-card")],l);

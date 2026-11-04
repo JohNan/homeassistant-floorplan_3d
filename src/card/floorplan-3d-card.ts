@@ -46,7 +46,6 @@ if (!window.customCards.some((c) => c.type === 'floorplan-3d-card')) {
 @customElement('floorplan-3d-card')
 export class Floorplan3DCard extends LitElement implements LovelaceCard {
   public static async getConfigElement(): Promise<HTMLElement> {
-    await import('./floorplan-3d-card-editor');
     return document.createElement('floorplan-3d-card-editor');
   }
 

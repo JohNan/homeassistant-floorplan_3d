@@ -250,16 +250,18 @@ export class FloorplanCanvas2D extends LitElement {
 
   override connectedCallback(): void {
     super.connectedCallback();
-    this.resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const cr = entry.contentRect;
-        if (cr.width > 0 && cr.height > 0) {
-          this.canvasWidth = cr.width;
-          this.canvasHeight = cr.height;
+    if (typeof ResizeObserver !== 'undefined') {
+      this.resizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const cr = entry.contentRect;
+          if (cr.width > 0 && cr.height > 0) {
+            this.canvasWidth = cr.width;
+            this.canvasHeight = cr.height;
+          }
         }
-      }
-    });
-    this.resizeObserver.observe(this);
+      });
+      this.resizeObserver.observe(this);
+    }
 
     window.addEventListener('keydown', this.handleGlobalKeyDown);
     window.addEventListener('keyup', this.handleGlobalKeyUp);
@@ -276,9 +278,16 @@ export class FloorplanCanvas2D extends LitElement {
     window.removeEventListener('pointerup', this.handleGlobalPointerUp);
   }
 
-  override firstUpdated(): void {
-    if (this.floor && (this.floor.nodes.length > 0 || this.floor.blueprint)) {
-      this.fitViewToFloor();
+  private hasInitialFit = false;
+
+  override willUpdate(): void {
+    if (
+      !this.hasInitialFit &&
+      this.floor &&
+      (this.floor.nodes.length > 0 || this.floor.blueprint)
+    ) {
+      this.hasInitialFit = true;
+      this.fitViewToFloor(false);
     }
   }
 
@@ -308,7 +317,7 @@ export class FloorplanCanvas2D extends LitElement {
   /**
    * Centers and zooms the 2D CAD viewport to encompass all elements of the floor.
    */
-  public fitViewToFloor(): void {
+  public fitViewToFloor(triggerUpdate = true): void {
     if (!this.floor) return;
     const bbox = computeFloorBoundingBox2D(this.floor, 1.5);
     this.panX = bbox.centerX;
@@ -318,7 +327,9 @@ export class FloorplanCanvas2D extends LitElement {
     const ppmX = (w - 100) / Math.max(1, bbox.width);
     const ppmY = (h - 100) / Math.max(1, bbox.height);
     this.pixelsPerMeter = Math.max(20, Math.min(250, Math.min(ppmX, ppmY)));
-    this.requestUpdate();
+    if (triggerUpdate) {
+      this.requestUpdate();
+    }
   }
 
   private emitFloorChange(floor: FloorLevel, description: string): void {

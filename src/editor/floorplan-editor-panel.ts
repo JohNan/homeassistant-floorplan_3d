@@ -20,9 +20,9 @@ import type {
 import { EditorHistory } from './state/EditorHistory';
 import { FloorplanWsClient } from '../api/ws-client';
 import { FloorplanScene3D } from '../engine/FloorplanScene3D';
+import { WatchedEntityDiffer } from '../utils/ha-registry';
 
 // Child components
-// @ts-ignore - Canvas 2D custom element registered in parallel
 import './canvas2d/FloorplanCanvas2D';
 import './canvas2d/BlueprintModal';
 import './components/EditorToolbar';
@@ -54,6 +54,7 @@ export class FloorplanEditorPanel extends LitElement {
 
   private history!: EditorHistory<FloorplanDocument>;
   private wsClient!: FloorplanWsClient;
+  private stateDiffer = new WatchedEntityDiffer();
   private scene3d: FloorplanScene3D | null = null;
   private sceneContainerEl: HTMLElement | null = null;
   private toastTimer: number | null = null;
@@ -185,11 +186,15 @@ export class FloorplanEditorPanel extends LitElement {
 
     if (changedProperties.has('hass') && this.hass && !this.isWsInitialized) {
       this.isWsInitialized = true;
+      this.stateDiffer.rebuildWatchedSet(this.currentDocument, this.hass);
       this.loadInitialData();
     }
 
     if (changedProperties.has('hass') && this.hass && this.scene3d) {
-      this.scene3d.updateHassStates(this.hass);
+      const changed = this.stateDiffer.diffStates(this.hass);
+      if (changed.length > 0) {
+        this.scene3d.updateHassStates(this.hass, changed);
+      }
     }
 
     if (changedProperties.has('viewLayout')) {
@@ -256,9 +261,15 @@ export class FloorplanEditorPanel extends LitElement {
 
   // --- Keyboard Shortcuts ---
   private handleKeyDown = (ev: KeyboardEvent): void => {
-    // Ignore keystrokes when typing inside input / textarea / select
-    const tag = (ev.target as HTMLElement)?.tagName?.toLowerCase();
-    if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+    // Ignore keystrokes when typing inside input / textarea / select (including across Shadow DOM boundaries)
+    const targetEl = (ev.composedPath?.()[0] ?? ev.target) as HTMLElement | undefined;
+    const tag = targetEl?.tagName?.toLowerCase();
+    if (
+      tag === 'input' ||
+      tag === 'textarea' ||
+      tag === 'select' ||
+      targetEl?.isContentEditable
+    ) {
       return;
     }
 
@@ -342,6 +353,17 @@ export class FloorplanEditorPanel extends LitElement {
     if (!floor) return;
 
     switch (kind) {
+      case 'node': {
+        const removedWallIds = new Set(
+          floor.walls
+            .filter((w) => w.start_node_id === id || w.end_node_id === id)
+            .map((w) => w.id)
+        );
+        floor.nodes = floor.nodes.filter((n) => n.id !== id);
+        floor.walls = floor.walls.filter((w) => !removedWallIds.has(w.id));
+        floor.openings = floor.openings.filter((o) => !removedWallIds.has(o.wall_id));
+        break;
+      }
       case 'wall':
         floor.walls = floor.walls.filter((w) => w.id !== id);
         floor.openings = floor.openings.filter((o) => o.wall_id !== id);
@@ -367,6 +389,7 @@ export class FloorplanEditorPanel extends LitElement {
 
   // --- 3D Scene Synchronization ---
   private sync3DScene(): void {
+    this.stateDiffer.rebuildWatchedSet(this.currentDocument, this.hass);
     if (!this.scene3d) return;
     this.scene3d.setDocument(this.currentDocument, this.activeFloorId, this.hass);
   }
