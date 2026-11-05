@@ -1,4 +1,4 @@
-import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vendor-55gREmrw.js";import{a as c,c as l,d as u,f as d,h as f,l as p,m,n as h,o as g,p as _,r as v,s as y,t as b,u as x}from"./chunks/decorate-DMESXAm3.js";function S(e=`main_house`,t=`Main House`){let n=new Date().toISOString();return{id:e,name:t,revision:1,created_at:n,updated_at:n,unit:`m`,grid_size:.1,ambient_config:{mode:`adaptive_contrast`,sun_entity_id:`sun.sun`,base_ambient_intensity:.25,wall_color:`#e2e8f0`,floor_color:`#334155`,background_color:`#0f172a`},floors:[{id:`ground_floor`,name:`Ground Floor`,level_index:0,elevation:0,wall_height:2.6,slab_thickness:.15,ha_floor_id:null,blueprint:null,default_camera:{projection:`perspective`,position:[0,11,10],target:[0,0,0],zoom:1},nodes:[{id:`n1`,x:-4,y:-3},{id:`n2`,x:4,y:-3},{id:`n3`,x:4,y:3},{id:`n4`,x:-4,y:3}],walls:[{id:`w1`,start_node_id:`n1`,end_node_id:`n2`,thickness:.2,height_override:null,is_exterior:!0,color_override:null},{id:`w2`,start_node_id:`n2`,end_node_id:`n3`,thickness:.2,height_override:null,is_exterior:!0,color_override:null},{id:`w3`,start_node_id:`n3`,end_node_id:`n4`,thickness:.2,height_override:null,is_exterior:!0,color_override:null},{id:`w4`,start_node_id:`n4`,end_node_id:`n1`,thickness:.2,height_override:null,is_exterior:!0,color_override:null}],openings:[],rooms:[{id:`r1`,name:`Living Room`,ha_area_id:null,points:[{x:-4,y:-3,node_id:`n1`},{x:4,y:-3,node_id:`n2`},{x:4,y:3,node_id:`n3`},{x:-4,y:3,node_id:`n4`}],floor_material:`wood_oak`,floor_color:`#8b6f4e`,show_label:!0,temp_entity_id:null,humidity_entity_id:null,motion_entity_id:null,room_tap_action:{action:`toggle`}}],furniture:[],entities:[]}]}}var C=class{constructor(e,t=50){if(this.entries=[],this.currentIndex=0,this.savedIndex=0,t<1)throw Error(`maxSteps must be at least 1`);this.maxSteps=t,this.reset(e)}get current(){let e=this.entries[this.currentIndex];return structuredClone(e.state)}push(e,t){if(this.currentIndex<this.entries.length-1&&(this.savedIndex!==null&&this.savedIndex>this.currentIndex&&(this.savedIndex=null),this.entries=this.entries.slice(0,this.currentIndex+1)),this.entries.push({state:structuredClone(e),label:t,timestamp:Date.now()}),this.entries.length>this.maxSteps){let e=this.entries.length-this.maxSteps;this.entries=this.entries.slice(e),this.savedIndex!==null&&(this.savedIndex-=e,this.savedIndex<0&&(this.savedIndex=null))}this.currentIndex=this.entries.length-1}undo(){return this.canUndo?(this.currentIndex--,this.current):null}redo(){return this.canRedo?(this.currentIndex++,this.current):null}get canUndo(){return this.currentIndex>0}get canRedo(){return this.currentIndex<this.entries.length-1}markSaved(){this.savedIndex=this.currentIndex}get isDirty(){return this.savedIndex!==this.currentIndex}reset(e){this.entries=[{state:structuredClone(e),timestamp:Date.now()}],this.currentIndex=0,this.savedIndex=0}get length(){return this.entries.length}get index(){return this.currentIndex}},w=class extends e{constructor(...e){super(...e),this.floor=null,this.ghostFloor=null,this.toolMode=`select`,this.selection={kind:`none`,id:null},this.gridSize=.1,this.snapToGrid=!0,this.snapAngleDeg=15,this.pendingOpeningType=`door_single`,this.pixelsPerMeter=60,this.panX=0,this.panY=0,this.canvasWidth=800,this.canvasHeight=600,this.isPanning=!1,this.panStartScreen={x:0,y:0},this.panStartWorld={x:0,y:0},this.spaceHeld=!1,this.didPanMove=!1,this.panStartedOnSelectable=!1,this.activePointers=new Map,this.prevPinchDist=null,this.prevPinchCenter=null,this.cursorWorld={x:0,y:0},this.snappedCursor={x:0,y:0},this.wallDrawStartNodeId=null,this.wallDrawStartPoint=null,this.roomDrawPoints=[],this.hoverWallId=null,this.hoverWallT=.5,this.hoverOpeningPoint=null,this.measureP1=null,this.measureP2=null,this.measureLocked=!1,this.dragKind=null,this.dragItemId=null,this.dragStartScreen={x:0,y:0},this.dragStartWorld={x:0,y:0},this.itemOriginalPos={x:0,y:0},this.dragWallOrigStart={x:0,y:0},this.dragWallOrigEnd={x:0,y:0},this.isItemDragging=!1,this.hasItemDragMoved=!1,this.hasInitialFit=!1,this.handleGlobalKeyDown=e=>{e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement||(e.code===`Space`&&!this.spaceHeld?(this.spaceHeld=!0,this.requestUpdate()):e.key===`Delete`||e.key===`Backspace`?this.deleteSelected():e.key===`Escape`&&this.cancelActiveOperation())},this.handleGlobalKeyUp=e=>{e.code===`Space`&&(this.spaceHeld=!1,this.requestUpdate())},this.handleGlobalPointerMove=e=>{if(this.activePointers.has(e.pointerId)&&this.activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY}),this.activePointers.size===2){if(this.isItemDragging){if(this.dragKind===`wall`&&this.floor&&this.dragItemId){let e=this.floor.walls.find(e=>e.id===this.dragItemId);if(e){let t=this.dragWallOrigStart,n=this.dragWallOrigEnd;this.floor={...this.floor,nodes:this.floor.nodes.map(r=>r.id===e.start_node_id?{...r,x:t.x,y:t.y}:r.id===e.end_node_id?{...r,x:n.x,y:n.y}:r),rooms:this.floor.rooms.map(r=>({...r,points:r.points.map(r=>r.node_id===e.start_node_id?{...r,x:t.x,y:t.y}:r.node_id===e.end_node_id?{...r,x:n.x,y:n.y}:r)}))}}}this.isItemDragging=!1,this.hasItemDragMoved=!1,this.dragKind=null,this.dragItemId=null}this.isPanning=!1;let e=Array.from(this.activePointers.values()),t=this.getBoundingClientRect(),n={x:e[0].x-t.left,y:e[0].y-t.top},r={x:e[1].x-t.left,y:e[1].y-t.top},i=Math.hypot(r.x-n.x,r.y-n.y),a={x:(n.x+r.x)/2,y:(n.y+r.y)/2};if(this.prevPinchDist&&this.prevPinchCenter&&this.prevPinchDist>10){let e=i/this.prevPinchDist,t=Math.max(20,Math.min(250,this.pixelsPerMeter*e)),n={x:this.panX+(this.prevPinchCenter.x-this.canvasWidth/2)/this.pixelsPerMeter,y:this.panY+(this.prevPinchCenter.y-this.canvasHeight/2)/this.pixelsPerMeter};this.panX=n.x-(a.x-this.canvasWidth/2)/t,this.panY=n.y-(a.y-this.canvasHeight/2)/t,this.pixelsPerMeter=t}this.prevPinchDist=i,this.prevPinchCenter=a;return}if(this.activePointers.size<2&&(this.prevPinchDist=null,this.prevPinchCenter=null),this.isPanning){let t=(e.clientX-this.panStartScreen.x)/this.pixelsPerMeter,n=(e.clientY-this.panStartScreen.y)/this.pixelsPerMeter;this.panX=this.panStartWorld.x-t,this.panY=this.panStartWorld.y-n,Math.hypot(e.clientX-this.panStartScreen.x,e.clientY-this.panStartScreen.y)>5&&(this.didPanMove=!0);return}let t=this.getBoundingClientRect(),n=e.clientX-t.left,r=e.clientY-t.top;if(this.cursorWorld=this.screenToWorld(n,r),this.toolMode===`draw_wall`&&this.wallDrawStartPoint){let e=this.getSnapResult(this.cursorWorld,this.wallDrawStartPoint,this.wallDrawStartNodeId?new Set([this.wallDrawStartNodeId]):void 0);this.snappedCursor=e.point}else{let e=this.getSnapResult(this.cursorWorld);this.snappedCursor=e.point}if(this.toolMode===`add_opening`&&this.floor&&this.updateOpeningHover(this.cursorWorld),this.isItemDragging&&this.floor){let t=Math.hypot(e.clientX-this.dragStartScreen.x,e.clientY-this.dragStartScreen.y);(this.hasItemDragMoved||t>3)&&this.handleItemDragMove(this.cursorWorld)}this.toolMode===`measure`&&this.measureP1&&!this.measureLocked&&(this.measureP2=this.snappedCursor)},this.handleGlobalPointerUp=e=>{if(this.activePointers.delete(e.pointerId),this.activePointers.size<2&&(this.prevPinchDist=null,this.prevPinchCenter=null),this.isPanning&&(this.isPanning=!1,this.toolMode===`select`&&!this.didPanMove&&!this.panStartedOnSelectable&&this.emitSelectionChange({kind:`none`,id:null}),this.panStartedOnSelectable=!1),this.isItemDragging&&this.floor){if(this.isItemDragging=!1,this.hasItemDragMoved){let e=this.dragKind===`furniture_rotate`?`Rotated furniture`:`Moved ${this.dragKind||`item`}`;this.emitFloorChange(this.floor,e)}this.hasItemDragMoved=!1,this.dragKind=null,this.dragItemId=null}}}static{this.styles=r`
+import{a as e,c as t,i as n,n as r,o as i,r as a,s as o,t as s}from"./chunks/lit-vendor-RPBkZGWT.js";import{_ as c,a as l,c as u,d,f,g as p,h as m,l as h,m as g,n as _,o as v,p as y,r as b,s as x,t as S,u as C}from"./chunks/decorate-B9vaSlrI.js";import{t as w}from"./chunks/konva-vendor-jkglrF7c.js";function T(e=`main_house`,t=`Main House`){let n=new Date().toISOString();return{id:e,name:t,revision:1,created_at:n,updated_at:n,unit:`m`,grid_size:.1,ambient_config:{mode:`adaptive_contrast`,sun_entity_id:`sun.sun`,base_ambient_intensity:.25,wall_color:`#e2e8f0`,floor_color:`#334155`,background_color:`#0f172a`},floors:[{id:`ground_floor`,name:`Ground Floor`,level_index:0,elevation:0,wall_height:2.6,slab_thickness:.15,ha_floor_id:null,blueprint:null,default_camera:{projection:`perspective`,position:[0,11,10],target:[0,0,0],zoom:1},nodes:[{id:`n1`,x:-4,y:-3},{id:`n2`,x:4,y:-3},{id:`n3`,x:4,y:3},{id:`n4`,x:-4,y:3}],walls:[{id:`w1`,start_node_id:`n1`,end_node_id:`n2`,thickness:.2,height_override:null,is_exterior:!0,color_override:null},{id:`w2`,start_node_id:`n2`,end_node_id:`n3`,thickness:.2,height_override:null,is_exterior:!0,color_override:null},{id:`w3`,start_node_id:`n3`,end_node_id:`n4`,thickness:.2,height_override:null,is_exterior:!0,color_override:null},{id:`w4`,start_node_id:`n4`,end_node_id:`n1`,thickness:.2,height_override:null,is_exterior:!0,color_override:null}],openings:[],rooms:[{id:`r1`,name:`Living Room`,ha_area_id:null,points:[{x:-4,y:-3,node_id:`n1`},{x:4,y:-3,node_id:`n2`},{x:4,y:3,node_id:`n3`},{x:-4,y:3,node_id:`n4`}],floor_material:`wood_oak`,floor_color:`#8b6f4e`,show_label:!0,temp_entity_id:null,humidity_entity_id:null,motion_entity_id:null,room_tap_action:{action:`toggle`}}],furniture:[],entities:[]}]}}var E=class{constructor(e,t=50){if(this.entries=[],this.currentIndex=0,this.savedIndex=0,t<1)throw Error(`maxSteps must be at least 1`);this.maxSteps=t,this.reset(e)}get current(){let e=this.entries[this.currentIndex];return structuredClone(e.state)}push(e,t){if(this.currentIndex<this.entries.length-1&&(this.savedIndex!==null&&this.savedIndex>this.currentIndex&&(this.savedIndex=null),this.entries=this.entries.slice(0,this.currentIndex+1)),this.entries.push({state:structuredClone(e),label:t,timestamp:Date.now()}),this.entries.length>this.maxSteps){let e=this.entries.length-this.maxSteps;this.entries=this.entries.slice(e),this.savedIndex!==null&&(this.savedIndex-=e,this.savedIndex<0&&(this.savedIndex=null))}this.currentIndex=this.entries.length-1}undo(){return this.canUndo?(this.currentIndex--,this.current):null}redo(){return this.canRedo?(this.currentIndex++,this.current):null}get canUndo(){return this.currentIndex>0}get canRedo(){return this.currentIndex<this.entries.length-1}markSaved(){this.savedIndex=this.currentIndex}get isDirty(){return this.savedIndex!==this.currentIndex}reset(e){this.entries=[{state:structuredClone(e),timestamp:Date.now()}],this.currentIndex=0,this.savedIndex=0}get length(){return this.entries.length}get index(){return this.currentIndex}};function D(){if(typeof HTMLCanvasElement>`u`||typeof document>`u`||document.createElement(`canvas`).getContext(`2d`)!==null)return;let e=HTMLCanvasElement.prototype,t=e.getContext,n=e=>{let t=()=>{};return{canvas:e,fillStyle:`#000000`,strokeStyle:`#000000`,shadowColor:`rgba(0,0,0,0)`,shadowBlur:0,shadowOffsetX:0,shadowOffsetY:0,lineCap:`butt`,lineDashOffset:0,lineJoin:`miter`,lineWidth:1,miterLimit:10,font:`10px sans-serif`,textAlign:`start`,textBaseline:`alphabetic`,globalAlpha:1,globalCompositeOperation:`source-over`,imageSmoothingEnabled:!0,arc:t,arcTo:t,beginPath:t,bezierCurveTo:t,clearRect:t,clip:t,closePath:t,createLinearGradient:()=>({addColorStop:t}),createPattern:()=>({}),createRadialGradient:()=>({addColorStop:t}),drawImage:t,ellipse:t,fill:t,fillRect:t,fillText:t,getImageData:(e,t,n=1,r=1)=>({data:new Uint8ClampedArray(Math.max(1,n*r*4)),width:n,height:r}),createImageData:(e=1,t=1)=>({data:new Uint8ClampedArray(Math.max(1,e*t*4)),width:e,height:t}),lineTo:t,measureText:e=>({width:(e?.length??0)*6,actualBoundingBoxAscent:8,actualBoundingBoxDescent:2}),moveTo:t,putImageData:t,quadraticCurveTo:t,rect:t,roundRect:t,restore:t,rotate:t,save:t,scale:t,setLineDash:t,getLineDash:()=>[],setTransform:t,getTransform:()=>({a:1,b:0,c:0,d:1,e:0,f:0}),stroke:t,strokeRect:t,strokeText:t,transform:t,translate:t,isPointInPath:()=>!1,isPointInStroke:()=>!1}};e.getContext=function(e,r){return(t?t.call(this,e,r):null)||(e===`2d`?n(this):null)}}var O=class extends e{constructor(...e){super(...e),this.floor=null,this.ghostFloor=null,this.toolMode=`select`,this.selection={kind:`none`,id:null},this.gridSize=.5,this.snapToGrid=!0,this.showGrid=!0,this.showBlueprint=!0,this.panX=0,this.panY=0,this.pixelsPerMeter=60,this.canvasWidth=800,this.canvasHeight=600,this.cursorWorld={x:0,y:0},this.snappedCursorWorld={x:0,y:0},this.wallChainStartNodeId=null,this.roomChainPoints=[],this.calibrationStartPoint=null,this.openingPreview=null,this.stage=null,this.gridLayer=null,this.sceneLayer=null,this.overlayLayer=null,this.transformer=null,this.resizeObserver=null,this.blueprintImageCache=new Map,this.activeFloorDraft=null,this.isSpacePressed=!1,this.isPanningStage=!1,this.panStartClient={x:0,y:0},this.panStartWorld={x:0,y:0},this.activeTouchPoints=new Map,this.pinchInitialDistance=0,this.pinchInitialScale=60,this.pinchInitialPan={x:0,y:0},this.pinchInitialMidScreen={x:0,y:0},this.onKeyDown=e=>{e.composedPath().some(e=>e instanceof HTMLElement&&(e.tagName===`INPUT`||e.tagName===`TEXTAREA`||e.tagName===`SELECT`))||(e.code===`Space`?this.isSpacePressed=!0:e.key===`Escape`?this.cancelActiveToolChain():e.key===`Enter`&&this.toolMode===`draw_room`&&this.roomChainPoints.length>=3&&this.commitRoomPolygon())},this.onKeyUp=e=>{e.code===`Space`&&(this.isSpacePressed=!1)},this.onMountPointerDown=e=>{if(e.pointerType===`touch`&&(this.activeTouchPoints.set(e.pointerId,{x:e.clientX,y:e.clientY}),this.activeTouchPoints.size===2)){let e=Array.from(this.activeTouchPoints.values());this.pinchInitialDistance=Math.max(10,u(e[0],e[1])),this.pinchInitialScale=this.pixelsPerMeter,this.pinchInitialPan={x:this.panX,y:this.panY};let t=this.getBoundingClientRect();this.pinchInitialMidScreen={x:(e[0].x+e[1].x)/2-t.left,y:(e[0].y+e[1].y)/2-t.top}}},this.onMountPointerMove=e=>{if(this.activeTouchPoints.has(e.pointerId)&&(this.activeTouchPoints.set(e.pointerId,{x:e.clientX,y:e.clientY}),this.activeTouchPoints.size===2)){let e=Array.from(this.activeTouchPoints.values()),t=Math.max(10,u(e[0],e[1]))/this.pinchInitialDistance;this.pixelsPerMeter=Math.max(15,Math.min(300,this.pinchInitialScale*t));let n=this.getBoundingClientRect(),r={x:(e[0].x+e[1].x)/2-n.left,y:(e[0].y+e[1].y)/2-n.top};this.panX=this.pinchInitialPan.x-(r.x-this.pinchInitialMidScreen.x)/this.pixelsPerMeter,this.panY=this.pinchInitialPan.y-(r.y-this.pinchInitialMidScreen.y)/this.pixelsPerMeter,this.syncKonvaViewport(),this.rebuildSceneLayer()}},this.onMountPointerUp=e=>{this.activeTouchPoints.delete(e.pointerId)}}static{this.styles=t`
     :host {
       display: block;
       position: relative;
@@ -12,68 +12,12 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
 
-    .canvas-svg {
-      display: block;
+    .konva-mount {
+      position: absolute;
+      inset: 0;
       width: 100%;
       height: 100%;
-      cursor: crosshair;
-    }
-
-    .cursor-select {
-      cursor: default;
-    }
-
-    .cursor-panning {
-      cursor: grabbing !important;
-    }
-
-    .cursor-grab {
-      cursor: grab;
-    }
-
-    .wall-group {
-      cursor: move;
-    }
-
-    .wall-footprint {
-      cursor: move;
-    }
-
-    .wall-node {
-      cursor: move;
-    }
-
-    .wall-node:hover .wall-node-dot {
-      fill: #38bdf8;
-    }
-
-    .room-polygon {
-      cursor: pointer;
-    }
-
-    .furniture-item {
-      cursor: move;
-    }
-
-    .rotation-handle {
-      cursor: grab;
-    }
-
-    .rotation-handle:active {
-      cursor: grabbing;
-    }
-
-    .entity-item {
-      cursor: move;
-    }
-
-    .opening-item {
-      cursor: ew-resize;
-    }
-
-    .ghost-layer {
-      pointer-events: none;
-      opacity: 0.25;
+      overflow: hidden;
     }
 
     .hud-overlay {
@@ -141,6 +85,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
       display: flex;
       align-items: center;
       gap: 0.5rem;
+      z-index: 10;
     }
 
     .touch-action-bar {
@@ -248,542 +193,59 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
       font-size: 0.75rem;
       font-weight: 600;
     }
-
-    .dimension-label {
-      font-size: 10px;
-      font-weight: 600;
-      fill: var(--primary-text-color, #cbd5e1);
-      text-anchor: middle;
-      pointer-events: none;
-      user-select: none;
-    }
-  `}connectedCallback(){super.connectedCallback(),typeof ResizeObserver<`u`&&(this.resizeObserver=new ResizeObserver(e=>{for(let t of e){let e=t.contentRect;e.width>0&&e.height>0&&(this.canvasWidth=e.width,this.canvasHeight=e.height)}}),this.resizeObserver.observe(this)),window.addEventListener(`keydown`,this.handleGlobalKeyDown),window.addEventListener(`keyup`,this.handleGlobalKeyUp),window.addEventListener(`pointermove`,this.handleGlobalPointerMove),window.addEventListener(`pointerup`,this.handleGlobalPointerUp),window.addEventListener(`pointercancel`,this.handleGlobalPointerUp)}disconnectedCallback(){super.disconnectedCallback(),this.resizeObserver?.disconnect(),window.removeEventListener(`keydown`,this.handleGlobalKeyDown),window.removeEventListener(`keyup`,this.handleGlobalKeyUp),window.removeEventListener(`pointermove`,this.handleGlobalPointerMove),window.removeEventListener(`pointerup`,this.handleGlobalPointerUp),window.removeEventListener(`pointercancel`,this.handleGlobalPointerUp)}willUpdate(){!this.hasInitialFit&&this.floor&&(this.floor.nodes.length>0||this.floor.blueprint)&&(this.hasInitialFit=!0,this.fitViewToFloor(!1))}worldToScreen(e,t){return{x:this.canvasWidth/2+(e-this.panX)*this.pixelsPerMeter,y:this.canvasHeight/2+(t-this.panY)*this.pixelsPerMeter}}screenToWorld(e,t){return{x:this.panX+(e-this.canvasWidth/2)/this.pixelsPerMeter,y:this.panY+(t-this.canvasHeight/2)/this.pixelsPerMeter}}sx(e){return this.canvasWidth/2+(e-this.panX)*this.pixelsPerMeter}sy(e){return this.canvasHeight/2+(e-this.panY)*this.pixelsPerMeter}getViewportCenterWorld(){return{x:Number(this.panX.toFixed(3)),y:Number(this.panY.toFixed(3))}}zoomIn(){this.pixelsPerMeter=Math.max(20,Math.min(250,this.pixelsPerMeter*1.25)),this.requestUpdate()}zoomOut(){this.pixelsPerMeter=Math.max(20,Math.min(250,this.pixelsPerMeter*.8)),this.requestUpdate()}fitViewToFloor(e=!0){if(!this.floor)return;let t=y(this.floor,1.5);this.panX=t.centerX,this.panY=t.centerY;let n=this.canvasWidth||800,r=this.canvasHeight||600,i=(n-100)/Math.max(1,t.width),a=(r-100)/Math.max(1,t.height);this.pixelsPerMeter=Math.max(20,Math.min(250,Math.min(i,a))),e&&this.requestUpdate()}emitFloorChange(e,t){this.dispatchEvent(new CustomEvent(`floor-change`,{detail:{floor:e,description:t},bubbles:!0,composed:!0}))}emitSelectionChange(e){this.selection=e,this.dispatchEvent(new CustomEvent(`selection-change`,{detail:{selection:e},bubbles:!0,composed:!0}))}getSnapResult(e,t,n){return this.floor?_(e,{gridSize:this.gridSize,snapToGrid:this.snapToGrid,nodes:this.floor.nodes,walls:this.floor.walls,nodeSnapRadius:.25,anchorPoint:t,snapAngleDeg:this.snapAngleDeg,excludeNodeIds:n}):{point:e,snappedNodeId:null,snappedWallId:null}}cancelActiveOperation(){this.wallDrawStartPoint||this.wallDrawStartNodeId?(this.wallDrawStartPoint=null,this.wallDrawStartNodeId=null):this.roomDrawPoints.length>0?this.roomDrawPoints=[]:this.measureP1?(this.measureP1=null,this.measureP2=null,this.measureLocked=!1):this.selection.kind!==`none`&&this.emitSelectionChange({kind:`none`,id:null}),this.requestUpdate()}deleteSelected(){if(!this.floor||this.selection.kind===`none`||!this.selection.id)return;let{kind:e,id:t}=this.selection,n={...this.floor},r=``;if(e===`node`){let e=new Set(n.walls.filter(e=>e.start_node_id===t||e.end_node_id===t).map(e=>e.id));n.nodes=n.nodes.filter(e=>e.id!==t),n.walls=n.walls.filter(t=>!e.has(t.id)),n.openings=n.openings.filter(t=>!e.has(t.wall_id)),n.rooms=n.rooms.map(e=>({...e,points:e.points.filter(e=>e.node_id!==t)})).filter(e=>e.points.length>=3),r=`Deleted wall node`}else e===`wall`?(n.walls=n.walls.filter(e=>e.id!==t),n.openings=n.openings.filter(e=>e.wall_id!==t),r=`Deleted wall`):e===`opening`?(n.openings=n.openings.filter(e=>e.id!==t),r=`Deleted opening`):e===`room`?(n.rooms=n.rooms.filter(e=>e.id!==t),r=`Deleted room`):e===`furniture`?(n.furniture=n.furniture.filter(e=>e.id!==t),r=`Deleted furniture`):e===`entity`&&(n.entities=n.entities.filter(e=>e.id!==t),r=`Deleted entity placement`);this.floor=n,this.emitSelectionChange({kind:`none`,id:null}),this.emitFloorChange(n,r)}handleWheel(e){e.preventDefault();let t=this.getBoundingClientRect(),n=e.clientX-t.left,r=e.clientY-t.top,i=this.screenToWorld(n,r),a=e.deltaY<0?1.15:1/1.15,o=Math.max(20,Math.min(250,this.pixelsPerMeter*a));this.panX=i.x-(n-this.canvasWidth/2)/o,this.panY=i.y-(r-this.canvasHeight/2)/o,this.pixelsPerMeter=o}handleSvgPointerDown(e){if(this.activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY}),e.button===1||e.button===2||e.button===0&&this.spaceHeld){e.preventDefault(),this.isPanning=!0,this.panStartScreen={x:e.clientX,y:e.clientY},this.panStartWorld={x:this.panX,y:this.panY},this.didPanMove=!1;return}if(e.button!==0||!this.floor)return;if(this.toolMode===`select`&&!this.isItemDragging&&this.activePointers.size===1){this.isPanning=!0,this.panStartScreen={x:e.clientX,y:e.clientY},this.panStartWorld={x:this.panX,y:this.panY},this.didPanMove=!1;return}let t=this.getBoundingClientRect(),n=e.clientX-t.left,r=e.clientY-t.top,i=this.screenToWorld(n,r);this.toolMode===`draw_wall`?this.handleDrawWallClick(i):this.toolMode===`draw_room`?this.handleDrawRoomClick(i):this.toolMode===`add_opening`?this.handleAddOpeningClick():this.toolMode===`measure`&&this.handleMeasureClick(i)}handleDrawWallClick(e){if(this.floor){if(this.wallDrawStartPoint){let t=this.getSnapResult(e,this.wallDrawStartPoint);if(l(this.wallDrawStartPoint,t.point)<.1)return;let n=t.snappedNodeId,r=[...this.floor.nodes];if(!n){let e={id:`node_`+Math.random().toString(36).substring(2,9),x:Number(t.point.x.toFixed(3)),y:Number(t.point.y.toFixed(3))};r.push(e),n=e.id}if(n===this.wallDrawStartNodeId)return;let i={id:`wall_`+Math.random().toString(36).substring(2,9),start_node_id:this.wallDrawStartNodeId,end_node_id:n,thickness:.15,height_override:null,is_exterior:!1,color_override:null},a={...this.floor,nodes:r,walls:[...this.floor.walls,i]};this.floor=a,this.emitFloorChange(a,`Added wall segment`),this.wallDrawStartNodeId=n,this.wallDrawStartPoint=t.point}else{let t=this.getSnapResult(e);if(t.snappedNodeId)this.wallDrawStartNodeId=t.snappedNodeId,this.wallDrawStartPoint=t.point;else{let e={id:`node_`+Math.random().toString(36).substring(2,9),x:Number(t.point.x.toFixed(3)),y:Number(t.point.y.toFixed(3))},n={...this.floor,nodes:[...this.floor.nodes,e]};this.floor=n,this.wallDrawStartNodeId=e.id,this.wallDrawStartPoint={x:e.x,y:e.y},this.emitFloorChange(n,`Added wall start node`)}}}}handleDrawRoomClick(e){if(!this.floor)return;let t=this.getSnapResult(e);if(this.roomDrawPoints.length>=3){let e=this.roomDrawPoints[0];if(l(t.point,e)<.35){this.finishRoomPolygon();return}}this.roomDrawPoints=[...this.roomDrawPoints,{x:t.point.x,y:t.point.y,node_id:t.snappedNodeId}]}finishRoomPolygon(){if(!this.floor||this.roomDrawPoints.length<3)return;let e={id:`room_`+Math.random().toString(36).substring(2,9),name:`Room ${this.floor.rooms.length+1}`,ha_area_id:null,points:[...this.roomDrawPoints],floor_material:`wood_oak`,floor_color:`#334155`,show_label:!0,temp_entity_id:null,humidity_entity_id:null,motion_entity_id:null,room_tap_action:{action:`default`}},t={...this.floor,rooms:[...this.floor.rooms,e]};this.floor=t,this.roomDrawPoints=[],this.emitFloorChange(t,`Created ${e.name}`),this.emitSelectionChange({kind:`room`,id:e.id})}updateOpeningHover(e){if(!this.floor)return;let t=new Map(this.floor.nodes.map(e=>[e.id,e])),n=null,r=null,i=.6;for(let a of this.floor.walls){let o=t.get(a.start_node_id),s=t.get(a.end_node_id);if(!o||!s)continue;let c=d(e,o,s);c.distance<i&&(i=c.distance,n=a,r=c)}n&&r?(this.hoverWallId=n.id,this.hoverWallT=r.t,this.hoverOpeningPoint=r.point):(this.hoverWallId=null,this.hoverOpeningPoint=null)}handleAddOpeningClick(){if(!this.floor||!this.hoverWallId||!this.hoverOpeningPoint)return;let e=this.pendingOpeningType.startsWith(`door`),t=e?.9:1.2,n={id:`op_`+Math.random().toString(36).substring(2,9),wall_id:this.hoverWallId,type:this.pendingOpeningType,t:Number(this.hoverWallT.toFixed(3)),width:t,sill_height:e?0:.9,head_height:2.1,swing_direction:`left_in`,bound_entity_id:null},r={...this.floor,openings:[...this.floor.openings,n]};this.floor=r,this.emitFloorChange(r,`Added ${this.pendingOpeningType}`),this.emitSelectionChange({kind:`opening`,id:n.id})}handleMeasureClick(e){let t=this.getSnapResult(e);!this.measureP1||this.measureLocked?(this.measureP1=t.point,this.measureP2=t.point,this.measureLocked=!1):(this.measureP2=t.point,this.measureLocked=!0)}updateCursorFromPointerEvent(e){let t=this.getBoundingClientRect();this.cursorWorld=this.screenToWorld(e.clientX-t.left,e.clientY-t.top)}startNodeDrag(e,t){this.toolMode!==`select`||e.button!==0||this.spaceHeld||(e.stopPropagation(),this.activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY}),this.dragStartScreen={x:e.clientX,y:e.clientY},this.updateCursorFromPointerEvent(e),this.emitSelectionChange({kind:`node`,id:t.id}),this.dragKind=`node`,this.dragItemId=t.id,this.dragStartWorld={...this.cursorWorld},this.itemOriginalPos={x:t.x,y:t.y},this.isItemDragging=!0,this.hasItemDragMoved=!1)}startWallDrag(e,t){if(this.toolMode!==`select`||e.button!==0||this.spaceHeld||!this.floor)return;let n=this.floor.nodes.find(e=>e.id===t.start_node_id),r=this.floor.nodes.find(e=>e.id===t.end_node_id);n&&r&&(e.stopPropagation(),this.activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY}),this.dragStartScreen={x:e.clientX,y:e.clientY},this.updateCursorFromPointerEvent(e),this.emitSelectionChange({kind:`wall`,id:t.id}),this.dragKind=`wall`,this.dragItemId=t.id,this.dragStartWorld={...this.cursorWorld},this.dragWallOrigStart={x:n.x,y:n.y},this.dragWallOrigEnd={x:r.x,y:r.y},this.isItemDragging=!0,this.hasItemDragMoved=!1)}startFurnitureDrag(e,t){this.toolMode!==`select`||e.button!==0||this.spaceHeld||(e.stopPropagation(),this.activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY}),this.dragStartScreen={x:e.clientX,y:e.clientY},this.updateCursorFromPointerEvent(e),this.emitSelectionChange({kind:`furniture`,id:t.id}),this.dragKind=`furniture`,this.dragItemId=t.id,this.dragStartWorld={...this.cursorWorld},this.itemOriginalPos={x:t.x,y:t.y},this.isItemDragging=!0,this.hasItemDragMoved=!1)}startFurnitureRotate(e,t){this.toolMode!==`select`||e.button!==0||this.spaceHeld||(e.stopPropagation(),this.activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY}),this.dragStartScreen={x:e.clientX,y:e.clientY},this.updateCursorFromPointerEvent(e),this.emitSelectionChange({kind:`furniture`,id:t.id}),this.dragKind=`furniture_rotate`,this.dragItemId=t.id,this.itemOriginalPos={x:t.x,y:t.y},this.isItemDragging=!0,this.hasItemDragMoved=!1)}startEntityDrag(e,t){this.toolMode!==`select`||e.button!==0||this.spaceHeld||(e.stopPropagation(),this.activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY}),this.dragStartScreen={x:e.clientX,y:e.clientY},this.updateCursorFromPointerEvent(e),this.emitSelectionChange({kind:`entity`,id:t.id}),this.dragKind=`entity`,this.dragItemId=t.id,this.dragStartWorld={...this.cursorWorld},this.itemOriginalPos={x:t.x,y:t.y},this.isItemDragging=!0,this.hasItemDragMoved=!1)}startOpeningDrag(e,t){this.toolMode!==`select`||e.button!==0||this.spaceHeld||(e.stopPropagation(),this.activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY}),this.dragStartScreen={x:e.clientX,y:e.clientY},this.updateCursorFromPointerEvent(e),this.emitSelectionChange({kind:`opening`,id:t.id}),this.dragKind=`opening`,this.dragItemId=t.id,this.isItemDragging=!0,this.hasItemDragMoved=!1)}handleItemDragMove(e){if(this.floor&&this.dragItemId){if(this.hasItemDragMoved=!0,this.dragKind===`node`){let t=e.x-this.dragStartWorld.x,n=e.y-this.dragStartWorld.y,r={x:this.itemOriginalPos.x+t,y:this.itemOriginalPos.y+n},i=this.getSnapResult(r,void 0,new Set([this.dragItemId])),a=Number(i.point.x.toFixed(3)),o=Number(i.point.y.toFixed(3)),s=this.floor.nodes.map(e=>e.id===this.dragItemId?{...e,x:a,y:o}:e),c=this.floor.rooms.map(e=>({...e,points:e.points.map(e=>e.node_id===this.dragItemId?{...e,x:a,y:o}:e)}));this.floor={...this.floor,nodes:s,rooms:c}}else if(this.dragKind===`wall`){let t=this.floor.walls.find(e=>e.id===this.dragItemId);if(!t)return;let n=e.x-this.dragStartWorld.x,r=e.y-this.dragStartWorld.y,i=this.dragWallOrigStart.x+n,a=this.dragWallOrigStart.y+r;this.snapToGrid&&this.gridSize>0&&(i=Math.round(i/this.gridSize)*this.gridSize,a=Math.round(a/this.gridSize)*this.gridSize,n=i-this.dragWallOrigStart.x,r=a-this.dragWallOrigStart.y);let o=Number((this.dragWallOrigStart.x+n).toFixed(3)),s=Number((this.dragWallOrigStart.y+r).toFixed(3)),c=Number((this.dragWallOrigEnd.x+n).toFixed(3)),l=Number((this.dragWallOrigEnd.y+r).toFixed(3)),u=this.floor.nodes.map(e=>e.id===t.start_node_id?{...e,x:o,y:s}:e.id===t.end_node_id?{...e,x:c,y:l}:e),d=this.floor.rooms.map(e=>({...e,points:e.points.map(e=>e.node_id===t.start_node_id?{...e,x:o,y:s}:e.node_id===t.end_node_id?{...e,x:c,y:l}:e)}));this.floor={...this.floor,nodes:u,rooms:d}}else if(this.dragKind===`furniture`){let t=e.x-this.dragStartWorld.x,n=e.y-this.dragStartWorld.y,r=this.itemOriginalPos.x+t,i=this.itemOriginalPos.y+n;this.snapToGrid&&this.gridSize>0&&(r=Math.round(r/this.gridSize)*this.gridSize,i=Math.round(i/this.gridSize)*this.gridSize),this.floor={...this.floor,furniture:this.floor.furniture.map(e=>e.id===this.dragItemId?{...e,x:Number(r.toFixed(3)),y:Number(i.toFixed(3))}:e)}}else if(this.dragKind===`furniture_rotate`){let t=this.itemOriginalPos.x,n=this.itemOriginalPos.y,r=Math.atan2(e.y-n,e.x-t)*180/Math.PI+90;r<0&&(r+=360),r%=360,this.snapAngleDeg>0&&(r=Math.round(r/this.snapAngleDeg)*this.snapAngleDeg),this.floor={...this.floor,furniture:this.floor.furniture.map(e=>e.id===this.dragItemId?{...e,rotation_deg:r%360}:e)}}else if(this.dragKind===`entity`){let t=e.x-this.dragStartWorld.x,n=e.y-this.dragStartWorld.y,r=this.itemOriginalPos.x+t,i=this.itemOriginalPos.y+n;this.snapToGrid&&this.gridSize>0&&(r=Math.round(r/this.gridSize)*this.gridSize,i=Math.round(i/this.gridSize)*this.gridSize);let a={x:r,y:i},o=this.floor.rooms.find(e=>x(a,e.points));this.floor={...this.floor,entities:this.floor.entities.map(e=>e.id===this.dragItemId?{...e,x:Number(r.toFixed(3)),y:Number(i.toFixed(3)),room_id:o?o.id:null}:e)}}else if(this.dragKind===`opening`){let t=this.floor.openings.find(e=>e.id===this.dragItemId);if(!t)return;let n=this.floor.walls.find(e=>e.id===t.wall_id);if(!n)return;let r=new Map(this.floor.nodes.map(e=>[e.id,e])),i=r.get(n.start_node_id),a=r.get(n.end_node_id);if(!i||!a)return;let o=d(e,i,a),s=l(i,a),c=t.width/2/Math.max(.1,s),u=Math.max(c,Math.min(1-c,o.t));this.floor={...this.floor,openings:this.floor.openings.map(e=>e.id===this.dragItemId?{...e,t:Number(u.toFixed(3))}:e)}}}}handleDragOver(e){e.dataTransfer?.types.includes(`application/x-floorplan-palette`)&&(e.preventDefault(),e.dataTransfer.dropEffect=`copy`)}handleDrop(e){if(e.preventDefault(),!this.floor)return;let t=e.dataTransfer?.getData(`application/x-floorplan-palette`);if(!t)return;let n;try{n=JSON.parse(t)}catch{return}let r=this.getBoundingClientRect(),i=this.screenToWorld(e.clientX-r.left,e.clientY-r.top),a=this.getSnapResult(i).point;if(n.kind===`entity`){let e=n.domain||(n.entityId?n.entityId.split(`.`)[0]:`switch`),t=this.floor.rooms.find(e=>x(a,e.points)),r=1.2,i=`none`,o;e===`light`?(r=2.4,i=`ceiling_light`,o={kind:`point`,radius_m:4.5,intensity_multiplier:1,cast_real_point_light:!0}):e===`media_player`?(r=.8,i=`tv_screen`):e===`fan`?(r=2.4,i=`ceiling_fan`):e===`climate`&&(r=1.5,i=`thermostat`);let s={id:`ent_`+Math.random().toString(36).substring(2,9),entity_id:n.entityId||`light.new_entity`,domain:e,room_id:t?t.id:null,x:Number(a.x.toFixed(3)),y:Number(a.y.toFixed(3)),z_elevation:r,rotation_deg:0,light_config:o,mesh_type:i,mesh_scale:[1,1,1],badge:{visible:!0,style:`compact_pill`,label_override:n.label||null,icon_override:null},tap_action:{action:`toggle`},hold_action:{action:`more-info`},double_tap_action:{action:`none`}},c={...this.floor,entities:[...this.floor.entities,s]};this.floor=c,this.emitFloorChange(c,`Placed entity ${s.entity_id}`),this.emitSelectionChange({kind:`entity`,id:s.id})}else if(n.kind===`furniture`){let e=n.furnitureType||`chair`,t=this.getDefaultFurnitureDimensions(e),r={id:`furn_`+Math.random().toString(36).substring(2,9),catalog_type:e,label:n.label||this.formatFurnitureName(e),x:Number(a.x.toFixed(3)),y:Number(a.y.toFixed(3)),z_elevation:0,width:n.defaultWidth??t.width,depth:n.defaultDepth??t.depth,height:n.defaultHeight??t.height,rotation_deg:0,color:null},i={...this.floor,furniture:[...this.floor.furniture,r]};this.floor=i,this.emitFloorChange(i,`Placed furniture ${r.label}`),this.emitSelectionChange({kind:`furniture`,id:r.id})}else if(n.kind===`opening`){let e=new Map(this.floor.nodes.map(e=>[e.id,e])),t=null,r=null,i=.8;for(let n of this.floor.walls){let o=e.get(n.start_node_id),s=e.get(n.end_node_id);if(!o||!s)continue;let c=d(a,o,s);c.distance<i&&(i=c.distance,t=n,r=c)}if(t&&r){let e=n.openingType||`door_single`,i=e.startsWith(`door`),a={id:`op_`+Math.random().toString(36).substring(2,9),wall_id:t.id,type:e,t:Number(r.t.toFixed(3)),width:i?.9:1.2,sill_height:i?0:.9,head_height:2.1,swing_direction:`left_in`,bound_entity_id:null},o={...this.floor,openings:[...this.floor.openings,a]};this.floor=o,this.emitFloorChange(o,`Placed opening ${e}`),this.emitSelectionChange({kind:`opening`,id:a.id})}}}getDefaultFurnitureDimensions(e){switch(e){case`sofa_straight`:return{width:2,depth:.9,height:.85};case`sofa_l_shape`:return{width:2.4,depth:1.8,height:.85};case`bed_double`:return{width:1.8,depth:2,height:.9};case`bed_single`:return{width:1,depth:2,height:.9};case`dining_table`:return{width:1.6,depth:.9,height:.75};case`desk`:return{width:1.4,depth:.7,height:.75};case`chair`:return{width:.5,depth:.5,height:.85};case`tv_stand`:return{width:1.8,depth:.45,height:.5};case`kitchen_counter`:return{width:1.8,depth:.65,height:.9};case`refrigerator`:return{width:.8,depth:.7,height:1.8};case`stove`:return{width:.7,depth:.65,height:.9};case`sink_cabinet`:return{width:1,depth:.65,height:.9};case`bathtub`:return{width:1.7,depth:.75,height:.55};case`shower_enclosure`:return{width:1,depth:1,height:2};case`toilet`:return{width:.5,depth:.7,height:.8};case`wardrobe`:return{width:1.5,depth:.6,height:2.1};case`bookcase`:return{width:1,depth:.35,height:2};case`potted_plant`:return{width:.5,depth:.5,height:.9};case`rug`:return{width:2,depth:1.5,height:.02};default:return{width:1,depth:1,height:1}}}formatFurnitureName(e){return e.replace(/_/g,` `).replace(/\b\w/g,e=>e.toUpperCase())}renderGrid(){let e=this.screenToWorld(0,0),n=this.screenToWorld(this.canvasWidth,this.canvasHeight),r=Math.floor(e.x),i=Math.ceil(n.x),a=Math.floor(e.y),o=Math.ceil(n.y),s=[];if(this.pixelsPerMeter>45&&this.gridSize>=.05){let r=this.gridSize,i=Math.floor(e.x/r)*r,a=Math.ceil(n.x/r)*r,o=Math.floor(e.y/r)*r,c=Math.ceil(n.y/r)*r;for(let e=i;e<=a;e+=r)Math.abs(e-Math.round(e))>1e-4&&s.push(t`
-            <line
-              x1="${this.sx(e)}" y1="0" x2="${this.sx(e)}" y2="${this.canvasHeight}"
-              stroke="var(--divider-color, #1e293b)" stroke-width="0.5" stroke-opacity="0.25"
-            />
-          `);for(let e=o;e<=c;e+=r)Math.abs(e-Math.round(e))>1e-4&&s.push(t`
-            <line
-              x1="0" y1="${this.sy(e)}" x2="${this.canvasWidth}" y2="${this.sy(e)}"
-              stroke="var(--divider-color, #1e293b)" stroke-width="0.5" stroke-opacity="0.25"
-            />
-          `)}for(let e=r;e<=i;e++){let n=Math.abs(e)<1e-4;s.push(t`
-        <line
-          x1="${this.sx(e)}" y1="0" x2="${this.sx(e)}" y2="${this.canvasHeight}"
-          stroke="var(--divider-color, #334155)"
-          stroke-width="${n?1.5:.8}"
-          stroke-opacity="${n?.9:.45}"
-        />
-      `)}for(let e=a;e<=o;e++){let n=Math.abs(e)<1e-4;s.push(t`
-        <line
-          x1="0" y1="${this.sy(e)}" x2="${this.canvasWidth}" y2="${this.sy(e)}"
-          stroke="var(--divider-color, #334155)"
-          stroke-width="${n?1.5:.8}"
-          stroke-opacity="${n?.9:.45}"
-        />
-      `)}return s}renderBlueprint(){if(!this.floor?.blueprint?.image_url)return a;let e=this.floor.blueprint,n=e.natural_width_px*e.meters_per_pixel*this.pixelsPerMeter,r=e.natural_height_px*e.meters_per_pixel*this.pixelsPerMeter,i=this.sx(e.offset_x),o=this.sy(e.offset_y);return t`
-      <g
-        transform="rotate(${e.rotation_deg}, ${i+n/2}, ${o+r/2})"
-        opacity="${e.opacity}"
-        style="pointer-events: none;"
-      >
-        <image
-          href="${e.image_url}"
-          x="${i}"
-          y="${o}"
-          width="${n}"
-          height="${r}"
-        />
-      </g>
-    `}renderGhostFloor(){if(!this.ghostFloor)return a;let e=this.ghostFloor,n=new Map(e.nodes.map(e=>[e.id,e]));return t`
-      <g class="ghost-layer">
-        <!-- Ghost Rooms -->
-        ${e.rooms.map(e=>{if(!e.points||e.points.length<3)return a;let n=e.points.map(e=>`${this.sx(e.x)},${this.sy(e.y)}`).join(` `);return t`
-            <polygon
-              points="${n}"
-              fill="rgba(56, 189, 248, 0.05)"
-              stroke="#38bdf8"
-              stroke-width="1.5"
-              stroke-dasharray="4,4"
-            />
-          `})}
-        <!-- Ghost Walls -->
-        ${e.walls.map(e=>{let r=n.get(e.start_node_id),i=n.get(e.end_node_id);return!r||!i?a:t`
-            <line
-              x1="${this.sx(r.x)}" y1="${this.sy(r.y)}"
-              x2="${this.sx(i.x)}" y2="${this.sy(i.y)}"
-              stroke="#38bdf8"
-              stroke-width="${Math.max(2,e.thickness*this.pixelsPerMeter)}"
-              stroke-dasharray="4,4"
-            />
-          `})}
-      </g>
-    `}renderRooms(){return this.floor?this.floor.rooms.map(e=>{if(!e.points||e.points.length<3)return a;let n=e.points.map(e=>`${this.sx(e.x)},${this.sy(e.y)}`).join(` `),r=this.selection.kind===`room`&&this.selection.id===e.id,i=0,o=0,s=``;if(e.show_label){let t=p(e.points);i=this.sx(t.x),o=this.sy(t.y),s=`${u(e.points).toFixed(1)} m²`}return t`
-        <g class="room-group">
-          <polygon
-            class="room-polygon"
-            points="${n}"
-            fill="${e.floor_color||`#334155`}"
-            fill-opacity="${r?.5:.3}"
-            stroke="${r?`#38bdf8`:`#475569`}"
-            stroke-width="${r?2.5:1}"
-            @pointerdown="${t=>{this.toolMode===`select`&&t.button===0&&(t.stopPropagation(),this.activePointers.set(t.pointerId,{x:t.clientX,y:t.clientY}),this.emitSelectionChange({kind:`room`,id:e.id}),this.activePointers.size===1&&(this.isPanning=!0,this.panStartScreen={x:t.clientX,y:t.clientY},this.panStartWorld={x:this.panX,y:this.panY},this.didPanMove=!1,this.panStartedOnSelectable=!0))}}"
-          />
-          ${e.show_label?t`
-                <text
-                  x="${i}"
-                  y="${o-6}"
-                  fill="#f8fafc"
-                  font-size="12"
-                  font-weight="600"
-                  text-anchor="middle"
-                  style="pointer-events: none; text-shadow: 0 1px 3px rgba(0,0,0,0.8);"
-                >
-                  ${e.name}
-                </text>
-                <text
-                  x="${i}"
-                  y="${o+10}"
-                  fill="#94a3b8"
-                  font-size="10"
-                  font-weight="500"
-                  text-anchor="middle"
-                  style="pointer-events: none; text-shadow: 0 1px 3px rgba(0,0,0,0.8);"
-                >
-                  ${s}
-                </text>
-              `:a}
-        </g>
-      `}):a}renderWalls(e){if(!this.floor)return a;let n=new Map(this.floor.nodes.map(e=>[e.id,e]));return this.floor.walls.map(r=>{let i=this.selection.kind===`wall`&&this.selection.id===r.id,o=e.get(r.id),s=n.get(r.start_node_id),c=n.get(r.end_node_id);if(!s||!c)return a;let u=``;if(o)u=o.quad.map(e=>`${this.sx(e.x)},${this.sy(e.y)}`).join(` `);else{let e=l(s,c);if(e<1e-4)return a;let t=(c.x-s.x)/e,n=(c.y-s.y)/e,i=r.thickness/2,o=-n*i,d=t*i;u=[`${this.sx(s.x+o)},${this.sy(s.y+d)}`,`${this.sx(c.x+o)},${this.sy(c.y+d)}`,`${this.sx(c.x-o)},${this.sy(c.y-d)}`,`${this.sx(s.x-o)},${this.sy(s.y-d)}`].join(` `)}let d=l(s,c),f=(s.x+c.x)/2,p=(s.y+c.y)/2,m=o?o.normal:{x:-(c.y-s.y)/d,y:(c.x-s.x)/d},h=.22,g=this.sx(f+m.x*h),_=this.sy(p+m.y*h);return t`
-        <g
-          class="wall-group"
-          @pointerdown="${e=>this.startWallDrag(e,r)}"
-        >
-          <!-- Enlarged transparent hit target for easy touch/mouse wall edge dragging -->
-          <line
-            class="wall-hit-target"
-            x1="${this.sx(s.x)}" y1="${this.sy(s.y)}"
-            x2="${this.sx(c.x)}" y2="${this.sy(c.y)}"
-            stroke="transparent"
-            stroke-width="24"
-          />
-          <polygon
-            class="wall-footprint"
-            points="${u}"
-            fill="${r.color_override||(i?`#0284c7`:`#475569`)}"
-            stroke="${i?`#38bdf8`:`#334155`}"
-            stroke-width="${i?2:1}"
-          />
-          ${d>.6?t`
-                <text
-                  class="dimension-label"
-                  x="${g}"
-                  y="${_}"
-                >
-                  ${d.toFixed(2)} m
-                </text>
-              `:a}
-        </g>
-      `})}renderOpenings(){if(!this.floor)return a;let e=new Map(this.floor.nodes.map(e=>[e.id,e])),n=new Map(this.floor.walls.map(e=>[e.id,e]));return this.floor.openings.map(r=>{let i=n.get(r.wall_id);if(!i)return a;let o=e.get(i.start_node_id),s=e.get(i.end_node_id);if(!o||!s)return a;let c=l(o,s);if(c<1e-4)return a;let u=(s.x-o.x)/c,d=(s.y-o.y)/c,f=-d,p=u,m=o.x+r.t*(s.x-o.x),h=o.y+r.t*(s.y-o.y),g=r.width/2,_={x:m-g*u,y:h-g*d},v={x:m+g*u,y:h+g*d},y=this.selection.kind===`opening`&&this.selection.id===r.id?`#38bdf8`:`#94a3b8`,b=r.type.startsWith(`door`),x=r.swing_direction.startsWith(`left`),S=r.swing_direction.endsWith(`out`),C=x?_:v,w=x?v:_,T=S?-1:1,E={x:C.x+T*r.width*f,y:C.y+T*r.width*p},D=r.width*this.pixelsPerMeter,O=x&&!S||!x&&S?1:0;return t`
-        <g
-          class="opening-item"
-          @pointerdown="${e=>this.startOpeningDrag(e,r)}"
-        >
-          <!-- Transparent enlarged touch hit-box -->
-          <line
-            x1="${this.sx(_.x)}" y1="${this.sy(_.y)}"
-            x2="${this.sx(v.x)}" y2="${this.sy(v.y)}"
-            stroke="transparent"
-            stroke-width="32"
-          />
-
-          <!-- Wall cutout line -->
-          <line
-            x1="${this.sx(_.x)}" y1="${this.sy(_.y)}"
-            x2="${this.sx(v.x)}" y2="${this.sy(v.y)}"
-            stroke="#0f172a"
-            stroke-width="${Math.max(3,i.thickness*this.pixelsPerMeter)}"
-          />
-
-          ${b?t`
-                <!-- Door Leaf -->
-                <line
-                  x1="${this.sx(C.x)}" y1="${this.sy(C.y)}"
-                  x2="${this.sx(E.x)}" y2="${this.sy(E.y)}"
-                  stroke="${y}"
-                  stroke-width="2.5"
-                />
-                <!-- Door Swing Arc -->
-                <path
-                  d="M ${this.sx(w.x)} ${this.sy(w.y)} A ${D} ${D} 0 0 ${O} ${this.sx(E.x)} ${this.sy(E.y)}"
-                  fill="none"
-                  stroke="${y}"
-                  stroke-width="1.2"
-                  stroke-dasharray="3,3"
-                />
-              `:t`
-                <!-- Window Double Line -->
-                <line
-                  x1="${this.sx(_.x)}" y1="${this.sy(_.y)}"
-                  x2="${this.sx(v.x)}" y2="${this.sy(v.y)}"
-                  stroke="#38bdf8"
-                  stroke-width="2.5"
-                />
-                <line
-                  x1="${this.sx(_.x+f*(i.thickness/2))}" y1="${this.sy(_.y+p*(i.thickness/2))}"
-                  x2="${this.sx(v.x+f*(i.thickness/2))}" y2="${this.sy(v.y+p*(i.thickness/2))}"
-                  stroke="#64748b"
-                  stroke-width="1"
-                />
-                <line
-                  x1="${this.sx(_.x-f*(i.thickness/2))}" y1="${this.sy(_.y-p*(i.thickness/2))}"
-                  x2="${this.sx(v.x-f*(i.thickness/2))}" y2="${this.sy(v.y-p*(i.thickness/2))}"
-                  stroke="#64748b"
-                  stroke-width="1"
-                />
-              `}
-        </g>
-      `})}renderWallNodes(){return this.floor?this.floor.nodes.map(e=>{let n=this.selection.kind===`node`&&this.selection.id===e.id,r=this.sx(e.x),i=this.sy(e.y);return t`
-        <g
-          class="wall-node"
-          @pointerdown="${t=>this.startNodeDrag(t,e)}"
-        >
-          <!-- Enlarged touch target -->
-          <circle cx="${r}" cy="${i}" r="18" fill="transparent" />
-
-          ${n?t`
-                <circle cx="${r}" cy="${i}" r="12" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="2,2" />
-              `:a}
-          <circle
-            class="wall-node-dot"
-            cx="${r}"
-            cy="${i}"
-            r="${n?7:5}"
-            fill="${n?`#38bdf8`:`#94a3b8`}"
-            stroke="#0f172a"
-            stroke-width="1.5"
-          />
-        </g>
-      `}):a}renderFurniture(){return this.floor?this.floor.furniture.map(e=>{let n=this.selection.kind===`furniture`&&this.selection.id===e.id,r=e.width*this.pixelsPerMeter,i=e.depth*this.pixelsPerMeter,o=n?`#38bdf8`:`#64748b`,s=i/2+20;return t`
-        <g
-          class="furniture-item"
-          transform="translate(${this.sx(e.x)}, ${this.sy(e.y)}) rotate(${e.rotation_deg})"
-          @pointerdown="${t=>this.startFurnitureDrag(t,e)}"
-        >
-          <!-- Main Bounding Box -->
-          <rect
-            x="${-r/2}"
-            y="${-i/2}"
-            width="${r}"
-            height="${i}"
-            rx="4"
-            fill="${n?`#1e293b`:`#0f172a`}"
-            fill-opacity="0.85"
-            stroke="${o}"
-            stroke-width="${n?2:1}"
-          />
-
-          <!-- Facing Indicator Notch -->
-          <path
-            d="M ${-r*.25} ${-i/2} L 0 ${-i/2+6} L ${r*.25} ${-i/2}"
-            fill="none"
-            stroke="${o}"
-            stroke-width="1.5"
-          />
-
-          <!-- Label -->
-          <text
-            x="0"
-            y="3"
-            fill="#f8fafc"
-            font-size="10"
-            font-weight="500"
-            text-anchor="middle"
-            style="pointer-events: none;"
-          >
-            ${e.label}
-          </text>
-
-          <!-- Interactive Rotation Handle (When Selected) with Enlarged Touch Target -->
-          ${n?t`
-                <line
-                  x1="0" y1="${-i/2}"
-                  x2="0" y2="${-s}"
-                  stroke="#38bdf8"
-                  stroke-width="1.5"
-                  stroke-dasharray="3,2"
-                />
-                <!-- Enlarged 18px touch hit-target -->
-                <circle
-                  cx="0"
-                  cy="${-s}"
-                  r="18"
-                  fill="transparent"
-                  class="rotation-handle"
-                  @pointerdown="${t=>this.startFurnitureRotate(t,e)}"
-                />
-                <circle
-                  class="rotation-handle"
-                  cx="0"
-                  cy="${-s}"
-                  r="6"
-                  fill="#38bdf8"
-                  stroke="#ffffff"
-                  stroke-width="2"
-                  style="pointer-events: none;"
-                />
-              `:a}
-        </g>
-      `}):a}renderEntities(){return this.floor?this.floor.entities.map(e=>{let n=this.selection.kind===`entity`&&this.selection.id===e.id,r=this.sx(e.x),i=this.sy(e.y),o=`#3b82f6`,s=`🔘`;switch(e.domain){case`light`:o=`#eab308`,s=`💡`;break;case`media_player`:o=`#8b5cf6`,s=`📺`;break;case`fan`:o=`#14b8a6`,s=`🌀`;break;case`climate`:o=`#06b6d4`,s=`❄️`;break;case`binary_sensor`:case`sensor`:o=`#10b981`,s=`📊`}return t`
-        <g
-          class="entity-item"
-          transform="translate(${r}, ${i})"
-          @pointerdown="${t=>this.startEntityDrag(t,e)}"
-        >
-          <!-- Enlarged 20px Touch Hit-Target -->
-          <circle r="20" fill="transparent" />
-
-          <!-- Light Falloff Circle Preview when selected -->
-          ${n&&e.light_config&&e.light_config.radius_m?t`
-                <circle
-                  r="${e.light_config.radius_m*this.pixelsPerMeter}"
-                  fill="rgba(253, 224, 71, 0.08)"
-                  stroke="#facc15"
-                  stroke-width="1.5"
-                  stroke-dasharray="5,4"
-                  style="pointer-events: none;"
-                />
-              `:a}
-
-          <!-- Outer Selection Ring -->
-          ${n?t`
-                <circle r="18" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="3,2" />
-              `:a}
-
-          <!-- Main Entity Badge -->
-          <circle
-            r="12"
-            fill="${o}"
-            stroke="#ffffff"
-            stroke-width="1.5"
-            style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));"
-          />
-
-          <!-- Domain Icon -->
-          <text
-            x="0"
-            y="4"
-            font-size="10"
-            text-anchor="middle"
-            style="pointer-events: none;"
-          >
-            ${s}
-          </text>
-        </g>
-      `}):a}renderActiveToolPreviews(){let e=[];if(this.toolMode===`draw_wall`&&this.wallDrawStartPoint){let n=this.wallDrawStartPoint,r=this.snappedCursor,i=l(n,r),a={x:(n.x+r.x)/2,y:(n.y+r.y)/2};e.push(t`
-        <g class="tool-preview">
-          <line
-            x1="${this.sx(n.x)}" y1="${this.sy(n.y)}"
-            x2="${this.sx(r.x)}" y2="${this.sy(r.y)}"
-            stroke="#38bdf8"
-            stroke-width="2.5"
-            stroke-dasharray="4,4"
-          />
-          <circle cx="${this.sx(n.x)}" cy="${this.sy(n.y)}" r="5" fill="#38bdf8" />
-          <circle cx="${this.sx(r.x)}" cy="${this.sy(r.y)}" r="5" fill="#38bdf8" />
-          <text
-            x="${this.sx(a.x)}"
-            y="${this.sy(a.y)-10}"
-            class="dimension-label"
-            fill="#38bdf8"
-          >
-            ${i.toFixed(2)} m
-          </text>
-        </g>
-      `)}if(this.toolMode===`draw_room`&&this.roomDrawPoints.length>0){let n=[...this.roomDrawPoints,{x:this.snappedCursor.x,y:this.snappedCursor.y}].map(e=>`${this.sx(e.x)},${this.sy(e.y)}`).join(` `);e.push(t`
-        <g class="tool-preview">
-          <polygon
-            points="${n}"
-            fill="rgba(56, 189, 248, 0.15)"
-            stroke="#38bdf8"
-            stroke-width="2"
-            stroke-dasharray="4,4"
-          />
-          ${this.roomDrawPoints.map((e,n)=>t`
-              <circle
-                cx="${this.sx(e.x)}" cy="${this.sy(e.y)}"
-                r="${n===0?7:4}"
-                fill="${n===0?`#10b981`:`#38bdf8`}"
-                stroke="#ffffff"
-                stroke-width="1.5"
-              />
-            `)}
-        </g>
-      `)}if(this.toolMode===`add_opening`&&this.hoverOpeningPoint&&e.push(t`
-        <g class="tool-preview">
-          <circle
-            cx="${this.sx(this.hoverOpeningPoint.x)}"
-            cy="${this.sy(this.hoverOpeningPoint.y)}"
-            r="8"
-            fill="#38bdf8"
-            fill-opacity="0.5"
-            stroke="#38bdf8"
-            stroke-width="2"
-          />
-        </g>
-      `),this.toolMode===`measure`&&this.measureP1&&this.measureP2){let n=this.measureP1,r=this.measureP2,i=l(n,r),a={x:(n.x+r.x)/2,y:(n.y+r.y)/2};e.push(t`
-        <g class="tool-preview">
-          <line
-            x1="${this.sx(n.x)}" y1="${this.sy(n.y)}"
-            x2="${this.sx(r.x)}" y2="${this.sy(r.y)}"
-            stroke="#f59e0b"
-            stroke-width="2"
-            stroke-dasharray="4,2"
-          />
-          <circle cx="${this.sx(n.x)}" cy="${this.sy(n.y)}" r="4" fill="#f59e0b" />
-          <circle cx="${this.sx(r.x)}" cy="${this.sy(r.y)}" r="4" fill="#f59e0b" />
-          <rect
-            x="${this.sx(a.x)-40}"
-            y="${this.sy(a.y)-24}"
-            width="80"
-            height="20"
-            rx="4"
-            fill="var(--card-background-color, #0f172a)"
-            stroke="#f59e0b"
-            stroke-width="1"
-          />
-          <text
-            x="${this.sx(a.x)}"
-            y="${this.sy(a.y)-10}"
-            fill="#f59e0b"
-            font-size="11"
-            font-weight="bold"
-            text-anchor="middle"
-          >
-            ${i.toFixed(2)} m
-          </text>
-        </g>
-      `)}return e}renderTouchActionBar(){return this.toolMode===`draw_wall`&&this.wallDrawStartPoint?s`
-        <div class="touch-action-bar">
-          <button class="touch-pill touch-pill-success" @click="${()=>this.cancelActiveOperation()}">
-            ✓ Finish Wall
-          </button>
-          <button class="touch-pill touch-pill-danger" @click="${()=>this.cancelActiveOperation()}">
-            ✕ Cancel
-          </button>
-        </div>
-      `:this.toolMode===`draw_room`&&this.roomDrawPoints.length>0?s`
+  `}connectedCallback(){super.connectedCallback(),w.dragDistance=3,window.addEventListener(`keydown`,this.onKeyDown),window.addEventListener(`keyup`,this.onKeyUp)}disconnectedCallback(){super.disconnectedCallback(),window.removeEventListener(`keydown`,this.onKeyDown),window.removeEventListener(`keyup`,this.onKeyUp),this.resizeObserver&&=(this.resizeObserver.disconnect(),null),this.stage&&=(this.stage.destroy(),null)}firstUpdated(){D(),this.initKonvaStage(),typeof ResizeObserver<`u`&&(this.resizeObserver=new ResizeObserver(e=>{for(let t of e){let{width:e,height:n}=t.contentRect;e>0&&n>0&&(this.canvasWidth=e,this.canvasHeight=n,this.syncKonvaViewport())}}),this.resizeObserver.observe(this));let e=this.getBoundingClientRect();e.width>0&&e.height>0&&(this.canvasWidth=e.width,this.canvasHeight=e.height),this.floor?this.zoomToFit():this.syncKonvaViewport()}updated(e){super.updated(e),e.has(`toolMode`)&&this.toolMode!==e.get(`toolMode`)&&this.cancelActiveToolChain(),(e.has(`floor`)||e.has(`ghostFloor`)||e.has(`selection`)||e.has(`toolMode`)||e.has(`showGrid`)||e.has(`showBlueprint`)||e.has(`gridSize`)||e.has(`panX`)||e.has(`panY`)||e.has(`pixelsPerMeter`)||e.has(`canvasWidth`)||e.has(`canvasHeight`))&&(this.syncKonvaViewport(),this.rebuildSceneLayer(),this.rebuildOverlayLayer())}initKonvaStage(){this.konvaMountEl&&!this.stage&&(this.stage=new w.Stage({container:this.konvaMountEl,width:this.canvasWidth,height:this.canvasHeight}),this.gridLayer=new w.Layer({listening:!1}),this.sceneLayer=new w.Layer,this.overlayLayer=new w.Layer({listening:!1}),this.transformer=new w.Transformer({rotateEnabled:!0,keepRatio:!1,enabledAnchors:[`top-left`,`top-right`,`bottom-left`,`bottom-right`],borderStroke:`#38bdf8`,anchorStroke:`#0284c7`,anchorFill:`#f8fafc`,anchorSize:9,ignoreStroke:!0}),this.sceneLayer.add(this.transformer),this.stage.add(this.gridLayer),this.stage.add(this.sceneLayer),this.stage.add(this.overlayLayer),this.stage.on(`wheel`,e=>{e.evt.preventDefault();let t=this.stage?.getPointerPosition();if(!t)return;let n=this.screenToWorld(t.x,t.y),r=e.evt.deltaY<0?1.12:1/1.12,i=Math.max(15,Math.min(300,this.pixelsPerMeter*r));Math.abs(i-this.pixelsPerMeter)<1e-4||(this.pixelsPerMeter=i,this.panX=n.x-(t.x-this.canvasWidth/2)/this.pixelsPerMeter,this.panY=n.y-(t.y-this.canvasHeight/2)/this.pixelsPerMeter,this.syncKonvaViewport(),this.rebuildSceneLayer(),this.rebuildOverlayLayer())}),this.stage.on(`mousedown touchstart`,e=>{let t=e.evt,n=this.stage?.getPointerPosition();if(!n)return;let r=`button`in t&&(t.button===1||t.button===2),i=e.target===this.stage;if(r||this.isSpacePressed||this.toolMode===`select`&&i)this.isPanningStage=!0,this.panStartClient={x:n.x,y:n.y},this.panStartWorld={x:this.panX,y:this.panY},i&&this.toolMode===`select`&&!this.isSpacePressed&&!r&&this.emitSelectionChange({kind:`none`,id:null});else if(i||this.toolMode!==`select`){let e=this.screenToWorld(n.x,n.y);this.updateCursorAndSnap(e),this.handleDrawingToolClick()}}),this.stage.on(`mousemove touchmove`,()=>{let e=this.stage?.getPointerPosition();if(!e)return;if(this.isPanningStage&&this.activeTouchPoints.size<2){let t=e.x-this.panStartClient.x,n=e.y-this.panStartClient.y;this.panX=this.panStartWorld.x-t/this.pixelsPerMeter,this.panY=this.panStartWorld.y-n/this.pixelsPerMeter,this.syncKonvaViewport();return}let t=this.screenToWorld(e.x,e.y);this.updateCursorAndSnap(t),this.rebuildOverlayLayer()}),this.stage.on(`mouseup touchend`,()=>{this.isPanningStage=!1}),this.stage.on(`dblclick dbltap`,()=>{this.toolMode===`draw_wall`&&this.wallChainStartNodeId?(this.wallChainStartNodeId=null,this.rebuildOverlayLayer()):this.toolMode===`draw_room`&&this.roomChainPoints.length>=3&&this.commitRoomPolygon()}),this.konvaMountEl.addEventListener(`pointerdown`,this.onMountPointerDown),this.konvaMountEl.addEventListener(`pointermove`,this.onMountPointerMove),this.konvaMountEl.addEventListener(`pointerup`,this.onMountPointerUp),this.konvaMountEl.addEventListener(`pointercancel`,this.onMountPointerUp))}worldToScreen(e){return{x:this.canvasWidth/2+(e.x-this.panX)*this.pixelsPerMeter,y:this.canvasHeight/2+(e.y-this.panY)*this.pixelsPerMeter}}screenToWorld(e,t){return{x:this.panX+(e-this.canvasWidth/2)/this.pixelsPerMeter,y:this.panY+(t-this.canvasHeight/2)/this.pixelsPerMeter}}getViewportCenterWorld(){return{x:Number(this.panX.toFixed(2)),y:Number(this.panY.toFixed(2))}}zoomIn(){this.pixelsPerMeter=Math.min(300,this.pixelsPerMeter*1.25),this.syncKonvaViewport(),this.rebuildSceneLayer()}zoomOut(){this.pixelsPerMeter=Math.max(15,this.pixelsPerMeter/1.25),this.syncKonvaViewport(),this.rebuildSceneLayer()}zoomToFit(){if(!this.floor){this.panX=0,this.panY=0,this.pixelsPerMeter=60,this.syncKonvaViewport();return}let e=x(this.floor,2),t=C({x:e.minX,y:e.minY},{x:e.maxX,y:e.maxY});if(this.panX=t.x,this.panY=t.y,this.canvasWidth>0&&this.canvasHeight>0&&e.width>0&&e.height>0){let t=this.canvasWidth*.8/e.width,n=this.canvasHeight*.8/e.height;this.pixelsPerMeter=Math.max(15,Math.min(300,Math.min(t,n)))}else this.pixelsPerMeter=60;this.syncKonvaViewport(),this.rebuildSceneLayer()}syncKonvaViewport(){if(!this.stage)return;(this.stage.width()!==this.canvasWidth||this.stage.height()!==this.canvasHeight)&&this.stage.size({width:this.canvasWidth,height:this.canvasHeight});let e=this.canvasWidth/2-this.panX*this.pixelsPerMeter,t=this.canvasHeight/2-this.panY*this.pixelsPerMeter;this.sceneLayer&&(this.sceneLayer.position({x:e,y:t}),this.sceneLayer.scale({x:this.pixelsPerMeter,y:this.pixelsPerMeter})),this.overlayLayer&&(this.overlayLayer.position({x:e,y:t}),this.overlayLayer.scale({x:this.pixelsPerMeter,y:this.pixelsPerMeter})),this.rebuildGridLayer(),this.stage.batchDraw()}moveNodeTo(e,t,n=!0){let r=this.activeFloorDraft??this.floor;if(!r)return;let i=structuredClone(r),a=i.nodes.find(t=>t.id===e);if(!a)return;let o=y(t,{gridSize:this.gridSize,snapToGrid:this.snapToGrid,nodes:i.nodes,walls:i.walls,nodeSnapRadius:.25,excludeNodeIds:new Set([e])});if(n&&o.snappedNodeId&&o.snappedNodeId!==e){let t=o.snappedNodeId;i.walls=i.walls.map(n=>({...n,start_node_id:n.start_node_id===e?t:n.start_node_id,end_node_id:n.end_node_id===e?t:n.end_node_id})).filter(e=>e.start_node_id!==e.end_node_id),i.nodes=i.nodes.filter(t=>t.id!==e)}else a.x=Number(o.point.x.toFixed(4)),a.y=Number(o.point.y.toFixed(4));i.rooms=p(i),n?(this.activeFloorDraft=null,this.emitFloorChange(i,`Move wall node`)):(this.activeFloorDraft=i,this.rebuildSceneLayer())}moveWallByDelta(e,t,n,r=!0){let i=this.floor;if(!i)return;let a=structuredClone(i),o=a.walls.find(t=>t.id===e);if(!o)return;let s=a.nodes.find(e=>e.id===o.start_node_id),c=a.nodes.find(e=>e.id===o.end_node_id);if(!s||!c)return;let l={x:s.x+t,y:s.y+n},u=y(l,{gridSize:this.gridSize,snapToGrid:this.snapToGrid,nodes:a.nodes,walls:a.walls,nodeSnapRadius:.2,excludeNodeIds:new Set([s.id,c.id])}),d=Number((u.point.x-s.x).toFixed(4)),f=Number((u.point.y-s.y).toFixed(4));s.x=Number((s.x+d).toFixed(4)),s.y=Number((s.y+f).toFixed(4)),c.x=Number((c.x+d).toFixed(4)),c.y=Number((c.y+f).toFixed(4));for(let e of a.rooms)for(let t of e.points)t.node_id===s.id?(t.x=s.x,t.y=s.y):t.node_id===c.id&&(t.x=c.x,t.y=c.y);a.rooms=p(a),r?(this.activeFloorDraft=null,this.emitFloorChange(a,`Move wall`)):(this.activeFloorDraft=a,this.rebuildSceneLayer())}rebuildGridLayer(){if(!this.gridLayer)return;if(this.gridLayer.destroyChildren(),!this.showGrid||this.gridSize<=0){this.gridLayer.batchDraw();return}let e=this.screenToWorld(0,0),t=this.screenToWorld(this.canvasWidth,this.canvasHeight),n=this.gridSize,r=Math.floor(e.x/n)*n,i=Math.ceil(t.x/n)*n,a=Math.floor(e.y/n)*n,o=Math.ceil(t.y/n)*n;for(let e=r;e<=i;e=Number((e+n).toFixed(4))){let t=this.worldToScreen({x:e,y:0}).x,r=Math.abs(e)<1e-4,i=Math.abs(Math.round(e/n)%2)===0;this.gridLayer.add(new w.Line({points:[t,0,t,this.canvasHeight],stroke:r?`rgba(56, 189, 248, 0.35)`:i?`rgba(148, 163, 184, 0.14)`:`rgba(148, 163, 184, 0.06)`,strokeWidth:r?1.5:1,listening:!1}))}for(let e=a;e<=o;e=Number((e+n).toFixed(4))){let t=this.worldToScreen({x:0,y:e}).y,r=Math.abs(e)<1e-4,i=Math.abs(Math.round(e/n)%2)===0;this.gridLayer.add(new w.Line({points:[0,t,this.canvasWidth,t],stroke:r?`rgba(56, 189, 248, 0.35)`:i?`rgba(148, 163, 184, 0.14)`:`rgba(148, 163, 184, 0.06)`,strokeWidth:r?1.5:1,listening:!1}))}this.gridLayer.batchDraw()}rebuildSceneLayer(){if(!this.sceneLayer||!this.transformer)return;this.transformer.nodes([]),this.sceneLayer.getChildren(e=>e!==this.transformer).forEach(e=>e.destroy());let e=this.activeFloorDraft??this.floor;if(!e){this.sceneLayer.batchDraw();return}let t=1/this.pixelsPerMeter;if(this.showBlueprint&&e.blueprint?.image_url){let t=e.blueprint,n=this.blueprintImageCache.get(t.image_url);n||(n=new Image,n.crossOrigin=`anonymous`,n.onload=()=>this.rebuildSceneLayer(),n.src=t.image_url,this.blueprintImageCache.set(t.image_url,n)),n.complete&&n.naturalWidth>0&&this.sceneLayer.add(new w.Image({image:n,x:t.offset_x,y:t.offset_y,width:n.naturalWidth*t.meters_per_pixel,height:n.naturalHeight*t.meters_per_pixel,rotation:t.rotation_deg,opacity:t.opacity,listening:!1}))}if(this.ghostFloor&&this.ghostFloor.id!==e.id){let e=new Map(this.ghostFloor.nodes.map(e=>[e.id,e]));for(let t of this.ghostFloor.walls){let n=e.get(t.start_node_id),r=e.get(t.end_node_id);n&&r&&this.sceneLayer.add(new w.Line({points:[n.x,n.y,r.x,r.y],stroke:`rgba(148, 163, 184, 0.25)`,strokeWidth:t.thickness,lineCap:`round`,listening:!1}))}}for(let n of e.rooms)this.addRoomToLayer(n,t);for(let n of e.furniture)this.addFurnitureToLayer(n,t);this.addWallsToLayer(e,t),this.addOpeningsToLayer(e,t);for(let n of e.nodes)this.addWallNodeToLayer(n,t);for(let n of e.entities)this.addEntityToLayer(n,t);this.transformer.moveToTop(),this.sceneLayer.batchDraw()}addRoomToLayer(e,t){if(!this.sceneLayer||e.points.length<3)return;let n=this.selection.kind===`room`&&this.selection.id===e.id,r=new w.Group({id:e.id,name:`room-polygon`,listening:this.toolMode===`select`}),i=[];for(let t of e.points)i.push(t.x,t.y);let a=e.floor_color?`${e.floor_color}40`:n?`rgba(56, 189, 248, 0.22)`:`rgba(30, 41, 59, 0.45)`;r.add(new w.Line({points:i,closed:!0,fill:a,stroke:n?`#38bdf8`:`rgba(100, 116, 139, 0.45)`,strokeWidth:n?2:1,strokeScaleEnabled:!1}));let o=h(e.points),s=d(e.points),c=`${e.name}\n${s.toFixed(1)} m²`,l=new w.Text({x:o.x,y:o.y,text:c,fontSize:12,fontStyle:`bold`,fill:n?`#38bdf8`:`#e2e8f0`,align:`center`,scaleX:t,scaleY:t,listening:!1});l.offsetX(l.width()/2),l.offsetY(l.height()/2),r.add(l),r.on(`click tap`,t=>{this.toolMode===`select`&&(t.cancelBubble=!0,this.emitSelectionChange({kind:`room`,id:e.id}))}),this.sceneLayer.add(r)}addWallsToLayer(e,t){if(!this.sceneLayer)return;let n=new Map(e.nodes.map(e=>[e.id,e])),r=g(e.nodes,e.walls,e.rooms);for(let i of e.walls){let a=n.get(i.start_node_id),o=n.get(i.end_node_id);if(!a||!o)continue;let s=this.selection.kind===`wall`&&this.selection.id===i.id,c=u(a,o);if(c<1e-4)continue;let l=e.openings.filter(e=>e.wall_id===i.id),d=m(c,l),f=r.get(i.id),p=new w.Group({id:i.id,name:`wall-group`,draggable:this.toolMode===`select`});for(let e of d)if(e.kind===`solid`){if(l.length===0&&f&&f.quad.length===4)p.add(new w.Line({points:f.quad.flatMap(e=>[e.x,e.y]),closed:!0,fill:s?`#0284c7`:`#64748b`,stroke:s?`#38bdf8`:`#94a3b8`,strokeWidth:s?2:1,strokeScaleEnabled:!1}));else{let t=a.x+(o.x-a.x)*e.tStart,n=a.y+(o.y-a.y)*e.tStart,r=a.x+(o.x-a.x)*e.tEnd,c=a.y+(o.y-a.y)*e.tEnd;p.add(new w.Line({points:[t,n,r,c],stroke:s?`#0284c7`:`#64748b`,strokeWidth:i.thickness,lineCap:`butt`}))}}if(p.add(new w.Line({points:[a.x,a.y,o.x,o.y],stroke:`rgba(0,0,0,0.001)`,strokeWidth:i.thickness,hitStrokeWidth:24*t})),c>=.4){let e=C(a,o),n=new w.Text({x:e.x,y:e.y-12*t,text:`${c.toFixed(2)}m`,fontSize:10,fontStyle:`bold`,fill:s?`#38bdf8`:`#cbd5e1`,scaleX:t,scaleY:t,listening:!1});n.offsetX(n.width()/2),n.offsetY(n.height()/2),p.add(n)}p.on(`click tap`,e=>{this.toolMode===`select`&&(e.cancelBubble=!0,this.emitSelectionChange({kind:`wall`,id:i.id}))}),p.on(`dragstart`,e=>{e.cancelBubble=!0,this.emitSelectionChange({kind:`wall`,id:i.id})}),p.on(`dragmove`,e=>{e.cancelBubble=!0;let t=p.x(),n=p.y();p.position({x:0,y:0}),this.moveWallByDelta(i.id,t,n,!1)}),p.on(`dragend`,e=>{e.cancelBubble=!0;let t=p.x(),n=p.y();if(p.position({x:0,y:0}),this.activeFloorDraft){let e=structuredClone(this.activeFloorDraft);this.activeFloorDraft=null,this.emitFloorChange(e,`Move wall`)}else Math.hypot(t,n)>1e-4&&this.moveWallByDelta(i.id,t,n,!0)}),this.sceneLayer.add(p)}}addWallNodeToLayer(e,t){if(!this.sceneLayer)return;let n=this.selection.kind===`node`&&this.selection.id===e.id,r=new w.Group({id:e.id,name:`wall-node`,x:e.x,y:e.y,draggable:this.toolMode===`select`});r.add(new w.Circle({x:0,y:0,radius:18*t,fill:`rgba(0,0,0,0.001)`})),n&&r.add(new w.Circle({x:0,y:0,radius:10*t,fill:`rgba(56, 189, 248, 0.25)`,stroke:`#38bdf8`,strokeWidth:1.5,strokeScaleEnabled:!1,listening:!1})),r.add(new w.Circle({x:0,y:0,radius:(n?6:5)*t,fill:n?`#38bdf8`:`#f8fafc`,stroke:`#0f172a`,strokeWidth:2,strokeScaleEnabled:!1,name:`wall-node-dot`})),r.on(`click tap`,t=>{this.toolMode===`select`&&(t.cancelBubble=!0,this.emitSelectionChange({kind:`node`,id:e.id}))}),r.on(`dragstart`,t=>{t.cancelBubble=!0,this.emitSelectionChange({kind:`node`,id:e.id})}),r.on(`dragmove`,t=>{t.cancelBubble=!0;let n={x:r.x(),y:r.y()};this.moveNodeTo(e.id,n,!1)}),r.on(`dragend`,t=>{t.cancelBubble=!0;let n={x:r.x(),y:r.y()};this.moveNodeTo(e.id,n,!0)}),this.sceneLayer.add(r)}addOpeningsToLayer(e,t){if(!this.sceneLayer)return;let n=new Map(e.nodes.map(e=>[e.id,e])),r=new Map(e.walls.map(e=>[e.id,e]));for(let i of e.openings){let a=r.get(i.wall_id);if(!a)continue;let o=n.get(a.start_node_id),s=n.get(a.end_node_id);if(!o||!s)continue;let c=this.selection.kind===`opening`&&this.selection.id===i.id,l=o.x+(s.x-o.x)*i.t,u=o.y+(s.y-o.y)*i.t,d=Math.atan2(s.y-o.y,s.x-o.x)*180/Math.PI,p=new w.Group({id:i.id,name:`opening-item`,x:l,y:u,rotation:d,draggable:this.toolMode===`select`}),m=i.width/2,h=a.thickness/2,g=i.type.startsWith(`door`)||i.type===`archway`,_=c?`#38bdf8`:g?`#f59e0b`:`#38bdf8`;p.add(new w.Rect({x:-m,y:-h,width:i.width,height:a.thickness,fill:`#0b0f19`,stroke:_,strokeWidth:c?2:1.5,strokeScaleEnabled:!1})),g?(p.add(new w.Line({points:[-m,h,-m,h+i.width],stroke:_,strokeWidth:2,strokeScaleEnabled:!1})),p.add(new w.Arc({x:-m,y:h,innerRadius:i.width,outerRadius:i.width,angle:90,rotation:0,stroke:_,strokeWidth:1,dash:[4*t,4*t]}))):(p.add(new w.Line({points:[-m,-.02,m,-.02],stroke:_,strokeWidth:1.5,strokeScaleEnabled:!1})),p.add(new w.Line({points:[-m,.02,m,.02],stroke:_,strokeWidth:1.5,strokeScaleEnabled:!1}))),p.on(`click tap`,e=>{this.toolMode===`select`&&(e.cancelBubble=!0,this.emitSelectionChange({kind:`opening`,id:i.id}))}),p.on(`dragend`,t=>{t.cancelBubble=!0;let n=structuredClone(e),r=n.openings.find(e=>e.id===i.id);if(!r)return;let a=f({x:p.x(),y:p.y()},o,s);r.t=Number(Math.max(.05,Math.min(.95,a.t)).toFixed(4)),this.emitFloorChange(n,`Move wall opening`)}),this.sceneLayer.add(p)}}addFurnitureToLayer(e,t){if(!this.sceneLayer||!this.transformer)return;let n=this.selection.kind===`furniture`&&this.selection.id===e.id,r=new w.Group({id:e.id,name:`furniture-item`,x:e.x,y:e.y,rotation:e.rotation_deg,draggable:this.toolMode===`select`}),i=e.width/2,a=e.depth/2,o=new w.Rect({x:-i,y:-a,width:e.width,height:e.depth,cornerRadius:.05,fill:n?`rgba(56, 189, 248, 0.25)`:`rgba(51, 65, 85, 0.85)`,stroke:n?`#38bdf8`:`#94a3b8`,strokeWidth:n?2:1.5,strokeScaleEnabled:!1});r.add(o);let s=new w.Text({x:0,y:0,text:e.label||e.catalog_type.replace(/_/g,` `),fontSize:10,fill:`#f8fafc`,scaleX:t,scaleY:t,listening:!1});s.offsetX(s.width()/2),s.offsetY(s.height()/2),r.add(s),r.on(`click tap`,t=>{this.toolMode===`select`&&(t.cancelBubble=!0,this.emitSelectionChange({kind:`furniture`,id:e.id}))}),r.on(`dragend`,t=>{if(t.cancelBubble=!0,!this.floor)return;let n=structuredClone(this.floor),i=n.furniture.find(t=>t.id===e.id);if(!i)return;let a=y({x:r.x(),y:r.y()},{gridSize:this.gridSize,snapToGrid:this.snapToGrid});i.x=Number(a.point.x.toFixed(3)),i.y=Number(a.point.y.toFixed(3)),this.emitFloorChange(n,`Move furniture`)}),r.on(`transformend`,()=>{if(!this.floor)return;let t=structuredClone(this.floor),n=t.furniture.find(t=>t.id===e.id);n&&(n.x=Number(r.x().toFixed(3)),n.y=Number(r.y().toFixed(3)),n.rotation_deg=Number(((r.rotation()%360+360)%360).toFixed(1)),n.width=Number(Math.max(.2,e.width*Math.abs(r.scaleX())).toFixed(3)),n.depth=Number(Math.max(.2,e.depth*Math.abs(r.scaleY())).toFixed(3)),r.scale({x:1,y:1}),this.emitFloorChange(t,`Transform furniture`))}),this.sceneLayer.add(r),n&&this.toolMode===`select`&&this.transformer.nodes([r])}addEntityToLayer(e,t){if(!this.sceneLayer)return;let n=this.selection.kind===`entity`&&this.selection.id===e.id,r={light:`#facc15`,switch:`#38bdf8`,climate:`#fb923c`,sensor:`#34d399`,binary_sensor:`#a78bfa`,camera:`#f43f5e`,media_player:`#ec4899`}[e.entity_id.split(`.`)[0]||`sensor`]??`#38bdf8`,i=new w.Group({id:e.id,name:`entity-item`,x:e.x,y:e.y,draggable:this.toolMode===`select`});i.add(new w.Circle({x:0,y:0,radius:14*t,fill:`#0f172a`,stroke:n?`#38bdf8`:r,strokeWidth:n?2.5:1.5,strokeScaleEnabled:!1})),i.add(new w.Circle({x:0,y:0,radius:5*t,fill:r,listening:!1}));let a=e.badge?.label_override||e.entity_id.split(`.`)[1]||e.entity_id,o=new w.Text({x:0,y:20*t,text:a,fontSize:10,fontStyle:`bold`,fill:`#f8fafc`,scaleX:t,scaleY:t,listening:!1});o.offsetX(o.width()/2),i.add(o),i.on(`click tap`,t=>{this.toolMode===`select`&&(t.cancelBubble=!0,this.emitSelectionChange({kind:`entity`,id:e.id}))}),i.on(`dragend`,t=>{if(t.cancelBubble=!0,!this.floor)return;let n=structuredClone(this.floor),r=n.entities.find(t=>t.id===e.id);if(!r)return;let a=y({x:i.x(),y:i.y()},{gridSize:this.gridSize,snapToGrid:this.snapToGrid});r.x=Number(a.point.x.toFixed(3)),r.y=Number(a.point.y.toFixed(3)),this.emitFloorChange(n,`Move entity`)}),this.sceneLayer.add(i)}rebuildOverlayLayer(){if(!this.overlayLayer)return;if(this.overlayLayer.destroyChildren(),!this.floor){this.overlayLayer.batchDraw();return}let e=1/this.pixelsPerMeter;if(this.toolMode===`draw_wall`&&this.wallChainStartNodeId){let t=this.floor.nodes.find(e=>e.id===this.wallChainStartNodeId);if(t){let n=this.snappedCursorWorld;this.overlayLayer.add(new w.Line({points:[t.x,t.y,n.x,n.y],stroke:`#38bdf8`,strokeWidth:2.5,dash:[6*e,4*e],strokeScaleEnabled:!1,listening:!1}))}}if(this.toolMode===`draw_room`&&this.roomChainPoints.length>0){let t=[...this.roomChainPoints,this.snappedCursorWorld];this.overlayLayer.add(new w.Line({points:t.flatMap(e=>[e.x,e.y]),closed:!0,fill:`rgba(56, 189, 248, 0.15)`,stroke:`#38bdf8`,strokeWidth:2,dash:[6*e,4*e],strokeScaleEnabled:!1,listening:!1}))}this.toolMode===`measure`&&this.calibrationStartPoint&&this.overlayLayer.add(new w.Line({points:[this.calibrationStartPoint.x,this.calibrationStartPoint.y,this.cursorWorld.x,this.cursorWorld.y],stroke:`#f59e0b`,strokeWidth:2.5,dash:[6*e,4*e],strokeScaleEnabled:!1,listening:!1})),this.toolMode!==`select`&&this.overlayLayer.add(new w.Circle({x:this.snappedCursorWorld.x,y:this.snappedCursorWorld.y,radius:6*e,stroke:`#38bdf8`,strokeWidth:2,strokeScaleEnabled:!1,listening:!1})),this.overlayLayer.batchDraw()}updateCursorAndSnap(e){if(this.cursorWorld=e,!this.floor){this.snappedCursorWorld=e;return}let t;this.toolMode===`draw_wall`&&this.wallChainStartNodeId?t=this.floor.nodes.find(e=>e.id===this.wallChainStartNodeId):this.toolMode===`draw_room`&&this.roomChainPoints.length>0&&(t=this.roomChainPoints[this.roomChainPoints.length-1]);let n=y(e,{gridSize:this.gridSize,snapToGrid:this.snapToGrid,nodes:this.floor.nodes,walls:this.floor.walls,nodeSnapRadius:.25,anchorPoint:t,snapAngleDeg:45});this.snappedCursorWorld=n.point,this.openingPreview=this.toolMode===`add_opening`?this.findNearestWallProjection(e):null}findNearestWallProjection(e){if(!this.floor)return null;let t=new Map(this.floor.nodes.map(e=>[e.id,e])),n=null;for(let r of this.floor.walls){let i=t.get(r.start_node_id),a=t.get(r.end_node_id);if(!i||!a)continue;let o=f(e,i,a);o.distance<=.6&&(!n||o.distance<n.dist)&&(n={wallId:r.id,t:Math.max(.08,Math.min(.92,o.t)),point:o.point,dist:o.distance})}return n?{wallId:n.wallId,t:n.t,point:n.point}:null}handleDrawingToolClick(){this.floor&&(this.toolMode===`draw_wall`?this.handleDrawWallStep():this.toolMode===`draw_room`?this.handleDrawRoomStep():this.toolMode===`add_opening`?this.handlePlaceOpeningStep():this.toolMode===`measure`&&this.handleCalibrationStep())}handleDrawWallStep(){if(!this.floor)return;let e=structuredClone(this.floor),t=y(this.cursorWorld,{gridSize:this.gridSize,snapToGrid:this.snapToGrid,nodes:e.nodes,walls:e.walls,nodeSnapRadius:.25,anchorPoint:this.wallChainStartNodeId?e.nodes.find(e=>e.id===this.wallChainStartNodeId):void 0,snapAngleDeg:45}),n=t.snappedNodeId;if(n||(n=`node_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,5)}`,e.nodes.push({id:n,x:Number(t.point.x.toFixed(4)),y:Number(t.point.y.toFixed(4))})),!this.wallChainStartNodeId)this.wallChainStartNodeId=n,this.emitFloorChange(e,`Add wall start node`);else if(this.wallChainStartNodeId!==n){let r=`wall_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,5)}`;e.walls.push({id:r,start_node_id:this.wallChainStartNodeId,end_node_id:n,thickness:.15,height_override:null,is_exterior:!1,color_override:null}),e.rooms=p(e);let i=!!t.snappedNodeId;this.wallChainStartNodeId=i?null:n,this.emitFloorChange(e,`Draw wall`)}}handleDrawRoomStep(){let e={x:Number(this.snappedCursorWorld.x.toFixed(3)),y:Number(this.snappedCursorWorld.y.toFixed(3))};this.roomChainPoints.length>=3&&u(e,this.roomChainPoints[0])<=.3?this.commitRoomPolygon():(this.roomChainPoints=[...this.roomChainPoints,e],this.rebuildOverlayLayer())}commitRoomPolygon(){if(!this.floor||this.roomChainPoints.length<3)return;let e=structuredClone(this.floor),t=`room_${Date.now().toString(36)}`;e.rooms.push({id:t,name:`Room ${e.rooms.length+1}`,ha_area_id:null,points:this.roomChainPoints.map(t=>{let n=e.nodes.find(e=>u(e,t)<=.2);return n?{x:n.x,y:n.y,node_id:n.id}:t}),floor_material:`wood_oak`,floor_color:`#d4a373`,show_label:!0,temp_entity_id:null,humidity_entity_id:null,motion_entity_id:null,room_tap_action:{action:`zoom-room`}}),this.roomChainPoints=[],this.emitFloorChange(e,`Create room polygon`),this.emitSelectionChange({kind:`room`,id:t})}handlePlaceOpeningStep(){if(!this.floor)return;let e=this.openingPreview??this.findNearestWallProjection(this.cursorWorld);if(!e)return;let t=structuredClone(this.floor),n=`op_${Date.now().toString(36)}`,r={id:n,wall_id:e.wallId,type:`door_single`,t:Number(e.t.toFixed(4)),width:.9,sill_height:0,head_height:2.1,swing_direction:`left_in`,bound_entity_id:null};t.openings.push(r),this.emitFloorChange(t,`Place ${r.type}`),this.emitSelectionChange({kind:`opening`,id:n})}handleCalibrationStep(){if(!this.floor?.blueprint)return;if(!this.calibrationStartPoint){this.calibrationStartPoint={...this.cursorWorld};return}let e=this.calibrationStartPoint,t=this.cursorWorld;this.calibrationStartPoint=null;let n=this.floor.blueprint.meters_per_pixel||.01,r=u(e,t)/n;if(r<1)return;let i=window.prompt(`Enter real-world distance between the two points in meters:`,`3.0`),a=i?Number.parseFloat(i):NaN;if(!Number.isFinite(a)||a<=0)return;let o=structuredClone(this.floor);o.blueprint&&(o.blueprint.meters_per_pixel=v({x:0,y:0},{x:r,y:0},a),this.emitFloorChange(o,`Calibrate blueprint scale`))}cancelActiveToolChain(){this.wallChainStartNodeId=null,this.roomChainPoints=[],this.calibrationStartPoint=null,this.openingPreview=null,this.rebuildOverlayLayer()}emitFloorChange(e,t){this.dispatchEvent(new CustomEvent(`floor-change`,{detail:{floor:e,description:t},bubbles:!0,composed:!0}))}emitSelectionChange(e){this.dispatchEvent(new CustomEvent(`selection-change`,{detail:{selection:e},bubbles:!0,composed:!0}))}renderTouchActionBar(){return this.toolMode===`draw_wall`&&this.wallChainStartNodeId?o`
         <div class="touch-action-bar">
           <button
             class="touch-pill touch-pill-success"
-            ?disabled="${this.roomDrawPoints.length<3}"
-            @click="${()=>this.finishRoomPolygon()}"
+            @click=${()=>{this.wallChainStartNodeId=null,this.rebuildOverlayLayer()}}
           >
-            ✓ Complete Room (${this.roomDrawPoints.length})
+            ✓ Finish Wall Chain
           </button>
-          <button class="touch-pill touch-pill-danger" @click="${()=>this.cancelActiveOperation()}">
+        </div>
+      `:this.toolMode===`draw_room`&&this.roomChainPoints.length>0?o`
+        <div class="touch-action-bar">
+          <button
+            class="touch-pill touch-pill-success"
+            ?disabled=${this.roomChainPoints.length<3}
+            @click=${()=>this.commitRoomPolygon()}
+          >
+            ✓ Complete Room (${this.roomChainPoints.length} pts)
+          </button>
+          <button
+            class="touch-pill touch-pill-danger"
+            @click=${()=>this.cancelActiveToolChain()}
+          >
             ✕ Cancel
           </button>
         </div>
-      `:this.toolMode===`measure`&&this.measureP1?s`
-        <div class="touch-action-bar">
-          <button class="touch-pill touch-pill-warning" @click="${()=>this.cancelActiveOperation()}">
-            ✕ Clear Measure
-          </button>
+      `:i}render(){return o`
+      <div class="konva-mount"></div>
+
+      ${this.renderTouchActionBar()}
+
+      <div class="hud-tool-badge">
+        <span>🛠️ ${{select:`Select & Move (Konva 2D)`,draw_wall:`Draw Wall (Auto-Room)`,draw_room:`Draw Custom Room`,add_opening:`Add Door / Window`,measure:`Measure / Calibrate`}[this.toolMode]}</span>
+      </div>
+
+      <div class="hud-overlay">
+        <div class="hud-scale-bar">
+          <span>1 m</span>
+          <div class="scale-ruler" style="width: ${Math.round(this.pixelsPerMeter)}px"></div>
         </div>
-      `:this.selection.kind!==`none`&&this.selection.id?s`
-        <div class="touch-action-bar">
-          <button class="touch-pill touch-pill-danger" @click="${()=>this.deleteSelected()}">
-            🗑 Delete ${this.selection.kind}
-          </button>
-        </div>
-      `:a}render(){let e=this.isPanning?`cursor-panning`:this.spaceHeld?`cursor-grab`:this.toolMode===`select`?`cursor-select`:``,t=this.floor?m(this.floor.nodes,this.floor.walls,this.floor.rooms):new Map,n=1;this.pixelsPerMeter<35?n=5:this.pixelsPerMeter<70&&(n=2);let r=n*this.pixelsPerMeter;return s`
-      <div
-        class="canvas-container"
-        style="width: 100%; height: 100%; position: relative;"
-        @wheel="${this.handleWheel}"
-        @dragover="${this.handleDragOver}"
-        @drop="${this.handleDrop}"
-        @contextmenu="${e=>e.preventDefault()}"
-      >
-        <svg
-          class="canvas-svg ${e}"
-          @pointerdown="${this.handleSvgPointerDown}"
-        >
-          <!-- Background Grid -->
-          <g class="grid-layer">
-            ${this.renderGrid()}
-          </g>
-
-          <!-- Blueprint Background -->
-          ${this.renderBlueprint()}
-
-          <!-- Onion-skin Ghost Floor -->
-          ${this.renderGhostFloor()}
-
-          <!-- Rooms -->
-          <g class="rooms-layer">
-            ${this.renderRooms()}
-          </g>
-
-          <!-- Mitered Walls -->
-          <g class="walls-layer">
-            ${this.renderWalls(t)}
-          </g>
-
-          <!-- Openings (Doors & Windows) -->
-          <g class="openings-layer">
-            ${this.renderOpenings()}
-          </g>
-
-          <!-- Furniture Items -->
-          <g class="furniture-layer">
-            ${this.renderFurniture()}
-          </g>
-
-          <!-- Placed Smart Home Entities -->
-          <g class="entities-layer">
-            ${this.renderEntities()}
-          </g>
-
-          <!-- Wall Nodes -->
-          <g class="nodes-layer">
-            ${this.renderWallNodes()}
-          </g>
-
-          <!-- Active Tool & Interactive Previews -->
-          ${this.renderActiveToolPreviews()}
-        </svg>
-
-        <!-- Floating On-Screen Touch Action Pills -->
-        ${this.renderTouchActionBar()}
-
-        <!-- Metric Scale & Coordinates HUD Overlay -->
-        <div class="hud-overlay">
-          <div class="hud-scale-bar">
-            <span>${n} m</span>
-            <div class="scale-ruler" style="width: ${r}px;"></div>
-          </div>
-          <div class="hud-coords">
-            <span>X: <strong>${this.cursorWorld.x.toFixed(2)} m</strong></span>
-            <span>Y: <strong>${this.cursorWorld.y.toFixed(2)} m</strong></span>
-            <span>Snap: <strong>${this.snapToGrid?`${this.gridSize}m`:`Off`}</strong></span>
-          </div>
-        </div>
-
-        <!-- Tool Mode Badge -->
-        <div class="hud-tool-badge">
-          <span>Tool: <strong>${this.toolMode.toUpperCase()}</strong></span>
-        </div>
-
-        <!-- Floating Zoom & Fit Controls -->
-        <div class="zoom-controls">
-          <button class="zoom-btn" title="Zoom In" @click="${()=>this.zoomIn()}">+</button>
-          <button class="zoom-btn" title="Zoom Out" @click="${()=>this.zoomOut()}">−</button>
-          <button class="zoom-btn zoom-btn-fit" title="Fit to Floor" @click="${()=>this.fitViewToFloor()}">⊡ Fit</button>
+        <div class="hud-coords">
+          <span>X: <strong>${this.snappedCursorWorld.x.toFixed(2)}m</strong></span>
+          <span>Y: <strong>${this.snappedCursorWorld.y.toFixed(2)}m</strong></span>
         </div>
       </div>
-    `}};b([o({attribute:!1})],w.prototype,`floor`,void 0),b([o({attribute:!1})],w.prototype,`ghostFloor`,void 0),b([o({type:String})],w.prototype,`toolMode`,void 0),b([o({attribute:!1})],w.prototype,`selection`,void 0),b([o({type:Number})],w.prototype,`gridSize`,void 0),b([o({type:Boolean})],w.prototype,`snapToGrid`,void 0),b([o({type:Number})],w.prototype,`snapAngleDeg`,void 0),b([o({type:String})],w.prototype,`pendingOpeningType`,void 0),b([i()],w.prototype,`pixelsPerMeter`,void 0),b([i()],w.prototype,`panX`,void 0),b([i()],w.prototype,`panY`,void 0),b([i()],w.prototype,`canvasWidth`,void 0),b([i()],w.prototype,`canvasHeight`,void 0),b([i()],w.prototype,`isPanning`,void 0),b([i()],w.prototype,`panStartScreen`,void 0),b([i()],w.prototype,`panStartWorld`,void 0),b([i()],w.prototype,`spaceHeld`,void 0),b([i()],w.prototype,`cursorWorld`,void 0),b([i()],w.prototype,`snappedCursor`,void 0),b([i()],w.prototype,`wallDrawStartNodeId`,void 0),b([i()],w.prototype,`wallDrawStartPoint`,void 0),b([i()],w.prototype,`roomDrawPoints`,void 0),b([i()],w.prototype,`hoverWallId`,void 0),b([i()],w.prototype,`hoverWallT`,void 0),b([i()],w.prototype,`hoverOpeningPoint`,void 0),b([i()],w.prototype,`measureP1`,void 0),b([i()],w.prototype,`measureP2`,void 0),b([i()],w.prototype,`measureLocked`,void 0),w=b([n(`floorplan-canvas-2d`)],w);var T=class extends e{constructor(...e){super(...e),this.open=!1,this.floorplanId=``,this.floorId=``,this.currentBlueprint=null,this.imageUrl=``,this.imageMimeType=`image/png`,this.naturalWidth=0,this.naturalHeight=0,this.p1=null,this.p2=null,this.realDistanceMeters=5,this.opacity=.5,this.isUploading=!1,this.errorMessage=null,this.pointerDownPos=null}static{this.styles=r`
+
+      <div class="zoom-controls">
+        <button class="zoom-btn" title="Zoom In" @click=${()=>this.zoomIn()}>+</button>
+        <button class="zoom-btn" title="Zoom Out" @click=${()=>this.zoomOut()}>−</button>
+        <button class="zoom-btn zoom-btn-fit" title="Zoom to Fit" @click=${()=>this.zoomToFit()}>
+          Fit
+        </button>
+      </div>
+    `}};S([a({attribute:!1})],O.prototype,`floor`,void 0),S([a({attribute:!1})],O.prototype,`ghostFloor`,void 0),S([a({type:String})],O.prototype,`toolMode`,void 0),S([a({attribute:!1})],O.prototype,`selection`,void 0),S([a({type:Number})],O.prototype,`gridSize`,void 0),S([a({type:Boolean})],O.prototype,`snapToGrid`,void 0),S([a({type:Boolean})],O.prototype,`showGrid`,void 0),S([a({type:Boolean})],O.prototype,`showBlueprint`,void 0),S([r()],O.prototype,`panX`,void 0),S([r()],O.prototype,`panY`,void 0),S([r()],O.prototype,`pixelsPerMeter`,void 0),S([r()],O.prototype,`canvasWidth`,void 0),S([r()],O.prototype,`canvasHeight`,void 0),S([r()],O.prototype,`cursorWorld`,void 0),S([r()],O.prototype,`snappedCursorWorld`,void 0),S([r()],O.prototype,`wallChainStartNodeId`,void 0),S([r()],O.prototype,`roomChainPoints`,void 0),S([r()],O.prototype,`calibrationStartPoint`,void 0),S([r()],O.prototype,`openingPreview`,void 0),S([s(`.konva-mount`)],O.prototype,`konvaMountEl`,void 0),O=S([n(`floorplan-canvas-2d`)],O);var k=class extends e{constructor(...e){super(...e),this.open=!1,this.floorplanId=``,this.floorId=``,this.currentBlueprint=null,this.imageUrl=``,this.imageMimeType=`image/png`,this.naturalWidth=0,this.naturalHeight=0,this.p1=null,this.p2=null,this.realDistanceMeters=5,this.opacity=.5,this.isUploading=!1,this.errorMessage=null,this.pointerDownPos=null}static{this.styles=t`
     :host {
       display: block;
     }
@@ -1052,8 +514,8 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
         gap: 0.5rem;
       }
     }
-  `}updated(e){e.has(`open`)&&this.open&&this.currentBlueprint&&!this.imageUrl&&(this.imageUrl=this.currentBlueprint.image_url,this.naturalWidth=this.currentBlueprint.natural_width_px,this.naturalHeight=this.currentBlueprint.natural_height_px,this.opacity=this.currentBlueprint.opacity,this.errorMessage=null),e.has(`currentBlueprint`)&&this.currentBlueprint&&this.open&&(this.imageUrl=this.currentBlueprint.image_url,this.naturalWidth=this.currentBlueprint.natural_width_px,this.naturalHeight=this.currentBlueprint.natural_height_px,this.opacity=this.currentBlueprint.opacity)}handleFileChange(e){let t=e.target;if(!t.files||t.files.length===0)return;let n=t.files[0];this.imageMimeType=n.type||`image/png`,this.errorMessage=null;let r=new FileReader;r.onload=e=>{let t=e.target?.result;this.loadNewImage(t,this.imageMimeType)},r.onerror=()=>{this.errorMessage=`Failed to read selected image file.`},r.readAsDataURL(n)}loadNewImage(e,t){this.imageUrl=e,this.imageMimeType=t,this.p1=null,this.p2=null;let n=new Image;n.onload=()=>{this.naturalWidth=n.naturalWidth||n.width,this.naturalHeight=n.naturalHeight||n.height,this.requestUpdate()},n.onerror=()=>{this.errorMessage=`Failed to load image preview.`},n.src=e}handleSvgPointerDown(e){this.pointerDownPos={x:e.clientX,y:e.clientY}}handleSvgPointerUp(e){if(!this.pointerDownPos)return;let t=Math.hypot(e.clientX-this.pointerDownPos.x,e.clientY-this.pointerDownPos.y);if(this.pointerDownPos=null,t>8||!this.naturalWidth||!this.naturalHeight)return;let n=e.currentTarget.getBoundingClientRect();if(n.width<=0||n.height<=0)return;let r=e.clientX-n.left,i=e.clientY-n.top,a=Math.max(0,Math.min(this.naturalWidth,r/n.width*this.naturalWidth)),o=Math.max(0,Math.min(this.naturalHeight,i/n.height*this.naturalHeight)),s={x:Number(a.toFixed(2)),y:Number(o.toFixed(2))};this.p1?this.p2?(this.p1=s,this.p2=null):this.p2=s:this.p1=s}handleResetPoints(){this.p1=null,this.p2=null}get computedPixelDistance(){return!this.p1||!this.p2?0:Math.hypot(this.p2.x-this.p1.x,this.p2.y-this.p1.y)}get computedMetersPerPixel(){return!this.p1||!this.p2||this.realDistanceMeters<=0?this.currentBlueprint?.meters_per_pixel??.01:g(this.p1,this.p2,this.realDistanceMeters)}async handleApply(){if(!this.imageUrl)this.errorMessage=`Please select a blueprint image.`;else if(!this.p1||!this.p2)this.errorMessage=`Please click two reference points on the blueprint to calibrate distance.`;else if(this.realDistanceMeters<=0)this.errorMessage=`Known distance must be greater than 0 meters.`;else{this.isUploading=!0,this.errorMessage=null;try{let e=this.imageUrl;if(this.uploadCallback){let t=this.imageMimeType,n=this.imageUrl;if(this.imageUrl.startsWith(`data:`)){let e=this.imageUrl.split(`,`),r=e[0].match(/:(.*?);/);r&&(t=r[1]),n=e[1]||``}e=await this.uploadCallback({floorplanId:this.floorplanId,floorId:this.floorId,mimeType:t,dataBase64:n})}let t=this.computedMetersPerPixel,n={imageUrl:e,naturalWidthPx:this.naturalWidth,naturalHeightPx:this.naturalHeight,metersPerPixel:t,opacity:this.opacity};this.dispatchEvent(new CustomEvent(`blueprint-calibrated`,{detail:n,bubbles:!0,composed:!0})),this.handleClose()}catch(e){this.errorMessage=e?.message||`Failed to apply and upload blueprint.`}finally{this.isUploading=!1}}}handleClose(){this.dispatchEvent(new CustomEvent(`modal-close`,{bubbles:!0,composed:!0}))}renderCalibrationOverlay(){if(!this.naturalWidth||!this.naturalHeight)return a;let e=Math.max(10,Math.min(this.naturalWidth,this.naturalHeight)*.015),t=Math.max(2,e*.2),n=Math.max(12,e*1.1);return s`
-      ${this.p1&&this.p2?s`
+  `}updated(e){e.has(`open`)&&this.open&&this.currentBlueprint&&!this.imageUrl&&(this.imageUrl=this.currentBlueprint.image_url,this.naturalWidth=this.currentBlueprint.natural_width_px,this.naturalHeight=this.currentBlueprint.natural_height_px,this.opacity=this.currentBlueprint.opacity,this.errorMessage=null),e.has(`currentBlueprint`)&&this.currentBlueprint&&this.open&&(this.imageUrl=this.currentBlueprint.image_url,this.naturalWidth=this.currentBlueprint.natural_width_px,this.naturalHeight=this.currentBlueprint.natural_height_px,this.opacity=this.currentBlueprint.opacity)}handleFileChange(e){let t=e.target;if(!t.files||t.files.length===0)return;let n=t.files[0];this.imageMimeType=n.type||`image/png`,this.errorMessage=null;let r=new FileReader;r.onload=e=>{let t=e.target?.result;this.loadNewImage(t,this.imageMimeType)},r.onerror=()=>{this.errorMessage=`Failed to read selected image file.`},r.readAsDataURL(n)}loadNewImage(e,t){this.imageUrl=e,this.imageMimeType=t,this.p1=null,this.p2=null;let n=new Image;n.onload=()=>{this.naturalWidth=n.naturalWidth||n.width,this.naturalHeight=n.naturalHeight||n.height,this.requestUpdate()},n.onerror=()=>{this.errorMessage=`Failed to load image preview.`},n.src=e}handleSvgPointerDown(e){this.pointerDownPos={x:e.clientX,y:e.clientY}}handleSvgPointerUp(e){if(!this.pointerDownPos)return;let t=Math.hypot(e.clientX-this.pointerDownPos.x,e.clientY-this.pointerDownPos.y);if(this.pointerDownPos=null,t>8||!this.naturalWidth||!this.naturalHeight)return;let n=e.currentTarget.getBoundingClientRect();if(n.width<=0||n.height<=0)return;let r=e.clientX-n.left,i=e.clientY-n.top,a=Math.max(0,Math.min(this.naturalWidth,r/n.width*this.naturalWidth)),o=Math.max(0,Math.min(this.naturalHeight,i/n.height*this.naturalHeight)),s={x:Number(a.toFixed(2)),y:Number(o.toFixed(2))};this.p1?this.p2?(this.p1=s,this.p2=null):this.p2=s:this.p1=s}handleResetPoints(){this.p1=null,this.p2=null}get computedPixelDistance(){return!this.p1||!this.p2?0:Math.hypot(this.p2.x-this.p1.x,this.p2.y-this.p1.y)}get computedMetersPerPixel(){return!this.p1||!this.p2||this.realDistanceMeters<=0?this.currentBlueprint?.meters_per_pixel??.01:v(this.p1,this.p2,this.realDistanceMeters)}async handleApply(){if(!this.imageUrl)this.errorMessage=`Please select a blueprint image.`;else if(!this.p1||!this.p2)this.errorMessage=`Please click two reference points on the blueprint to calibrate distance.`;else if(this.realDistanceMeters<=0)this.errorMessage=`Known distance must be greater than 0 meters.`;else{this.isUploading=!0,this.errorMessage=null;try{let e=this.imageUrl;if(this.uploadCallback){let t=this.imageMimeType,n=this.imageUrl;if(this.imageUrl.startsWith(`data:`)){let e=this.imageUrl.split(`,`),r=e[0].match(/:(.*?);/);r&&(t=r[1]),n=e[1]||``}e=await this.uploadCallback({floorplanId:this.floorplanId,floorId:this.floorId,mimeType:t,dataBase64:n})}let t=this.computedMetersPerPixel,n={imageUrl:e,naturalWidthPx:this.naturalWidth,naturalHeightPx:this.naturalHeight,metersPerPixel:t,opacity:this.opacity};this.dispatchEvent(new CustomEvent(`blueprint-calibrated`,{detail:n,bubbles:!0,composed:!0})),this.handleClose()}catch(e){this.errorMessage=e?.message||`Failed to apply and upload blueprint.`}finally{this.isUploading=!1}}}handleClose(){this.dispatchEvent(new CustomEvent(`modal-close`,{bubbles:!0,composed:!0}))}renderCalibrationOverlay(){if(!this.naturalWidth||!this.naturalHeight)return i;let e=Math.max(10,Math.min(this.naturalWidth,this.naturalHeight)*.015),t=Math.max(2,e*.2),n=Math.max(12,e*1.1);return o`
+      ${this.p1&&this.p2?o`
             <line
               x1="${this.p1.x}"
               y1="${this.p1.y}"
@@ -1084,8 +546,8 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
             >
               ${this.realDistanceMeters.toFixed(2)} m
             </text>
-          `:a}
-      ${this.p1?s`
+          `:i}
+      ${this.p1?o`
             <g class="crosshair-marker">
               <line
                 x1="${this.p1.x-e*1.5}"
@@ -1123,8 +585,8 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
                 1
               </text>
             </g>
-          `:a}
-      ${this.p2?s`
+          `:i}
+      ${this.p2?o`
             <g class="crosshair-marker">
               <line
                 x1="${this.p2.x-e*1.5}"
@@ -1162,8 +624,8 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
                 2
               </text>
             </g>
-          `:a}
-    `}render(){if(!this.open)return a;let e=this.computedMetersPerPixel,t=e>0?1/e:0;return s`
+          `:i}
+    `}render(){if(!this.open)return i;let e=this.computedMetersPerPixel,t=e>0?1/e:0;return o`
       <div
         class="modal-backdrop"
         @click="${e=>{e.target===e.currentTarget&&this.handleClose()}}"
@@ -1186,7 +648,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
               along a wall or landmark of known length (Point 1 and Point 2), enter the real-world distance in meters, and click Apply.
             </div>
 
-            ${this.errorMessage?s`<div class="error-banner">${this.errorMessage}</div>`:a}
+            ${this.errorMessage?o`<div class="error-banner">${this.errorMessage}</div>`:i}
 
             <div class="control-row">
               <div class="form-group">
@@ -1208,11 +670,11 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
                     </svg>
                     Choose Image...
                   </button>
-                  ${this.p1||this.p2?s`
+                  ${this.p1||this.p2?o`
                         <button class="btn btn-secondary" @click="${this.handleResetPoints}">
                           Reset Points
                         </button>
-                      `:a}
+                      `:i}
                 </div>
               </div>
 
@@ -1245,7 +707,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
             </div>
 
             <div class="preview-container ${this.imageUrl?`has-image`:``}">
-              ${this.imageUrl&&this.naturalWidth>0?s`
+              ${this.imageUrl&&this.naturalWidth>0?o`
                     <svg
                       class="blueprint-svg"
                       viewBox="0 0 ${this.naturalWidth} ${this.naturalHeight}"
@@ -1259,7 +721,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
                       />
                       ${this.renderCalibrationOverlay()}
                     </svg>
-                  `:s`
+                  `:o`
                     <div style="color: var(--secondary-text-color, #64748b); text-align: center; padding: 2rem;">
                       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 0.5rem;">
                         <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -1271,7 +733,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
                   `}
             </div>
 
-            ${this.imageUrl?s`
+            ${this.imageUrl?o`
                   <div class="stats-bar">
                     <div class="stats-item">
                       Resolution: <strong>${this.naturalWidth} × ${this.naturalHeight} px</strong>
@@ -1289,7 +751,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
                       Calculated Scale: <strong>${t.toFixed(1)} px/m (${(e*100).toFixed(2)} cm/px)</strong>
                     </div>
                   </div>
-                `:a}
+                `:i}
           </div>
 
           <div class="modal-footer">
@@ -1306,7 +768,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
           </div>
         </div>
       </div>
-    `}};b([o({type:Boolean})],T.prototype,`open`,void 0),b([o({type:String})],T.prototype,`floorplanId`,void 0),b([o({type:String})],T.prototype,`floorId`,void 0),b([o({attribute:!1})],T.prototype,`currentBlueprint`,void 0),b([o({attribute:!1})],T.prototype,`uploadCallback`,void 0),b([i()],T.prototype,`imageUrl`,void 0),b([i()],T.prototype,`imageMimeType`,void 0),b([i()],T.prototype,`naturalWidth`,void 0),b([i()],T.prototype,`naturalHeight`,void 0),b([i()],T.prototype,`p1`,void 0),b([i()],T.prototype,`p2`,void 0),b([i()],T.prototype,`realDistanceMeters`,void 0),b([i()],T.prototype,`opacity`,void 0),b([i()],T.prototype,`isUploading`,void 0),b([i()],T.prototype,`errorMessage`,void 0),T=b([n(`floorplan-blueprint-modal`)],T);var E=class extends e{constructor(...e){super(...e),this.floorplans=[],this.activeFloorplanId=``,this.floors=[],this.activeFloorId=``,this.activeTool=`select`,this.gridSize=.1,this.snapToGrid=!0,this.canUndo=!1,this.canRedo=!1,this.viewLayout=`split`,this.isDirty=!1,this.onionSkin=!1,this.narrow=!1,this.leftPaneCollapsed=!1,this.rightPaneCollapsed=!1,this.focusMode=!1,this.isMoreMenuOpen=!1}static{this.styles=r`
+    `}};S([a({type:Boolean})],k.prototype,`open`,void 0),S([a({type:String})],k.prototype,`floorplanId`,void 0),S([a({type:String})],k.prototype,`floorId`,void 0),S([a({attribute:!1})],k.prototype,`currentBlueprint`,void 0),S([a({attribute:!1})],k.prototype,`uploadCallback`,void 0),S([r()],k.prototype,`imageUrl`,void 0),S([r()],k.prototype,`imageMimeType`,void 0),S([r()],k.prototype,`naturalWidth`,void 0),S([r()],k.prototype,`naturalHeight`,void 0),S([r()],k.prototype,`p1`,void 0),S([r()],k.prototype,`p2`,void 0),S([r()],k.prototype,`realDistanceMeters`,void 0),S([r()],k.prototype,`opacity`,void 0),S([r()],k.prototype,`isUploading`,void 0),S([r()],k.prototype,`errorMessage`,void 0),k=S([n(`floorplan-blueprint-modal`)],k);var A=class extends e{constructor(...e){super(...e),this.floorplans=[],this.activeFloorplanId=``,this.floors=[],this.activeFloorId=``,this.activeTool=`select`,this.gridSize=.1,this.snapToGrid=!0,this.canUndo=!1,this.canRedo=!1,this.viewLayout=`split`,this.isDirty=!1,this.onionSkin=!1,this.narrow=!1,this.leftPaneCollapsed=!1,this.rightPaneCollapsed=!1,this.focusMode=!1,this.isMoreMenuOpen=!1}static{this.styles=t`
     :host {
       display: flex;
       align-items: center;
@@ -1583,7 +1045,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
       background: var(--divider-color, #334155);
       margin: 4px 0;
     }
-  `}handleToggleMenu(){this.dispatchEvent(new CustomEvent(`hass-toggle-menu`,{bubbles:!0,composed:!0})),this.dispatchEvent(new CustomEvent(`toggle-menu`,{bubbles:!0,composed:!0}))}handleFloorplanSelect(e){let t=e.target;this.dispatchEvent(new CustomEvent(`floorplan-change`,{bubbles:!0,composed:!0,detail:{floorplanId:t.value}}))}handleFloorSelect(e){let t=e.target;this.dispatchEvent(new CustomEvent(`floor-change`,{bubbles:!0,composed:!0,detail:{floorId:t.value}}))}handleToolSelect(e){this.dispatchEvent(new CustomEvent(`tool-change`,{bubbles:!0,composed:!0,detail:{tool:e}}))}handleGridSizeSelect(e){let t=e.target,n=parseFloat(t.value);this.dispatchEvent(new CustomEvent(`grid-size-change`,{bubbles:!0,composed:!0,detail:{gridSize:n}}))}handleSnapToggle(){this.dispatchEvent(new CustomEvent(`snap-toggle`,{bubbles:!0,composed:!0,detail:{snap:!this.snapToGrid}}))}handleOnionSkinToggle(){this.dispatchEvent(new CustomEvent(`toggle-onion-skin`,{bubbles:!0,composed:!0,detail:{onionSkin:!this.onionSkin}}))}handleLayoutSelect(e){this.dispatchEvent(new CustomEvent(`layout-change`,{bubbles:!0,composed:!0,detail:{layout:e}}))}handleSaveCamera(){this.dispatchEvent(new CustomEvent(`save-camera`,{bubbles:!0,composed:!0}))}toggleMobileView(){let e=this.viewLayout===`3d`?`2d`:`3d`;this.handleLayoutSelect(e)}render(){return this.narrow?this.renderMobileToolbar():this.renderDesktopToolbar()}renderMobileToolbar(){return s`
+  `}handleToggleMenu(){this.dispatchEvent(new CustomEvent(`hass-toggle-menu`,{bubbles:!0,composed:!0})),this.dispatchEvent(new CustomEvent(`toggle-menu`,{bubbles:!0,composed:!0}))}handleFloorplanSelect(e){let t=e.target;this.dispatchEvent(new CustomEvent(`floorplan-change`,{bubbles:!0,composed:!0,detail:{floorplanId:t.value}}))}handleFloorSelect(e){let t=e.target;this.dispatchEvent(new CustomEvent(`floor-change`,{bubbles:!0,composed:!0,detail:{floorId:t.value}}))}handleToolSelect(e){this.dispatchEvent(new CustomEvent(`tool-change`,{bubbles:!0,composed:!0,detail:{tool:e}}))}handleGridSizeSelect(e){let t=e.target,n=parseFloat(t.value);this.dispatchEvent(new CustomEvent(`grid-size-change`,{bubbles:!0,composed:!0,detail:{gridSize:n}}))}handleSnapToggle(){this.dispatchEvent(new CustomEvent(`snap-toggle`,{bubbles:!0,composed:!0,detail:{snap:!this.snapToGrid}}))}handleOnionSkinToggle(){this.dispatchEvent(new CustomEvent(`toggle-onion-skin`,{bubbles:!0,composed:!0,detail:{onionSkin:!this.onionSkin}}))}handleLayoutSelect(e){this.dispatchEvent(new CustomEvent(`layout-change`,{bubbles:!0,composed:!0,detail:{layout:e}}))}handleSaveCamera(){this.dispatchEvent(new CustomEvent(`save-camera`,{bubbles:!0,composed:!0}))}toggleMobileView(){let e=this.viewLayout===`3d`?`2d`:`3d`;this.handleLayoutSelect(e)}render(){return this.narrow?this.renderMobileToolbar():this.renderDesktopToolbar()}renderMobileToolbar(){return o`
       <div class="mobile-row">
         <!-- HA Hamburger Menu -->
         <button
@@ -1604,7 +1066,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
             .value=${this.activeFloorplanId}
             @change=${this.handleFloorplanSelect}
           >
-            ${this.floorplans.length===0?s`<option value="">Floorplan</option>`:this.floorplans.map(e=>s`<option value=${e.id}>${e.name}</option>`)}
+            ${this.floorplans.length===0?o`<option value="">Floorplan</option>`:this.floorplans.map(e=>o`<option value=${e.id}>${e.name}</option>`)}
           </select>
 
           <select
@@ -1612,7 +1074,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
             .value=${this.activeFloorId}
             @change=${this.handleFloorSelect}
           >
-            ${this.floors.map(e=>s`<option value=${e.id}>${e.name}</option>`)}
+            ${this.floors.map(e=>o`<option value=${e.id}>${e.name}</option>`)}
           </select>
         </div>
 
@@ -1656,7 +1118,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
       </div>
 
       <!-- Popover Dropdown for Overflow Actions -->
-      ${this.isMoreMenuOpen?s`
+      ${this.isMoreMenuOpen?o`
             <div class="more-popover">
               <button
                 class="popover-item"
@@ -1721,7 +1183,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
                 </select>
               </div>
 
-              ${this.viewLayout===`2d`?``:s`
+              ${this.viewLayout===`2d`?``:o`
                     <button
                       class="popover-item"
                       @click=${()=>{this.isMoreMenuOpen=!1,this.handleSaveCamera()}}
@@ -1746,7 +1208,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
               </button>
             </div>
           `:``}
-    `}renderDesktopToolbar(){return s`
+    `}renderDesktopToolbar(){return o`
       <!-- HA Sidebar Hamburger Button -->
       <button
         class="ha-menu-btn"
@@ -1766,7 +1228,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
           .value=${this.activeFloorplanId}
           @change=${this.handleFloorplanSelect}
         >
-          ${this.floorplans.length===0?s`<option value="">Default Floorplan</option>`:this.floorplans.map(e=>s`<option value=${e.id}>${e.name}</option>`)}
+          ${this.floorplans.length===0?o`<option value="">Default Floorplan</option>`:this.floorplans.map(e=>o`<option value=${e.id}>${e.name}</option>`)}
         </select>
         <button
           title="Create New Floorplan"
@@ -1793,7 +1255,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
           .value=${this.activeFloorId}
           @change=${this.handleFloorSelect}
         >
-          ${this.floors.map(e=>s`<option value=${e.id}>${e.name} (L${e.level_index})</option>`)}
+          ${this.floors.map(e=>o`<option value=${e.id}>${e.name} (L${e.level_index})</option>`)}
         </select>
         <button
           title="Add New Floor Above"
@@ -1958,7 +1420,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
         >
           ⛶ Focus
         </button>
-        ${this.viewLayout===`2d`?``:s`
+        ${this.viewLayout===`2d`?``:o`
               <button
                 title="Save 3D Camera as Floor Default"
                 @click=${this.handleSaveCamera}
@@ -2005,7 +1467,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
           ▲
         </button>
       </div>
-    `}};b([o({type:Array})],E.prototype,`floorplans`,void 0),b([o({type:String})],E.prototype,`activeFloorplanId`,void 0),b([o({type:Array})],E.prototype,`floors`,void 0),b([o({type:String})],E.prototype,`activeFloorId`,void 0),b([o({type:String})],E.prototype,`activeTool`,void 0),b([o({type:Number})],E.prototype,`gridSize`,void 0),b([o({type:Boolean})],E.prototype,`snapToGrid`,void 0),b([o({type:Boolean})],E.prototype,`canUndo`,void 0),b([o({type:Boolean})],E.prototype,`canRedo`,void 0),b([o({type:String})],E.prototype,`viewLayout`,void 0),b([o({type:Boolean})],E.prototype,`isDirty`,void 0),b([o({type:Boolean})],E.prototype,`onionSkin`,void 0),b([o({type:Boolean,reflect:!0})],E.prototype,`narrow`,void 0),b([o({type:Boolean})],E.prototype,`leftPaneCollapsed`,void 0),b([o({type:Boolean})],E.prototype,`rightPaneCollapsed`,void 0),b([o({type:Boolean})],E.prototype,`focusMode`,void 0),b([i()],E.prototype,`isMoreMenuOpen`,void 0),E=b([n(`floorplan-editor-toolbar`)],E);var D=[{type:`door_single`,label:`Single Door`,defaultWidth:.9,defaultHeight:2.1,icon:`🚪`},{type:`door_double`,label:`Double Door`,defaultWidth:1.8,defaultHeight:2.1,icon:`🚪🚪`},{type:`door_sliding`,label:`Sliding Door`,defaultWidth:1.8,defaultHeight:2.1,icon:`↔️`},{type:`archway`,label:`Archway / Portal`,defaultWidth:1.2,defaultHeight:2.1,icon:`🏛️`},{type:`window_standard`,label:`Standard Window`,defaultWidth:1.2,defaultHeight:1.2,icon:`🪟`},{type:`window_floor_to_ceiling`,label:`Floor-to-Ceiling Window`,defaultWidth:2,defaultHeight:2.4,icon:`🪟`}],O=[{type:`sofa_straight`,label:`Sofa (Straight)`,defaultWidth:2,defaultDepth:.9,defaultHeight:.85,category:`Living`,icon:`🛋️`},{type:`sofa_l_shape`,label:`Sofa (L-Shape)`,defaultWidth:2.4,defaultDepth:1.8,defaultHeight:.85,category:`Living`,icon:`🛋️`},{type:`bed_double`,label:`Double Bed`,defaultWidth:1.8,defaultDepth:2.1,defaultHeight:.9,category:`Bedroom`,icon:`🛏️`},{type:`bed_single`,label:`Single Bed`,defaultWidth:1,defaultDepth:2,defaultHeight:.85,category:`Bedroom`,icon:`🛏️`},{type:`dining_table`,label:`Dining Table`,defaultWidth:1.6,defaultDepth:.9,defaultHeight:.75,category:`Dining`,icon:`🪑`},{type:`desk`,label:`Work Desk`,defaultWidth:1.4,defaultDepth:.7,defaultHeight:.75,category:`Office`,icon:`🖥️`},{type:`chair`,label:`Chair`,defaultWidth:.5,defaultDepth:.5,defaultHeight:.85,category:`Dining`,icon:`🪑`},{type:`tv_stand`,label:`Media / TV Stand`,defaultWidth:1.6,defaultDepth:.45,defaultHeight:.5,category:`Living`,icon:`📺`},{type:`kitchen_counter`,label:`Kitchen Counter`,defaultWidth:1.8,defaultDepth:.65,defaultHeight:.9,category:`Kitchen`,icon:`🍳`},{type:`refrigerator`,label:`Refrigerator`,defaultWidth:.8,defaultDepth:.75,defaultHeight:1.85,category:`Kitchen`,icon:`🧊`},{type:`stove`,label:`Stove & Range`,defaultWidth:.75,defaultDepth:.65,defaultHeight:.9,category:`Kitchen`,icon:`🔥`},{type:`sink_cabinet`,label:`Sink Cabinet`,defaultWidth:1,defaultDepth:.65,defaultHeight:.9,category:`Kitchen`,icon:`🚰`},{type:`bathtub`,label:`Bathtub`,defaultWidth:1.7,defaultDepth:.8,defaultHeight:.55,category:`Bathroom`,icon:`🛁`},{type:`shower_enclosure`,label:`Shower Enclosure`,defaultWidth:1,defaultDepth:1,defaultHeight:2,category:`Bathroom`,icon:`🚿`},{type:`toilet`,label:`Toilet`,defaultWidth:.45,defaultDepth:.65,defaultHeight:.8,category:`Bathroom`,icon:`🚽`},{type:`wardrobe`,label:`Wardrobe / Closet`,defaultWidth:1.2,defaultDepth:.6,defaultHeight:2.1,category:`Bedroom`,icon:`🚪`},{type:`bookcase`,label:`Bookcase`,defaultWidth:1,defaultDepth:.35,defaultHeight:1.9,category:`Living`,icon:`📚`},{type:`potted_plant`,label:`Potted Plant`,defaultWidth:.5,defaultDepth:.5,defaultHeight:.9,category:`Decor`,icon:`🪴`},{type:`rug`,label:`Area Rug`,defaultWidth:2.4,defaultDepth:1.6,defaultHeight:.02,category:`Decor`,icon:`🪡`}],k=[`all`,`light`,`switch`,`binary_sensor`,`sensor`,`media_player`,`climate`,`fan`,`button`],A=class extends e{constructor(...e){super(...e),this.selectedRoomAreaId=null,this.mobile=!1,this.activeTab=`entities`,this.searchQuery=``,this.selectedDomain=`all`,this.filterByArea=!1,this.unplacedOnly=!1,this.furnitureCategoryFilter=`all`}static{this.styles=r`
+    `}};S([a({type:Array})],A.prototype,`floorplans`,void 0),S([a({type:String})],A.prototype,`activeFloorplanId`,void 0),S([a({type:Array})],A.prototype,`floors`,void 0),S([a({type:String})],A.prototype,`activeFloorId`,void 0),S([a({type:String})],A.prototype,`activeTool`,void 0),S([a({type:Number})],A.prototype,`gridSize`,void 0),S([a({type:Boolean})],A.prototype,`snapToGrid`,void 0),S([a({type:Boolean})],A.prototype,`canUndo`,void 0),S([a({type:Boolean})],A.prototype,`canRedo`,void 0),S([a({type:String})],A.prototype,`viewLayout`,void 0),S([a({type:Boolean})],A.prototype,`isDirty`,void 0),S([a({type:Boolean})],A.prototype,`onionSkin`,void 0),S([a({type:Boolean,reflect:!0})],A.prototype,`narrow`,void 0),S([a({type:Boolean})],A.prototype,`leftPaneCollapsed`,void 0),S([a({type:Boolean})],A.prototype,`rightPaneCollapsed`,void 0),S([a({type:Boolean})],A.prototype,`focusMode`,void 0),S([r()],A.prototype,`isMoreMenuOpen`,void 0),A=S([n(`floorplan-editor-toolbar`)],A);var j=[{type:`door_single`,label:`Single Door`,defaultWidth:.9,defaultHeight:2.1,icon:`🚪`},{type:`door_double`,label:`Double Door`,defaultWidth:1.8,defaultHeight:2.1,icon:`🚪🚪`},{type:`door_sliding`,label:`Sliding Door`,defaultWidth:1.8,defaultHeight:2.1,icon:`↔️`},{type:`archway`,label:`Archway / Portal`,defaultWidth:1.2,defaultHeight:2.1,icon:`🏛️`},{type:`window_standard`,label:`Standard Window`,defaultWidth:1.2,defaultHeight:1.2,icon:`🪟`},{type:`window_floor_to_ceiling`,label:`Floor-to-Ceiling Window`,defaultWidth:2,defaultHeight:2.4,icon:`🪟`}],M=[{type:`sofa_straight`,label:`Sofa (Straight)`,defaultWidth:2,defaultDepth:.9,defaultHeight:.85,category:`Living`,icon:`🛋️`},{type:`sofa_l_shape`,label:`Sofa (L-Shape)`,defaultWidth:2.4,defaultDepth:1.8,defaultHeight:.85,category:`Living`,icon:`🛋️`},{type:`bed_double`,label:`Double Bed`,defaultWidth:1.8,defaultDepth:2.1,defaultHeight:.9,category:`Bedroom`,icon:`🛏️`},{type:`bed_single`,label:`Single Bed`,defaultWidth:1,defaultDepth:2,defaultHeight:.85,category:`Bedroom`,icon:`🛏️`},{type:`dining_table`,label:`Dining Table`,defaultWidth:1.6,defaultDepth:.9,defaultHeight:.75,category:`Dining`,icon:`🪑`},{type:`desk`,label:`Work Desk`,defaultWidth:1.4,defaultDepth:.7,defaultHeight:.75,category:`Office`,icon:`🖥️`},{type:`chair`,label:`Chair`,defaultWidth:.5,defaultDepth:.5,defaultHeight:.85,category:`Dining`,icon:`🪑`},{type:`tv_stand`,label:`Media / TV Stand`,defaultWidth:1.6,defaultDepth:.45,defaultHeight:.5,category:`Living`,icon:`📺`},{type:`kitchen_counter`,label:`Kitchen Counter`,defaultWidth:1.8,defaultDepth:.65,defaultHeight:.9,category:`Kitchen`,icon:`🍳`},{type:`refrigerator`,label:`Refrigerator`,defaultWidth:.8,defaultDepth:.75,defaultHeight:1.85,category:`Kitchen`,icon:`🧊`},{type:`stove`,label:`Stove & Range`,defaultWidth:.75,defaultDepth:.65,defaultHeight:.9,category:`Kitchen`,icon:`🔥`},{type:`sink_cabinet`,label:`Sink Cabinet`,defaultWidth:1,defaultDepth:.65,defaultHeight:.9,category:`Kitchen`,icon:`🚰`},{type:`bathtub`,label:`Bathtub`,defaultWidth:1.7,defaultDepth:.8,defaultHeight:.55,category:`Bathroom`,icon:`🛁`},{type:`shower_enclosure`,label:`Shower Enclosure`,defaultWidth:1,defaultDepth:1,defaultHeight:2,category:`Bathroom`,icon:`🚿`},{type:`toilet`,label:`Toilet`,defaultWidth:.45,defaultDepth:.65,defaultHeight:.8,category:`Bathroom`,icon:`🚽`},{type:`wardrobe`,label:`Wardrobe / Closet`,defaultWidth:1.2,defaultDepth:.6,defaultHeight:2.1,category:`Bedroom`,icon:`🚪`},{type:`bookcase`,label:`Bookcase`,defaultWidth:1,defaultDepth:.35,defaultHeight:1.9,category:`Living`,icon:`📚`},{type:`potted_plant`,label:`Potted Plant`,defaultWidth:.5,defaultDepth:.5,defaultHeight:.9,category:`Decor`,icon:`🪴`},{type:`rug`,label:`Area Rug`,defaultWidth:2.4,defaultDepth:1.6,defaultHeight:.02,category:`Decor`,icon:`🪡`}],N=[`all`,`light`,`switch`,`binary_sensor`,`sensor`,`media_player`,`climate`,`fan`,`button`],P=class extends e{constructor(...e){super(...e),this.selectedRoomAreaId=null,this.mobile=!1,this.activeTab=`entities`,this.searchQuery=``,this.selectedDomain=`all`,this.filterByArea=!1,this.unplacedOnly=!1,this.furnitureCategoryFilter=`all`}static{this.styles=t`
     :host {
       display: flex;
       flex-direction: column;
@@ -2295,7 +1757,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
       color: var(--secondary-text-color, #64748b);
       font-size: 13px;
     }
-  `}handleDragStart(e,t){e.dataTransfer&&(e.dataTransfer.setData(`application/x-floorplan-palette`,JSON.stringify(t)),e.dataTransfer.effectAllowed=`copy`)}handlePlaceItem(e){this.dispatchEvent(new CustomEvent(`palette-place`,{bubbles:!0,composed:!0,detail:e}))}getFilteredEntities(){if(!this.hass?.states)return[];let e=this.searchQuery.trim().toLowerCase(),t=new Set(this.activeFloor?.entities.map(e=>e.entity_id)??[]);return Object.values(this.hass.states).filter(n=>{let r=n.entity_id,i=r.split(`.`)[0],a=n.attributes.friendly_name||``;return!(this.selectedDomain!==`all`&&i!==this.selectedDomain||e&&!r.toLowerCase().includes(e)&&!a.toLowerCase().includes(e)||this.unplacedOnly&&t.has(r)||this.filterByArea&&this.selectedRoomAreaId&&c(r,this.hass)!==this.selectedRoomAreaId)})}getDomainIcon(e){switch(e){case`light`:return`💡`;case`switch`:return`🔌`;case`binary_sensor`:return`🔔`;case`sensor`:return`🌡️`;case`media_player`:return`📻`;case`climate`:return`❄️`;case`fan`:return`🌀`;case`button`:return`🔘`;default:return`⚙️`}}render(){let e=this.selectedRoomAreaId&&this.hass?.areas?.[this.selectedRoomAreaId]?this.hass.areas[this.selectedRoomAreaId].name:this.selectedRoomAreaId;return s`
+  `}handleDragStart(e,t){e.dataTransfer&&(e.dataTransfer.setData(`application/x-floorplan-palette`,JSON.stringify(t)),e.dataTransfer.effectAllowed=`copy`)}handlePlaceItem(e){this.dispatchEvent(new CustomEvent(`palette-place`,{bubbles:!0,composed:!0,detail:e}))}getFilteredEntities(){if(!this.hass?.states)return[];let e=this.searchQuery.trim().toLowerCase(),t=new Set(this.activeFloor?.entities.map(e=>e.entity_id)??[]);return Object.values(this.hass.states).filter(n=>{let r=n.entity_id,i=r.split(`.`)[0],a=n.attributes.friendly_name||``;return!(this.selectedDomain!==`all`&&i!==this.selectedDomain||e&&!r.toLowerCase().includes(e)&&!a.toLowerCase().includes(e)||this.unplacedOnly&&t.has(r)||this.filterByArea&&this.selectedRoomAreaId&&l(r,this.hass)!==this.selectedRoomAreaId)})}getDomainIcon(e){switch(e){case`light`:return`💡`;case`switch`:return`🔌`;case`binary_sensor`:return`🔔`;case`sensor`:return`🌡️`;case`media_player`:return`📻`;case`climate`:return`❄️`;case`fan`:return`🌀`;case`button`:return`🔘`;default:return`⚙️`}}render(){let e=this.selectedRoomAreaId&&this.hass?.areas?.[this.selectedRoomAreaId]?this.hass.areas[this.selectedRoomAreaId].name:this.selectedRoomAreaId;return o`
       <!-- Header Tabs -->
       <div class="tabs-header">
         <button
@@ -2310,7 +1772,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
         >
           Catalog
         </button>
-        ${this.mobile?``:s`
+        ${this.mobile?``:o`
               <button
                 class="pane-collapse-btn"
                 title="Collapse Left Panel ["
@@ -2323,7 +1785,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
       </div>
 
       <!-- Tab 1: HA Entities -->
-      ${this.activeTab===`entities`?s`
+      ${this.activeTab===`entities`?o`
             <div class="tab-content">
               <!-- Search box -->
               <div class="search-box">
@@ -2337,7 +1799,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
 
               <!-- Domain pills -->
               <div class="chips-bar">
-                ${k.map(e=>s`
+                ${N.map(e=>o`
                     <div
                       class="chip ${this.selectedDomain===e?`active`:``}"
                       @click=${()=>this.selectedDomain=e}
@@ -2358,7 +1820,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
                   />
                   <span>
                     Filter by Selected Room's HA Area
-                    ${e?s`<b>(${e})</b>`:``}
+                    ${e?o`<b>(${e})</b>`:``}
                   </span>
                 </label>
                 <label class="toggle-row">
@@ -2376,7 +1838,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
                 Entities (${this.getFilteredEntities().length})
               </div>
               <div class="items-list">
-                ${this.getFilteredEntities().length===0?s`<div class="empty-state">No entities match filters.</div>`:this.getFilteredEntities().map(e=>{let t=e.entity_id.split(`.`)[0],n=this.activeFloor?.entities.some(t=>t.entity_id===e.entity_id),r={kind:`entity`,entityId:e.entity_id,domain:t,label:e.attributes.friendly_name||e.entity_id};return s`
+                ${this.getFilteredEntities().length===0?o`<div class="empty-state">No entities match filters.</div>`:this.getFilteredEntities().map(e=>{let t=e.entity_id.split(`.`)[0],n=this.activeFloor?.entities.some(t=>t.entity_id===e.entity_id),r={kind:`entity`,entityId:e.entity_id,domain:t,label:e.attributes.friendly_name||e.entity_id};return o`
                         <div
                           class="item-row"
                           draggable="true"
@@ -2387,7 +1849,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
                             <div class="item-details">
                               <span class="item-name">
                                 ${e.attributes.friendly_name||e.entity_id}
-                                ${n?s`<span class="placed-pill">Placed</span>`:``}
+                                ${n?o`<span class="placed-pill">Placed</span>`:``}
                               </span>
                               <span class="item-subtext">
                                 ${e.entity_id} • ${e.state}
@@ -2405,13 +1867,13 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
                       `})}
               </div>
             </div>
-          `:s`
+          `:o`
             <!-- Tab 2: Catalog & Furniture -->
             <div class="tab-content">
               <!-- Openings & Portals -->
               <div class="section-title">Openings & Portals</div>
               <div class="items-list">
-                ${D.map(e=>{let t={kind:`opening`,openingType:e.type,defaultWidth:e.defaultWidth,defaultHeight:e.defaultHeight,label:e.label};return s`
+                ${j.map(e=>{let t={kind:`opening`,openingType:e.type,defaultWidth:e.defaultWidth,defaultHeight:e.defaultHeight,label:e.label};return o`
                     <div
                       class="item-row"
                       draggable="true"
@@ -2440,7 +1902,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
               <!-- Procedural Furniture -->
               <div class="section-title">Procedural Furniture (19 Models)</div>
               <div class="chips-bar">
-                ${[`all`,`Living`,`Bedroom`,`Kitchen`,`Bathroom`,`Dining`,`Office`,`Decor`].map(e=>s`
+                ${[`all`,`Living`,`Bedroom`,`Kitchen`,`Bathroom`,`Dining`,`Office`,`Decor`].map(e=>o`
                     <div
                       class="chip ${this.furnitureCategoryFilter===e?`active`:``}"
                       @click=${()=>this.furnitureCategoryFilter=e}
@@ -2451,7 +1913,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
               </div>
 
               <div class="items-list">
-                ${O.filter(e=>this.furnitureCategoryFilter===`all`||e.category===this.furnitureCategoryFilter).map(e=>{let t={kind:`furniture`,furnitureType:e.type,defaultWidth:e.defaultWidth,defaultDepth:e.defaultDepth,defaultHeight:e.defaultHeight,label:e.label};return s`
+                ${M.filter(e=>this.furnitureCategoryFilter===`all`||e.category===this.furnitureCategoryFilter).map(e=>{let t={kind:`furniture`,furnitureType:e.type,defaultWidth:e.defaultWidth,defaultDepth:e.defaultDepth,defaultHeight:e.defaultHeight,label:e.label};return o`
                     <div
                       class="item-row"
                       draggable="true"
@@ -2478,7 +1940,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
               </div>
             </div>
           `}
-    `}};b([o({attribute:!1})],A.prototype,`hass`,void 0),b([o({attribute:!1})],A.prototype,`activeFloor`,void 0),b([o({type:String})],A.prototype,`selectedRoomAreaId`,void 0),b([o({type:Boolean,reflect:!0})],A.prototype,`mobile`,void 0),b([i()],A.prototype,`activeTab`,void 0),b([i()],A.prototype,`searchQuery`,void 0),b([i()],A.prototype,`selectedDomain`,void 0),b([i()],A.prototype,`filterByArea`,void 0),b([i()],A.prototype,`unplacedOnly`,void 0),b([i()],A.prototype,`furnitureCategoryFilter`,void 0),A=b([n(`floorplan-entity-palette`)],A);var j=[{value:`adaptive_contrast`,label:`Adaptive Contrast (Recommended)`},{value:`sun_sync`,label:`Sun Synchronization`},{value:`dark`,label:`Dark Mode`},{value:`daylight`,label:`Daylight Mode`}],M=[{value:`wood_oak`,label:`Natural Oak Wood`},{value:`wood_walnut`,label:`Dark Walnut Wood`},{value:`tile_slate`,label:`Slate Tile`},{value:`tile_marble`,label:`Marble Tile`},{value:`carpet`,label:`Soft Carpet`},{value:`concrete`,label:`Polished Concrete`},{value:`custom`,label:`Custom Tint Color`}],N=[{value:`door_single`,label:`Single Door`},{value:`door_double`,label:`Double Door`},{value:`door_sliding`,label:`Sliding Door`},{value:`archway`,label:`Archway / Portal`},{value:`window_standard`,label:`Standard Window`},{value:`window_floor_to_ceiling`,label:`Floor-to-Ceiling Window`}],P=[{value:`left_in`,label:`Left Inward`},{value:`left_out`,label:`Left Outward`},{value:`right_in`,label:`Right Inward`},{value:`right_out`,label:`Right Outward`}],F=[{value:`none`,label:`None (Icon / Badge Only)`},{value:`ceiling_light`,label:`Ceiling Pendant Light`},{value:`wall_sconce`,label:`Wall Sconce`},{value:`led_strip`,label:`LED Strip Fixture`},{value:`tv_screen`,label:`Smart TV Screen`},{value:`ceiling_fan`,label:`Ceiling Fan (Animated)`},{value:`thermostat`,label:`Wall Thermostat`},{value:`speaker`,label:`Smart Speaker`}],I=[{value:`point`,label:`Point Light (Omnidirectional)`},{value:`spot`,label:`Spotlight`},{value:`strip`,label:`LED Strip`},{value:`wall_sconce`,label:`Wall Sconce`}],L=[{value:`sofa_straight`,label:`Sofa (Straight)`},{value:`sofa_l_shape`,label:`Sofa (L-Shape)`},{value:`bed_double`,label:`Double Bed`},{value:`bed_single`,label:`Single Bed`},{value:`dining_table`,label:`Dining Table`},{value:`desk`,label:`Work Desk`},{value:`chair`,label:`Chair`},{value:`tv_stand`,label:`TV Stand`},{value:`kitchen_counter`,label:`Kitchen Counter`},{value:`refrigerator`,label:`Refrigerator`},{value:`stove`,label:`Stove & Range`},{value:`sink_cabinet`,label:`Sink Cabinet`},{value:`bathtub`,label:`Bathtub`},{value:`shower_enclosure`,label:`Shower Enclosure`},{value:`toilet`,label:`Toilet`},{value:`wardrobe`,label:`Wardrobe`},{value:`bookcase`,label:`Bookcase`},{value:`potted_plant`,label:`Potted Plant`},{value:`rug`,label:`Area Rug`}],R=class extends e{constructor(...e){super(...e),this.selection={kind:`none`,id:null},this.mobile=!1}static{this.styles=r`
+    `}};S([a({attribute:!1})],P.prototype,`hass`,void 0),S([a({attribute:!1})],P.prototype,`activeFloor`,void 0),S([a({type:String})],P.prototype,`selectedRoomAreaId`,void 0),S([a({type:Boolean,reflect:!0})],P.prototype,`mobile`,void 0),S([r()],P.prototype,`activeTab`,void 0),S([r()],P.prototype,`searchQuery`,void 0),S([r()],P.prototype,`selectedDomain`,void 0),S([r()],P.prototype,`filterByArea`,void 0),S([r()],P.prototype,`unplacedOnly`,void 0),S([r()],P.prototype,`furnitureCategoryFilter`,void 0),P=S([n(`floorplan-entity-palette`)],P);var F=[{value:`adaptive_contrast`,label:`Adaptive Contrast (Recommended)`},{value:`sun_sync`,label:`Sun Synchronization`},{value:`dark`,label:`Dark Mode`},{value:`daylight`,label:`Daylight Mode`}],I=[{value:`wood_oak`,label:`Natural Oak Wood`},{value:`wood_walnut`,label:`Dark Walnut Wood`},{value:`tile_slate`,label:`Slate Tile`},{value:`tile_marble`,label:`Marble Tile`},{value:`carpet`,label:`Soft Carpet`},{value:`concrete`,label:`Polished Concrete`},{value:`custom`,label:`Custom Tint Color`}],L=[{value:`door_single`,label:`Single Door`},{value:`door_double`,label:`Double Door`},{value:`door_sliding`,label:`Sliding Door`},{value:`archway`,label:`Archway / Portal`},{value:`window_standard`,label:`Standard Window`},{value:`window_floor_to_ceiling`,label:`Floor-to-Ceiling Window`}],R=[{value:`left_in`,label:`Left Inward`},{value:`left_out`,label:`Left Outward`},{value:`right_in`,label:`Right Inward`},{value:`right_out`,label:`Right Outward`}],z=[{value:`none`,label:`None (Icon / Badge Only)`},{value:`ceiling_light`,label:`Ceiling Pendant Light`},{value:`wall_sconce`,label:`Wall Sconce`},{value:`led_strip`,label:`LED Strip Fixture`},{value:`tv_screen`,label:`Smart TV Screen`},{value:`ceiling_fan`,label:`Ceiling Fan (Animated)`},{value:`thermostat`,label:`Wall Thermostat`},{value:`speaker`,label:`Smart Speaker`}],B=[{value:`point`,label:`Point Light (Omnidirectional)`},{value:`spot`,label:`Spotlight`},{value:`strip`,label:`LED Strip`},{value:`wall_sconce`,label:`Wall Sconce`}],V=[{value:`sofa_straight`,label:`Sofa (Straight)`},{value:`sofa_l_shape`,label:`Sofa (L-Shape)`},{value:`bed_double`,label:`Double Bed`},{value:`bed_single`,label:`Single Bed`},{value:`dining_table`,label:`Dining Table`},{value:`desk`,label:`Work Desk`},{value:`chair`,label:`Chair`},{value:`tv_stand`,label:`TV Stand`},{value:`kitchen_counter`,label:`Kitchen Counter`},{value:`refrigerator`,label:`Refrigerator`},{value:`stove`,label:`Stove & Range`},{value:`sink_cabinet`,label:`Sink Cabinet`},{value:`bathtub`,label:`Bathtub`},{value:`shower_enclosure`,label:`Shower Enclosure`},{value:`toilet`,label:`Toilet`},{value:`wardrobe`,label:`Wardrobe`},{value:`bookcase`,label:`Bookcase`},{value:`potted_plant`,label:`Potted Plant`},{value:`rug`,label:`Area Rug`}],H=class extends e{constructor(...e){super(...e),this.selection={kind:`none`,id:null},this.mobile=!1}static{this.styles=t`
     :host {
       display: flex;
       flex-direction: column;
@@ -2741,13 +2203,13 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
       font-weight: 700;
       color: var(--primary-color, #38bdf8);
     }
-  `}mutate(e,t){if(!this.document)return;let n=structuredClone(this.document),r=n.floors.find(e=>e.id===this.floor?.id)??n.floors[0];r&&(t(n,r),this.dispatchEvent(new CustomEvent(`document-mutate`,{bubbles:!0,composed:!0,detail:{document:n,description:e}})))}handleDeleteSelected(){if(!this.selection||this.selection.kind===`none`||!this.selection.id)return;let{kind:e,id:t}=this.selection;this.mutate(`Delete ${e}`,(n,r)=>{switch(e){case`wall`:r.walls=r.walls.filter(e=>e.id!==t),r.openings=r.openings.filter(e=>e.wall_id!==t);break;case`room`:r.rooms=r.rooms.filter(e=>e.id!==t);break;case`opening`:r.openings=r.openings.filter(e=>e.id!==t);break;case`furniture`:r.furniture=r.furniture.filter(e=>e.id!==t);break;case`entity`:r.entities=r.entities.filter(e=>e.id!==t)}}),this.dispatchEvent(new CustomEvent(`delete-selected`,{bubbles:!0,composed:!0,detail:this.selection}))}render(){let{kind:e}=this.selection;return s`
+  `}mutate(e,t){if(!this.document)return;let n=structuredClone(this.document),r=n.floors.find(e=>e.id===this.floor?.id)??n.floors[0];r&&(t(n,r),this.dispatchEvent(new CustomEvent(`document-mutate`,{bubbles:!0,composed:!0,detail:{document:n,description:e}})))}handleDeleteSelected(){if(!this.selection||this.selection.kind===`none`||!this.selection.id)return;let{kind:e,id:t}=this.selection;this.mutate(`Delete ${e}`,(n,r)=>{switch(e){case`wall`:r.walls=r.walls.filter(e=>e.id!==t),r.openings=r.openings.filter(e=>e.wall_id!==t);break;case`room`:r.rooms=r.rooms.filter(e=>e.id!==t);break;case`opening`:r.openings=r.openings.filter(e=>e.id!==t);break;case`furniture`:r.furniture=r.furniture.filter(e=>e.id!==t);break;case`entity`:r.entities=r.entities.filter(e=>e.id!==t)}}),this.dispatchEvent(new CustomEvent(`delete-selected`,{bubbles:!0,composed:!0,detail:this.selection}))}render(){let{kind:e}=this.selection;return o`
       <div class="inspector-header">
         <div class="inspector-title">
           <span>Properties</span>
           <span class="badge-kind">${e===`none`?`Global / Floor`:e}</span>
         </div>
-        ${this.mobile?``:s`
+        ${this.mobile?``:o`
               <button
                 class="pane-collapse-btn"
                 title="Collapse Inspector ]"
@@ -2767,7 +2229,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
         ${e===`furniture`?this.renderFurnitureInspector():``}
         ${e===`entity`?this.renderEntityInspector():``}
       </div>
-    `}renderGlobalAndFloorInspector(){if(!this.document||!this.floor)return s``;let e=this.document,t=this.floor,n=e.ambient_config;return s`
+    `}renderGlobalAndFloorInspector(){if(!this.document||!this.floor)return o``;let e=this.document,t=this.floor,n=e.ambient_config;return o`
       <!-- Global Floorplan Settings -->
       <div class="section-card">
         <div class="section-header">Floorplan Global Settings</div>
@@ -2787,7 +2249,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
             .value=${n.mode}
             @change=${e=>{let t=e.target.value;this.mutate(`Change ambient lighting mode`,e=>{e.ambient_config.mode=t})}}
           >
-            ${j.map(e=>s`<option value=${e.value}>${e.label}</option>`)}
+            ${F.map(e=>o`<option value=${e.value}>${e.label}</option>`)}
           </select>
         </div>
 
@@ -2887,7 +2349,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
             @change=${e=>{let t=e.target.value||null;this.mutate(`Bind HA floor ID`,(e,n)=>{n.ha_floor_id=t})}}
           >
             <option value="">None (Unbound)</option>
-            ${Object.values(this.hass?.floors??{}).map(e=>s`<option value=${e.floor_id}>${e.name}</option>`)}
+            ${Object.values(this.hass?.floors??{}).map(e=>o`<option value=${e.floor_id}>${e.name}</option>`)}
           </select>
         </div>
       </div>
@@ -2895,7 +2357,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
       <!-- Blueprint Calibration & Overlay -->
       <div class="section-card">
         <div class="section-header">Blueprint Reference Image</div>
-        ${t.blueprint?s`
+        ${t.blueprint?o`
               <div class="form-row">
                 <label>Opacity</label>
                 <input
@@ -2975,7 +2437,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
               >
                 Remove Blueprint
               </button>
-            `:s`
+            `:o`
               <p style="font-size: 12px; color: #94a3b8; margin: 0;">
                 No blueprint reference image uploaded for this floor.
               </p>
@@ -2987,7 +2449,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
               </button>
             `}
       </div>
-    `}renderWallInspector(){if(!this.floor)return s``;let e=this.floor.walls.find(e=>e.id===this.selection.id);return e?s`
+    `}renderWallInspector(){if(!this.floor)return o``;let e=this.floor.walls.find(e=>e.id===this.selection.id);return e?o`
       <div class="section-card">
         <div class="section-header">Wall Segment (${e.id})</div>
 
@@ -3038,7 +2500,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
           Delete Wall
         </button>
       </div>
-    `:s`<div class="section-card">Wall not found.</div>`}renderRoomInspector(){if(!this.floor)return s``;let e=this.floor.rooms.find(e=>e.id===this.selection.id);return e?s`
+    `:o`<div class="section-card">Wall not found.</div>`}renderRoomInspector(){if(!this.floor)return o``;let e=this.floor.rooms.find(e=>e.id===this.selection.id);return e?o`
       <div class="section-card">
         <div class="section-header">Room Polygon (${e.name})</div>
 
@@ -3058,7 +2520,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
             @change=${t=>{let n=t.target.value||null;this.mutate(`Bind HA area`,(t,r)=>{let i=r.rooms.find(t=>t.id===e.id);i&&(i.ha_area_id=n)})}}
           >
             <option value="">None (Unbound Area)</option>
-            ${Object.values(this.hass?.areas??{}).map(e=>s`<option value=${e.area_id}>${e.name}</option>`)}
+            ${Object.values(this.hass?.areas??{}).map(e=>o`<option value=${e.area_id}>${e.name}</option>`)}
           </select>
         </div>
 
@@ -3068,7 +2530,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
             .value=${e.floor_material}
             @change=${t=>{let n=t.target.value;this.mutate(`Change room floor material`,(t,r)=>{let i=r.rooms.find(t=>t.id===e.id);i&&(i.floor_material=n)})}}
           >
-            ${M.map(e=>s`<option value=${e.value}>${e.label}</option>`)}
+            ${I.map(e=>o`<option value=${e.value}>${e.label}</option>`)}
           </select>
         </div>
 
@@ -3141,7 +2603,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
           Delete Room
         </button>
       </div>
-    `:s`<div class="section-card">Room not found.</div>`}renderOpeningInspector(){if(!this.floor)return s``;let e=this.floor.openings.find(e=>e.id===this.selection.id);if(!e)return s`<div class="section-card">Opening not found.</div>`;let t=Object.keys(this.hass?.states??{}).filter(e=>e.startsWith(`binary_sensor.`));return s`
+    `:o`<div class="section-card">Room not found.</div>`}renderOpeningInspector(){if(!this.floor)return o``;let e=this.floor.openings.find(e=>e.id===this.selection.id);if(!e)return o`<div class="section-card">Opening not found.</div>`;let t=Object.keys(this.hass?.states??{}).filter(e=>e.startsWith(`binary_sensor.`));return o`
       <div class="section-card">
         <div class="section-header">Wall Opening (${e.type})</div>
 
@@ -3151,7 +2613,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
             .value=${e.type}
             @change=${t=>{let n=t.target.value;this.mutate(`Change opening type`,(t,r)=>{let i=r.openings.find(t=>t.id===e.id);i&&(i.type=n)})}}
           >
-            ${N.map(e=>s`<option value=${e.value}>${e.label}</option>`)}
+            ${L.map(e=>o`<option value=${e.value}>${e.label}</option>`)}
           </select>
         </div>
 
@@ -3200,7 +2662,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
               .value=${e.swing_direction}
               @change=${t=>{let n=t.target.value;this.mutate(`Change opening swing direction`,(t,r)=>{let i=r.openings.find(t=>t.id===e.id);i&&(i.swing_direction=n)})}}
             >
-              ${P.map(e=>s`<option value=${e.value}>${e.label}</option>`)}
+              ${R.map(e=>o`<option value=${e.value}>${e.label}</option>`)}
             </select>
           </div>
         </div>
@@ -3212,7 +2674,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
             @change=${t=>{let n=t.target.value||null;this.mutate(`Bind opening contact sensor`,(t,r)=>{let i=r.openings.find(t=>t.id===e.id);i&&(i.bound_entity_id=n)})}}
           >
             <option value="">None (Static Position)</option>
-            ${t.map(e=>s`<option value=${e}>${e}</option>`)}
+            ${t.map(e=>o`<option value=${e}>${e}</option>`)}
           </select>
         </div>
 
@@ -3220,7 +2682,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
           Delete Opening
         </button>
       </div>
-    `}renderFurnitureInspector(){if(!this.floor)return s``;let e=this.floor.furniture.find(e=>e.id===this.selection.id);return e?s`
+    `}renderFurnitureInspector(){if(!this.floor)return o``;let e=this.floor.furniture.find(e=>e.id===this.selection.id);return e?o`
       <div class="section-card">
         <div class="section-header">Furniture Item (${e.label})</div>
 
@@ -3239,7 +2701,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
             .value=${e.catalog_type}
             @change=${t=>{let n=t.target.value;this.mutate(`Change furniture type`,(t,r)=>{let i=r.furniture.find(t=>t.id===e.id);i&&(i.catalog_type=n)})}}
           >
-            ${L.map(e=>s`<option value=${e.value}>${e.label}</option>`)}
+            ${V.map(e=>o`<option value=${e.value}>${e.label}</option>`)}
           </select>
         </div>
 
@@ -3333,7 +2795,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
           Delete Furniture
         </button>
       </div>
-    `:s`<div class="section-card">Furniture not found.</div>`}renderEntityInspector(){if(!this.floor)return s``;let e=this.floor.entities.find(e=>e.id===this.selection.id);if(!e)return s`<div class="section-card">Entity placement not found.</div>`;let t=this.hass?.states[e.entity_id],n=e.domain===`light`||!!e.light_config;return s`
+    `:o`<div class="section-card">Furniture not found.</div>`}renderEntityInspector(){if(!this.floor)return o``;let e=this.floor.entities.find(e=>e.id===this.selection.id);if(!e)return o`<div class="section-card">Entity placement not found.</div>`;let t=this.hass?.states[e.entity_id],n=e.domain===`light`||!!e.light_config;return o`
       <div class="section-card">
         <div class="section-header">Entity Placement</div>
 
@@ -3383,13 +2845,13 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
             .value=${e.mesh_type}
             @change=${t=>{let n=t.target.value;this.mutate(`Change entity 3D mesh type`,(t,r)=>{let i=r.entities.find(t=>t.id===e.id);i&&(i.mesh_type=n)})}}
           >
-            ${F.map(e=>s`<option value=${e.value}>${e.label}</option>`)}
+            ${z.map(e=>o`<option value=${e.value}>${e.label}</option>`)}
           </select>
         </div>
       </div>
 
       <!-- Light Fixture 3D Config -->
-      ${n?s`
+      ${n?o`
             <div class="section-card">
               <div class="section-header">Light Fixture 3D Settings</div>
 
@@ -3399,7 +2861,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
                   .value=${e.light_config?.kind||`point`}
                   @change=${t=>{let n=t.target.value;this.mutate(`Change light fixture kind`,(t,r)=>{let i=r.entities.find(t=>t.id===e.id);i&&(i.light_config={kind:n,radius_m:i.light_config?.radius_m??4.5,intensity_multiplier:i.light_config?.intensity_multiplier??1,cast_real_point_light:i.light_config?.cast_real_point_light??!0})})}}
                 >
-                  ${I.map(e=>s`<option value=${e.value}>${e.label}</option>`)}
+                  ${B.map(e=>o`<option value=${e.value}>${e.label}</option>`)}
                 </select>
               </div>
 
@@ -3501,7 +2963,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
           Delete Placement
         </button>
       </div>
-    `}};b([o({attribute:!1})],R.prototype,`hass`,void 0),b([o({attribute:!1})],R.prototype,`document`,void 0),b([o({attribute:!1})],R.prototype,`floor`,void 0),b([o({attribute:!1})],R.prototype,`selection`,void 0),b([o({type:Boolean,reflect:!0})],R.prototype,`mobile`,void 0),R=b([n(`floorplan-property-inspector`)],R);var z=class extends e{constructor(...e){super(...e),this.narrow=!1,this.floorplans=[],this.activeFloorplanId=``,this.activeFloorId=``,this.activeTool=`select`,this.viewLayout=`2d`,this.gridSize=.1,this.snapToGrid=!0,this.onionSkin=!1,this.selection={kind:`none`,id:null},this.isBlueprintModalOpen=!1,this.isDirty=!1,this.canUndo=!1,this.canRedo=!1,this.toastMessage=null,this.isViewportNarrow=!1,this.activeMobileSheet=`none`,this.isLeftPaneCollapsed=!1,this.isRightPaneCollapsed=!1,this.isTopToolbarCollapsed=!1,this.splitRatio=.65,this.stateDiffer=new v,this.scene3d=null,this.sceneContainerEl=null,this.toastTimer=null,this.isWsInitialized=!1,this.hostResizeObserver=null,this.isResizingSplit=!1,this.prevFocusState=null,this.startSplitResize=e=>{e.button===0&&(e.preventDefault(),this.isResizingSplit=!0)},this.handleSplitPointerMove=e=>{if(!this.isResizingSplit)return;let t=this.renderRoot.querySelector(`.center-viewport`);if(!t)return;let n=t.getBoundingClientRect();if(n.width<=0)return;let r=(e.clientX-n.left)/n.width;this.splitRatio=Math.max(.2,Math.min(.85,Number(r.toFixed(3)))),this.scene3d?.resize()},this.handleSplitPointerUp=()=>{this.isResizingSplit&&(this.isResizingSplit=!1,this.scene3d?.resize())},this.handleKeyDown=e=>{let t=e.composedPath?.()[0]??e.target,n=t?.tagName?.toLowerCase();if(n===`input`||n===`textarea`||n===`select`||t?.isContentEditable)return;let r=e.ctrlKey||e.metaKey;if(r&&e.key.toLowerCase()===`z`)e.preventDefault(),e.shiftKey?this.handleRedo():this.handleUndo();else if(r&&e.key.toLowerCase()===`y`)e.preventDefault(),this.handleRedo();else if(r&&e.key.toLowerCase()===`s`)e.preventDefault(),this.handleSaveFloorplan();else switch(e.key.toLowerCase()){case`v`:this.activeTool=`select`;break;case`w`:this.activeTool=`draw_wall`;break;case`r`:this.activeTool=`draw_room`;break;case`o`:this.activeTool=`add_opening`;break;case`m`:this.activeTool=`measure`;break;case`b`:this.isBlueprintModalOpen=!0;break;case`[`:this.isLeftPaneCollapsed=!this.isLeftPaneCollapsed;break;case`]`:this.isRightPaneCollapsed=!this.isRightPaneCollapsed;break;case`f`:this.toggleFocusMode();break;case`delete`:case`backspace`:this.deleteSelection()}}}static{this.styles=r`
+    `}};S([a({attribute:!1})],H.prototype,`hass`,void 0),S([a({attribute:!1})],H.prototype,`document`,void 0),S([a({attribute:!1})],H.prototype,`floor`,void 0),S([a({attribute:!1})],H.prototype,`selection`,void 0),S([a({type:Boolean,reflect:!0})],H.prototype,`mobile`,void 0),H=S([n(`floorplan-property-inspector`)],H);var U=class extends e{constructor(...e){super(...e),this.narrow=!1,this.floorplans=[],this.activeFloorplanId=``,this.activeFloorId=``,this.activeTool=`select`,this.viewLayout=`2d`,this.gridSize=.1,this.snapToGrid=!0,this.onionSkin=!1,this.selection={kind:`none`,id:null},this.isBlueprintModalOpen=!1,this.isDirty=!1,this.canUndo=!1,this.canRedo=!1,this.toastMessage=null,this.isViewportNarrow=!1,this.activeMobileSheet=`none`,this.isLeftPaneCollapsed=!1,this.isRightPaneCollapsed=!1,this.isTopToolbarCollapsed=!1,this.splitRatio=.65,this.stateDiffer=new b,this.scene3d=null,this.sceneContainerEl=null,this.toastTimer=null,this.isWsInitialized=!1,this.hostResizeObserver=null,this.isResizingSplit=!1,this.prevFocusState=null,this.startSplitResize=e=>{e.button===0&&(e.preventDefault(),this.isResizingSplit=!0)},this.handleSplitPointerMove=e=>{if(!this.isResizingSplit)return;let t=this.renderRoot.querySelector(`.center-viewport`);if(!t)return;let n=t.getBoundingClientRect();if(n.width<=0)return;let r=(e.clientX-n.left)/n.width;this.splitRatio=Math.max(.2,Math.min(.85,Number(r.toFixed(3)))),this.scene3d?.resize()},this.handleSplitPointerUp=()=>{this.isResizingSplit&&(this.isResizingSplit=!1,this.scene3d?.resize())},this.handleKeyDown=e=>{let t=e.composedPath?.()[0]??e.target,n=t?.tagName?.toLowerCase();if(n===`input`||n===`textarea`||n===`select`||t?.isContentEditable)return;let r=e.ctrlKey||e.metaKey;if(r&&e.key.toLowerCase()===`z`)e.preventDefault(),e.shiftKey?this.handleRedo():this.handleUndo();else if(r&&e.key.toLowerCase()===`y`)e.preventDefault(),this.handleRedo();else if(r&&e.key.toLowerCase()===`s`)e.preventDefault(),this.handleSaveFloorplan();else switch(e.key.toLowerCase()){case`v`:this.activeTool=`select`;break;case`w`:this.activeTool=`draw_wall`;break;case`r`:this.activeTool=`draw_room`;break;case`o`:this.activeTool=`add_opening`;break;case`m`:this.activeTool=`measure`;break;case`b`:this.isBlueprintModalOpen=!0;break;case`[`:this.isLeftPaneCollapsed=!this.isLeftPaneCollapsed;break;case`]`:this.isRightPaneCollapsed=!this.isRightPaneCollapsed;break;case`f`:this.toggleFocusMode();break;case`delete`:case`backspace`:this.deleteSelection()}}}static{this.styles=t`
     :host {
       display: flex;
       flex-direction: column;
@@ -3874,9 +3336,9 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
       display: flex;
       flex-direction: column;
     }
-  `}connectedCallback(){super.connectedCallback();let e=S();this.history=new C(e,50),this.activeFloorplanId=e.id,this.activeFloorId=e.floors[0]?.id??``,this.updateHistoryFlags(),this.wsClient=new f(()=>this.hass),window.addEventListener(`keydown`,this.handleKeyDown),window.addEventListener(`pointermove`,this.handleSplitPointerMove),window.addEventListener(`pointerup`,this.handleSplitPointerUp),typeof ResizeObserver<`u`&&(this.hostResizeObserver=new ResizeObserver(e=>{for(let t of e){let e=t.contentRect.width;this.isViewportNarrow=e>0&&e<768}}),this.hostResizeObserver.observe(this))}disconnectedCallback(){super.disconnectedCallback(),window.removeEventListener(`keydown`,this.handleKeyDown),window.removeEventListener(`pointermove`,this.handleSplitPointerMove),window.removeEventListener(`pointerup`,this.handleSplitPointerUp),this.hostResizeObserver?.disconnect(),this.hostResizeObserver=null,this.toastTimer&&window.clearTimeout(this.toastTimer),this.scene3d?.dispose(),this.scene3d=null}willUpdate(e){super.willUpdate(e),(e.has(`narrow`)||e.has(`isViewportNarrow`))&&this.isMobile&&this.viewLayout===`split`&&(this.viewLayout=`2d`)}updated(e){if(super.updated(e),e.has(`hass`)&&this.hass&&!this.isWsInitialized&&(this.isWsInitialized=!0,this.stateDiffer.rebuildWatchedSet(this.currentDocument,this.hass),this.loadInitialData()),e.has(`hass`)&&this.hass&&this.scene3d){let e=this.stateDiffer.diffStates(this.hass);e.length>0&&this.scene3d.updateHassStates(this.hass,e)}e.has(`viewLayout`)&&this.handleLayoutChangeEffect()}get isMobile(){return this.narrow||this.isViewportNarrow}get isFocusMode(){return this.isLeftPaneCollapsed&&this.isRightPaneCollapsed&&this.viewLayout===`2d`}toggleFocusMode(){this.isFocusMode?this.prevFocusState?(this.isLeftPaneCollapsed=this.prevFocusState.left,this.isRightPaneCollapsed=this.prevFocusState.right,this.isTopToolbarCollapsed=this.prevFocusState.top,this.viewLayout=this.prevFocusState.layout,this.prevFocusState=null):(this.isLeftPaneCollapsed=!1,this.isRightPaneCollapsed=!1,this.isTopToolbarCollapsed=!1):(this.prevFocusState={left:this.isLeftPaneCollapsed,right:this.isRightPaneCollapsed,top:this.isTopToolbarCollapsed,layout:this.viewLayout},this.isLeftPaneCollapsed=!0,this.isRightPaneCollapsed=!0,this.viewLayout=`2d`)}async loadInitialData(){try{let e=await this.wsClient.listFloorplans();if(this.floorplans=e,e.length>0){let t=e[0],n=await this.wsClient.getFloorplan(t.id);this.history.reset(n),this.activeFloorplanId=n.id,this.activeFloorId=n.floors[0]?.id??``,this.updateHistoryFlags(),this.sync3DScene()}}catch(e){console.warn(`Could not load floorplans via WebSocket; running in standalone mode`,e)}}get currentDocument(){return this.history.current}get activeFloor(){return this.currentDocument.floors.find(e=>e.id===this.activeFloorId)??this.currentDocument.floors[0]}updateHistoryFlags(){this.canUndo=this.history.canUndo,this.canRedo=this.history.canRedo,this.isDirty=this.history.isDirty}pushHistory(e,t){this.history.push(e,t),this.updateHistoryFlags(),this.sync3DScene(),this.requestUpdate()}showToast(e){this.toastMessage=e,this.toastTimer&&window.clearTimeout(this.toastTimer),this.toastTimer=window.setTimeout(()=>{this.toastMessage=null,this.toastTimer=null,this.requestUpdate()},3200),this.requestUpdate()}handleUndo(){this.history.undo()&&(this.updateHistoryFlags(),this.sync3DScene(),this.requestUpdate(),this.showToast(`Undo`))}handleRedo(){this.history.redo()&&(this.updateHistoryFlags(),this.sync3DScene(),this.requestUpdate(),this.showToast(`Redo`))}deleteSelection(){if(this.selection.kind===`none`||!this.selection.id)return;let{kind:e,id:t}=this.selection,n=structuredClone(this.currentDocument),r=n.floors.find(e=>e.id===this.activeFloorId);if(r){switch(e){case`node`:{let e=new Set(r.walls.filter(e=>e.start_node_id===t||e.end_node_id===t).map(e=>e.id));r.nodes=r.nodes.filter(e=>e.id!==t),r.walls=r.walls.filter(t=>!e.has(t.id)),r.openings=r.openings.filter(t=>!e.has(t.wall_id)),r.rooms=r.rooms.map(e=>({...e,points:e.points.filter(e=>e.node_id!==t)})).filter(e=>e.points.length>=3);break}case`wall`:r.walls=r.walls.filter(e=>e.id!==t),r.openings=r.openings.filter(e=>e.wall_id!==t);break;case`room`:r.rooms=r.rooms.filter(e=>e.id!==t);break;case`opening`:r.openings=r.openings.filter(e=>e.id!==t);break;case`furniture`:r.furniture=r.furniture.filter(e=>e.id!==t);break;case`entity`:r.entities=r.entities.filter(e=>e.id!==t)}this.selection={kind:`none`,id:null},this.pushHistory(n,`Delete ${e}`),this.showToast(`Deleted ${e}`)}}sync3DScene(){this.stateDiffer.rebuildWatchedSet(this.currentDocument,this.hass),this.scene3d&&this.scene3d.setDocument(this.currentDocument,this.activeFloorId,this.hass)}handleLayoutChangeEffect(){this.viewLayout===`2d`?this.scene3d&&(this.scene3d.dispose(),this.scene3d=null,this.sceneContainerEl=null):this.updateComplete.then(()=>{this.ensure3DSceneMounted()})}ensure3DSceneMounted(){if(this.viewLayout===`2d`)return;let e=this.renderRoot.querySelector(`#scene-3d-root`);e&&(!this.scene3d||this.sceneContainerEl!==e?(this.scene3d?.dispose(),this.sceneContainerEl=e,this.scene3d=new h(e,{wallMode:`auto_cutaway`,projection:`perspective`,showRoomLabels:!0,showEntityBadges:!0,onCameraChanged:e=>{}}),this.scene3d.setDocument(this.currentDocument,this.activeFloorId,this.hass)):this.scene3d.resize())}handleFloorplanChange(e){let{floorplanId:t}=e.detail;t&&this.wsClient.getFloorplan(t).then(e=>{this.history.reset(e),this.activeFloorplanId=e.id,this.activeFloorId=e.floors[0]?.id??``,this.updateHistoryFlags(),this.sync3DScene(),this.requestUpdate(),this.showToast(`Loaded floorplan: ${e.name}`)}).catch(e=>{this.showToast(`Failed to load floorplan: ${e.message}`)})}handleFloorplanNew(){let e=`floorplan_${Date.now().toString(36)}`,t=`Floorplan ${this.floorplans.length+1}`,n=S(e,t);this.history.reset(n),this.activeFloorplanId=n.id,this.activeFloorId=n.floors[0]?.id??``,this.updateHistoryFlags(),this.sync3DScene(),this.requestUpdate(),this.showToast(`Created new floorplan: ${t}`)}async handleFloorplanDelete(){if(this.floorplans.length<=1)this.showToast(`Cannot delete the only remaining floorplan.`);else if(window.confirm(`Are you sure you want to delete the floorplan "${this.currentDocument.name}"?`))try{await this.wsClient.deleteFloorplan(this.activeFloorplanId),this.showToast(`Floorplan deleted.`),await this.loadInitialData()}catch(e){this.showToast(`Failed to delete: ${e?.message||e}`)}}handleFloorChange(e){this.activeFloorId=e.detail.floorId,this.selection={kind:`none`,id:null},this.scene3d?.setActiveFloor(this.activeFloorId),this.requestUpdate()}handleFloorAdd(){let e=structuredClone(this.currentDocument),t=Math.max(...e.floors.map(e=>e.level_index),0),n=Math.max(...e.floors.map(e=>e.elevation),0),r=t+1,i=n+(this.activeFloor?.wall_height??2.6),a=`floor_${Date.now().toString(36)}`,o={id:a,name:`Level ${r}`,level_index:r,elevation:i,wall_height:2.6,slab_thickness:.15,ha_floor_id:null,blueprint:null,default_camera:null,nodes:[],walls:[],openings:[],rooms:[],furniture:[],entities:[]};e.floors.push(o),this.activeFloorId=a,this.pushHistory(e,`Add Floor Level ${r}`),this.showToast(`Added Floor: ${o.name}`)}handleDuplicatePerimeter(){let e=structuredClone(this.currentDocument),t=e.floors.find(e=>e.id===this.activeFloorId);if(!t)return;let n=[...e.floors].filter(e=>e.level_index<t.level_index).sort((e,t)=>t.level_index-e.level_index)[0];if(!n){this.showToast(`No floor level found below the current level.`);return}let r=n.walls.filter(e=>e.is_exterior);if(r.length===0){this.showToast(`Floor below has no exterior walls to duplicate.`);return}let i=new Set;for(let e of r)i.add(e.start_node_id),i.add(e.end_node_id);let a=new Map,o=[];for(let e of n.nodes)if(i.has(e.id)){let t=`n_${Math.random().toString(36).substring(2,9)}`;a.set(e.id,t),o.push({id:t,x:e.x,y:e.y})}let s=r.map(e=>({id:`w_${Math.random().toString(36).substring(2,9)}`,start_node_id:a.get(e.start_node_id),end_node_id:a.get(e.end_node_id),thickness:e.thickness,height_override:e.height_override,is_exterior:!0,color_override:e.color_override}));t.nodes.push(...o),t.walls.push(...s),this.pushHistory(e,`Duplicate Perimeter from Below`),this.showToast(`Duplicated ${s.length} perimeter walls from ${n.name}`)}handleSaveCamera(){if(!this.scene3d){this.showToast(`3D scene view is not active.`);return}let e=this.scene3d.getCurrentCameraBookmark(),t=structuredClone(this.currentDocument),n=t.floors.find(e=>e.id===this.activeFloorId);n&&(n.default_camera=e,this.pushHistory(t,`Save 3D Camera as Default`),this.showToast(`Saved current 3D camera as floor default.`))}handleImportJsonClick(){this.renderRoot.querySelector(`#json-file-input`)?.click()}handleJsonFileSelected(e){let t=e.target;if(!t.files||t.files.length===0)return;let n=t.files[0],r=new FileReader;r.onload=e=>{try{let t=JSON.parse(e.target?.result);if(!t.id||!Array.isArray(t.floors))throw Error(`Invalid floorplan JSON schema: missing id or floors array`);t.updated_at=new Date().toISOString(),this.history.push(t,`Import Floorplan JSON`),this.activeFloorplanId=t.id,this.activeFloorId=t.floors[0]?.id??``,this.updateHistoryFlags(),this.sync3DScene(),this.requestUpdate(),this.showToast(`Imported floorplan: ${t.name}`)}catch(e){this.showToast(`Failed to parse JSON: ${e?.message||e}`)}},r.readAsText(n),t.value=``}handleExportJson(){let e=JSON.stringify(this.currentDocument,null,2),t=new Blob([e],{type:`application/json`}),n=URL.createObjectURL(t),r=document.createElement(`a`);r.href=n,r.download=`${this.currentDocument.id||`floorplan`}.json`,r.click(),URL.revokeObjectURL(n),this.showToast(`Exported floorplan JSON`)}async handleSaveFloorplan(){try{let e=this.currentDocument;e.updated_at=new Date().toISOString();let t=await this.wsClient.saveFloorplan(e,e.revision);this.history.markSaved(),this.updateHistoryFlags(),this.showToast(`Floorplan saved (Rev ${t.revision})`);let n=await this.wsClient.listFloorplans();this.floorplans=n}catch(e){this.showToast(`Failed to save: ${e?.message||e}`)}}handleDocumentMutate(e){this.pushHistory(e.detail.document,e.detail.description)}handleCanvasFloorChange(e){let{floor:t,description:n}=e.detail,r=structuredClone(this.currentDocument),i=r.floors.findIndex(e=>e.id===t.id);i===-1?r.floors.push(t):r.floors[i]=t,this.pushHistory(r,n||`Edit Floor Canvas`)}handleSelectionChange(e){this.selection=e.detail.selection,this.requestUpdate()}handlePalettePlace(e){let t=e.detail,n=structuredClone(this.currentDocument),r=n.floors.find(e=>e.id===this.activeFloorId);if(!r)return;let i=this.renderRoot.querySelector(`floorplan-canvas-2d`),a=i?.getViewportCenterWorld?.()??(typeof i?.panX==`number`&&typeof i?.panY==`number`?{x:i.panX,y:i.panY}:{x:0,y:0}),o=Number(a.x.toFixed(2)),s=Number(a.y.toFixed(2));if(t.kind===`entity`&&t.entityId){let e={id:`ent_${Math.random().toString(36).substring(2,9)}`,entity_id:t.entityId,domain:t.domain||t.entityId.split(`.`)[0]||`sensor`,room_id:null,x:o,y:s,z_elevation:t.domain===`light`?2.4:1.2,rotation_deg:0,mesh_type:t.domain===`light`?`ceiling_light`:`none`,mesh_scale:[1,1,1],badge:{visible:!0,style:`icon_only`,label_override:null,icon_override:null},tap_action:{action:`default`},hold_action:{action:`none`},double_tap_action:{action:`none`}};r.entities.push(e),this.selection={kind:`entity`,id:e.id},this.pushHistory(n,`Place Entity ${t.entityId}`),this.showToast(`Placed entity: ${t.entityId}`)}else if(t.kind===`furniture`&&t.furnitureType){let e={id:`furn_${Math.random().toString(36).substring(2,9)}`,catalog_type:t.furnitureType,label:t.label||`Furniture`,x:o,y:s,z_elevation:0,width:t.defaultWidth??1.5,depth:t.defaultDepth??.8,height:t.defaultHeight??.8,rotation_deg:0,color:null};r.furniture.push(e),this.selection={kind:`furniture`,id:e.id},this.pushHistory(n,`Add ${e.label}`),this.showToast(`Added ${e.label}`)}else if(t.kind===`opening`&&t.openingType){if(r.walls.length===0){this.showToast(`Please draw walls first before adding doors or windows.`);return}let e=r.walls[0],i={id:`open_${Math.random().toString(36).substring(2,9)}`,wall_id:e.id,type:t.openingType,t:.5,width:t.defaultWidth??.9,sill_height:t.openingType.includes(`window`)?.9:0,head_height:2.1,swing_direction:`left_in`,bound_entity_id:null};r.openings.push(i),this.selection={kind:`opening`,id:i.id},this.pushHistory(n,`Add ${t.label||`Opening`}`),this.showToast(`Added ${t.label||`Opening`} to wall`)}this.activeMobileSheet=`none`}handleBlueprintCalibrated(e){let t=e.detail,n=structuredClone(this.currentDocument),r=n.floors.find(e=>e.id===this.activeFloorId);r&&(r.blueprint={image_url:t.imageUrl,opacity:t.opacity,locked:!1,offset_x:0,offset_y:0,rotation_deg:0,meters_per_pixel:t.metersPerPixel,natural_width_px:t.naturalWidthPx,natural_height_px:t.naturalHeightPx},this.pushHistory(n,`Calibrate Blueprint Reference`),this.isBlueprintModalOpen=!1,this.showToast(`Blueprint scale calibrated successfully`))}render(){let e=this.activeFloor,t=(this.selection.kind===`room`?e?.rooms.find(e=>e.id===this.selection.id):null)?.ha_area_id??null,n=e?[...this.currentDocument.floors].filter(t=>t.level_index<e.level_index).sort((e,t)=>t.level_index-e.level_index)[0]??null:null,r=this.isMobile;return s`
+  `}connectedCallback(){super.connectedCallback();let e=T();this.history=new E(e,50),this.activeFloorplanId=e.id,this.activeFloorId=e.floors[0]?.id??``,this.updateHistoryFlags(),this.wsClient=new c(()=>this.hass),window.addEventListener(`keydown`,this.handleKeyDown),window.addEventListener(`pointermove`,this.handleSplitPointerMove),window.addEventListener(`pointerup`,this.handleSplitPointerUp),typeof ResizeObserver<`u`&&(this.hostResizeObserver=new ResizeObserver(e=>{for(let t of e){let e=t.contentRect.width;this.isViewportNarrow=e>0&&e<768}}),this.hostResizeObserver.observe(this))}disconnectedCallback(){super.disconnectedCallback(),window.removeEventListener(`keydown`,this.handleKeyDown),window.removeEventListener(`pointermove`,this.handleSplitPointerMove),window.removeEventListener(`pointerup`,this.handleSplitPointerUp),this.hostResizeObserver?.disconnect(),this.hostResizeObserver=null,this.toastTimer&&window.clearTimeout(this.toastTimer),this.scene3d?.dispose(),this.scene3d=null}willUpdate(e){super.willUpdate(e),(e.has(`narrow`)||e.has(`isViewportNarrow`))&&this.isMobile&&this.viewLayout===`split`&&(this.viewLayout=`2d`)}updated(e){if(super.updated(e),e.has(`hass`)&&this.hass&&!this.isWsInitialized&&(this.isWsInitialized=!0,this.stateDiffer.rebuildWatchedSet(this.currentDocument,this.hass),this.loadInitialData()),e.has(`hass`)&&this.hass&&this.scene3d){let e=this.stateDiffer.diffStates(this.hass);e.length>0&&this.scene3d.updateHassStates(this.hass,e)}e.has(`viewLayout`)&&this.handleLayoutChangeEffect()}get isMobile(){return this.narrow||this.isViewportNarrow}get isFocusMode(){return this.isLeftPaneCollapsed&&this.isRightPaneCollapsed&&this.viewLayout===`2d`}toggleFocusMode(){this.isFocusMode?this.prevFocusState?(this.isLeftPaneCollapsed=this.prevFocusState.left,this.isRightPaneCollapsed=this.prevFocusState.right,this.isTopToolbarCollapsed=this.prevFocusState.top,this.viewLayout=this.prevFocusState.layout,this.prevFocusState=null):(this.isLeftPaneCollapsed=!1,this.isRightPaneCollapsed=!1,this.isTopToolbarCollapsed=!1):(this.prevFocusState={left:this.isLeftPaneCollapsed,right:this.isRightPaneCollapsed,top:this.isTopToolbarCollapsed,layout:this.viewLayout},this.isLeftPaneCollapsed=!0,this.isRightPaneCollapsed=!0,this.viewLayout=`2d`)}async loadInitialData(){try{let e=await this.wsClient.listFloorplans();if(this.floorplans=e,e.length>0){let t=e[0],n=await this.wsClient.getFloorplan(t.id);this.history.reset(n),this.activeFloorplanId=n.id,this.activeFloorId=n.floors[0]?.id??``,this.updateHistoryFlags(),this.sync3DScene()}}catch(e){console.warn(`Could not load floorplans via WebSocket; running in standalone mode`,e)}}get currentDocument(){return this.history.current}get activeFloor(){return this.currentDocument.floors.find(e=>e.id===this.activeFloorId)??this.currentDocument.floors[0]}updateHistoryFlags(){this.canUndo=this.history.canUndo,this.canRedo=this.history.canRedo,this.isDirty=this.history.isDirty}pushHistory(e,t){this.history.push(e,t),this.updateHistoryFlags(),this.sync3DScene(),this.requestUpdate()}showToast(e){this.toastMessage=e,this.toastTimer&&window.clearTimeout(this.toastTimer),this.toastTimer=window.setTimeout(()=>{this.toastMessage=null,this.toastTimer=null,this.requestUpdate()},3200),this.requestUpdate()}handleUndo(){this.history.undo()&&(this.updateHistoryFlags(),this.sync3DScene(),this.requestUpdate(),this.showToast(`Undo`))}handleRedo(){this.history.redo()&&(this.updateHistoryFlags(),this.sync3DScene(),this.requestUpdate(),this.showToast(`Redo`))}deleteSelection(){if(this.selection.kind===`none`||!this.selection.id)return;let{kind:e,id:t}=this.selection,n=structuredClone(this.currentDocument),r=n.floors.find(e=>e.id===this.activeFloorId);if(r){switch(e){case`node`:{let e=new Set(r.walls.filter(e=>e.start_node_id===t||e.end_node_id===t).map(e=>e.id));r.nodes=r.nodes.filter(e=>e.id!==t),r.walls=r.walls.filter(t=>!e.has(t.id)),r.openings=r.openings.filter(t=>!e.has(t.wall_id)),r.rooms=r.rooms.map(e=>({...e,points:e.points.filter(e=>e.node_id!==t)})).filter(e=>e.points.length>=3);break}case`wall`:r.walls=r.walls.filter(e=>e.id!==t),r.openings=r.openings.filter(e=>e.wall_id!==t);break;case`room`:r.rooms=r.rooms.filter(e=>e.id!==t);break;case`opening`:r.openings=r.openings.filter(e=>e.id!==t);break;case`furniture`:r.furniture=r.furniture.filter(e=>e.id!==t);break;case`entity`:r.entities=r.entities.filter(e=>e.id!==t)}this.selection={kind:`none`,id:null},this.pushHistory(n,`Delete ${e}`),this.showToast(`Deleted ${e}`)}}sync3DScene(){this.stateDiffer.rebuildWatchedSet(this.currentDocument,this.hass),this.scene3d&&this.scene3d.setDocument(this.currentDocument,this.activeFloorId,this.hass)}handleLayoutChangeEffect(){this.viewLayout===`2d`?this.scene3d&&(this.scene3d.dispose(),this.scene3d=null,this.sceneContainerEl=null):this.updateComplete.then(()=>{this.ensure3DSceneMounted()})}ensure3DSceneMounted(){if(this.viewLayout===`2d`)return;let e=this.renderRoot.querySelector(`#scene-3d-root`);e&&(!this.scene3d||this.sceneContainerEl!==e?(this.scene3d?.dispose(),this.sceneContainerEl=e,this.scene3d=new _(e,{wallMode:`auto_cutaway`,projection:`perspective`,showRoomLabels:!0,showEntityBadges:!0,onCameraChanged:e=>{}}),this.scene3d.setDocument(this.currentDocument,this.activeFloorId,this.hass)):this.scene3d.resize())}handleFloorplanChange(e){let{floorplanId:t}=e.detail;t&&this.wsClient.getFloorplan(t).then(e=>{this.history.reset(e),this.activeFloorplanId=e.id,this.activeFloorId=e.floors[0]?.id??``,this.updateHistoryFlags(),this.sync3DScene(),this.requestUpdate(),this.showToast(`Loaded floorplan: ${e.name}`)}).catch(e=>{this.showToast(`Failed to load floorplan: ${e.message}`)})}handleFloorplanNew(){let e=`floorplan_${Date.now().toString(36)}`,t=`Floorplan ${this.floorplans.length+1}`,n=T(e,t);this.history.reset(n),this.activeFloorplanId=n.id,this.activeFloorId=n.floors[0]?.id??``,this.updateHistoryFlags(),this.sync3DScene(),this.requestUpdate(),this.showToast(`Created new floorplan: ${t}`)}async handleFloorplanDelete(){if(this.floorplans.length<=1)this.showToast(`Cannot delete the only remaining floorplan.`);else if(window.confirm(`Are you sure you want to delete the floorplan "${this.currentDocument.name}"?`))try{await this.wsClient.deleteFloorplan(this.activeFloorplanId),this.showToast(`Floorplan deleted.`),await this.loadInitialData()}catch(e){this.showToast(`Failed to delete: ${e?.message||e}`)}}handleFloorChange(e){this.activeFloorId=e.detail.floorId,this.selection={kind:`none`,id:null},this.scene3d?.setActiveFloor(this.activeFloorId),this.requestUpdate()}handleFloorAdd(){let e=structuredClone(this.currentDocument),t=Math.max(...e.floors.map(e=>e.level_index),0),n=Math.max(...e.floors.map(e=>e.elevation),0),r=t+1,i=n+(this.activeFloor?.wall_height??2.6),a=`floor_${Date.now().toString(36)}`,o={id:a,name:`Level ${r}`,level_index:r,elevation:i,wall_height:2.6,slab_thickness:.15,ha_floor_id:null,blueprint:null,default_camera:null,nodes:[],walls:[],openings:[],rooms:[],furniture:[],entities:[]};e.floors.push(o),this.activeFloorId=a,this.pushHistory(e,`Add Floor Level ${r}`),this.showToast(`Added Floor: ${o.name}`)}handleDuplicatePerimeter(){let e=structuredClone(this.currentDocument),t=e.floors.find(e=>e.id===this.activeFloorId);if(!t)return;let n=[...e.floors].filter(e=>e.level_index<t.level_index).sort((e,t)=>t.level_index-e.level_index)[0];if(!n){this.showToast(`No floor level found below the current level.`);return}let r=n.walls.filter(e=>e.is_exterior);if(r.length===0){this.showToast(`Floor below has no exterior walls to duplicate.`);return}let i=new Set;for(let e of r)i.add(e.start_node_id),i.add(e.end_node_id);let a=new Map,o=[];for(let e of n.nodes)if(i.has(e.id)){let t=`n_${Math.random().toString(36).substring(2,9)}`;a.set(e.id,t),o.push({id:t,x:e.x,y:e.y})}let s=r.map(e=>({id:`w_${Math.random().toString(36).substring(2,9)}`,start_node_id:a.get(e.start_node_id),end_node_id:a.get(e.end_node_id),thickness:e.thickness,height_override:e.height_override,is_exterior:!0,color_override:e.color_override}));t.nodes.push(...o),t.walls.push(...s),this.pushHistory(e,`Duplicate Perimeter from Below`),this.showToast(`Duplicated ${s.length} perimeter walls from ${n.name}`)}handleSaveCamera(){if(!this.scene3d){this.showToast(`3D scene view is not active.`);return}let e=this.scene3d.getCurrentCameraBookmark(),t=structuredClone(this.currentDocument),n=t.floors.find(e=>e.id===this.activeFloorId);n&&(n.default_camera=e,this.pushHistory(t,`Save 3D Camera as Default`),this.showToast(`Saved current 3D camera as floor default.`))}handleImportJsonClick(){this.renderRoot.querySelector(`#json-file-input`)?.click()}handleJsonFileSelected(e){let t=e.target;if(!t.files||t.files.length===0)return;let n=t.files[0],r=new FileReader;r.onload=e=>{try{let t=JSON.parse(e.target?.result);if(!t.id||!Array.isArray(t.floors))throw Error(`Invalid floorplan JSON schema: missing id or floors array`);t.updated_at=new Date().toISOString(),this.history.push(t,`Import Floorplan JSON`),this.activeFloorplanId=t.id,this.activeFloorId=t.floors[0]?.id??``,this.updateHistoryFlags(),this.sync3DScene(),this.requestUpdate(),this.showToast(`Imported floorplan: ${t.name}`)}catch(e){this.showToast(`Failed to parse JSON: ${e?.message||e}`)}},r.readAsText(n),t.value=``}handleExportJson(){let e=JSON.stringify(this.currentDocument,null,2),t=new Blob([e],{type:`application/json`}),n=URL.createObjectURL(t),r=document.createElement(`a`);r.href=n,r.download=`${this.currentDocument.id||`floorplan`}.json`,r.click(),URL.revokeObjectURL(n),this.showToast(`Exported floorplan JSON`)}async handleSaveFloorplan(){try{let e=this.currentDocument;e.updated_at=new Date().toISOString();let t=await this.wsClient.saveFloorplan(e,e.revision);this.history.markSaved(),this.updateHistoryFlags(),this.showToast(`Floorplan saved (Rev ${t.revision})`);let n=await this.wsClient.listFloorplans();this.floorplans=n}catch(e){this.showToast(`Failed to save: ${e?.message||e}`)}}handleDocumentMutate(e){this.pushHistory(e.detail.document,e.detail.description)}handleCanvasFloorChange(e){let{floor:t,description:n}=e.detail,r=structuredClone(this.currentDocument),i=r.floors.findIndex(e=>e.id===t.id);i===-1?r.floors.push(t):r.floors[i]=t,this.pushHistory(r,n||`Edit Floor Canvas`)}handleSelectionChange(e){this.selection=e.detail.selection,this.requestUpdate()}handlePalettePlace(e){let t=e.detail,n=structuredClone(this.currentDocument),r=n.floors.find(e=>e.id===this.activeFloorId);if(!r)return;let i=this.renderRoot.querySelector(`floorplan-canvas-2d`),a=i?.getViewportCenterWorld?.()??(typeof i?.panX==`number`&&typeof i?.panY==`number`?{x:i.panX,y:i.panY}:{x:0,y:0}),o=Number(a.x.toFixed(2)),s=Number(a.y.toFixed(2));if(t.kind===`entity`&&t.entityId){let e={id:`ent_${Math.random().toString(36).substring(2,9)}`,entity_id:t.entityId,domain:t.domain||t.entityId.split(`.`)[0]||`sensor`,room_id:null,x:o,y:s,z_elevation:t.domain===`light`?2.4:1.2,rotation_deg:0,mesh_type:t.domain===`light`?`ceiling_light`:`none`,mesh_scale:[1,1,1],badge:{visible:!0,style:`icon_only`,label_override:null,icon_override:null},tap_action:{action:`default`},hold_action:{action:`none`},double_tap_action:{action:`none`}};r.entities.push(e),this.selection={kind:`entity`,id:e.id},this.pushHistory(n,`Place Entity ${t.entityId}`),this.showToast(`Placed entity: ${t.entityId}`)}else if(t.kind===`furniture`&&t.furnitureType){let e={id:`furn_${Math.random().toString(36).substring(2,9)}`,catalog_type:t.furnitureType,label:t.label||`Furniture`,x:o,y:s,z_elevation:0,width:t.defaultWidth??1.5,depth:t.defaultDepth??.8,height:t.defaultHeight??.8,rotation_deg:0,color:null};r.furniture.push(e),this.selection={kind:`furniture`,id:e.id},this.pushHistory(n,`Add ${e.label}`),this.showToast(`Added ${e.label}`)}else if(t.kind===`opening`&&t.openingType){if(r.walls.length===0){this.showToast(`Please draw walls first before adding doors or windows.`);return}let e=r.walls[0],i={id:`open_${Math.random().toString(36).substring(2,9)}`,wall_id:e.id,type:t.openingType,t:.5,width:t.defaultWidth??.9,sill_height:t.openingType.includes(`window`)?.9:0,head_height:2.1,swing_direction:`left_in`,bound_entity_id:null};r.openings.push(i),this.selection={kind:`opening`,id:i.id},this.pushHistory(n,`Add ${t.label||`Opening`}`),this.showToast(`Added ${t.label||`Opening`} to wall`)}this.activeMobileSheet=`none`}handleBlueprintCalibrated(e){let t=e.detail,n=structuredClone(this.currentDocument),r=n.floors.find(e=>e.id===this.activeFloorId);r&&(r.blueprint={image_url:t.imageUrl,opacity:t.opacity,locked:!1,offset_x:0,offset_y:0,rotation_deg:0,meters_per_pixel:t.metersPerPixel,natural_width_px:t.naturalWidthPx,natural_height_px:t.naturalHeightPx},this.pushHistory(n,`Calibrate Blueprint Reference`),this.isBlueprintModalOpen=!1,this.showToast(`Blueprint scale calibrated successfully`))}render(){let e=this.activeFloor,t=(this.selection.kind===`room`?e?.rooms.find(e=>e.id===this.selection.id):null)?.ha_area_id??null,n=e?[...this.currentDocument.floors].filter(t=>t.level_index<e.level_index).sort((e,t)=>t.level_index-e.level_index)[0]??null:null,r=this.isMobile;return o`
       <!-- Top CAD Command Bar -->
-      ${!this.isTopToolbarCollapsed||r?s`
+      ${!this.isTopToolbarCollapsed||r?o`
             <floorplan-editor-toolbar
               .floorplans=${this.floorplans}
               .activeFloorplanId=${this.activeFloorplanId}
@@ -3933,7 +3395,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
       ></floorplan-blueprint-modal>
 
       <!-- Toast Overlay -->
-      ${this.toastMessage?s`<div class="toast-overlay">${this.toastMessage}</div>`:``}
+      ${this.toastMessage?o`<div class="toast-overlay">${this.toastMessage}</div>`:``}
 
       <!-- Hidden file input for JSON import -->
       <input
@@ -3943,10 +3405,10 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
         accept=".json,application/json"
         @change=${this.handleJsonFileSelected}
       />
-    `}renderDesktopLayout(e,t,n){let r=this.viewLayout===`split`?`flex: ${this.splitRatio};`:`flex: 1;`,i=this.viewLayout===`split`?`flex: ${1-this.splitRatio};`:`flex: 1;`;return s`
+    `}renderDesktopLayout(e,t,n){let r=this.viewLayout===`split`?`flex: ${this.splitRatio};`:`flex: 1;`,i=this.viewLayout===`split`?`flex: ${1-this.splitRatio};`:`flex: 1;`;return o`
       <div class="editor-body">
         <!-- Left Dock: Entity & Catalog Palette (Collapsible) -->
-        ${this.isLeftPaneCollapsed?``:s`
+        ${this.isLeftPaneCollapsed?``:o`
               <floorplan-entity-palette
                 .hass=${this.hass}
                 .activeFloor=${e}
@@ -3959,7 +3421,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
         <!-- Center Viewport: 2D CAD Canvas + Split/3D Live Preview -->
         <div class="center-viewport">
           <!-- Floating Left Expand Tab when Left Palette is Collapsed -->
-          ${this.isLeftPaneCollapsed?s`
+          ${this.isLeftPaneCollapsed?o`
                 <button
                   class="pane-expand-tab left"
                   title="Expand Catalog & Entities ["
@@ -3971,7 +3433,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
               `:``}
 
           <!-- Floating Right Expand Tab when Right Inspector is Collapsed -->
-          ${this.isRightPaneCollapsed?s`
+          ${this.isRightPaneCollapsed?o`
                 <button
                   class="pane-expand-tab right"
                   title="Expand Property Inspector ]"
@@ -4007,7 +3469,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
 
             <!-- Floating 2D Pane Quick Controls (Top-Right) -->
             <div class="viewport-floating-bar">
-              ${this.isTopToolbarCollapsed?s`
+              ${this.isTopToolbarCollapsed?o`
                     <button
                       class="floating-chip-btn"
                       title="Toggle Home Assistant Sidebar"
@@ -4040,7 +3502,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
             </div>
           </div>
 
-          ${this.viewLayout===`split`?s`
+          ${this.viewLayout===`split`?o`
                 <div
                   class="viewport-divider"
                   title="Drag to resize 2D/3D split (Double-click to hide 3D)"
@@ -4058,7 +3520,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
 
             <!-- Floating 3D Pane Quick Controls (Top-Right) -->
             <div class="viewport-floating-bar">
-              ${this.isTopToolbarCollapsed&&this.viewLayout===`3d`?s`
+              ${this.isTopToolbarCollapsed&&this.viewLayout===`3d`?o`
                     <button
                       class="floating-chip-btn"
                       title="Show Top Toolbar"
@@ -4067,7 +3529,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
                       ▼ Toolbar
                     </button>
                   `:``}
-              ${this.viewLayout===`split`?s`
+              ${this.viewLayout===`split`?o`
                     <button
                       class="floating-chip-btn"
                       title="Maximize 3D Preview"
@@ -4082,7 +3544,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
                     >
                       ✕ Hide 3D
                     </button>
-                  `:s`
+                  `:o`
                     <button
                       class="floating-chip-btn"
                       title="Return to Split 2D + 3D View"
@@ -4103,7 +3565,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
         </div>
 
         <!-- Right Dock: Context-Sensitive Property Inspector (Collapsible) -->
-        ${this.isRightPaneCollapsed?``:s`
+        ${this.isRightPaneCollapsed?``:o`
               <floorplan-property-inspector
                 .hass=${this.hass}
                 .document=${this.currentDocument}
@@ -4116,7 +3578,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
               ></floorplan-property-inspector>
             `}
       </div>
-    `}renderMobileLayout(e,t,n){return s`
+    `}renderMobileLayout(e,t,n){return o`
       <div class="editor-body mobile">
         <!-- Viewport takes entire height minus header and bottom dock -->
         <div class="center-viewport mobile">
@@ -4148,7 +3610,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
         </div>
 
         <!-- Compact Floating Selection Bar (Non-blocking) -->
-        ${this.selection.kind!==`none`&&this.activeMobileSheet===`none`?s`
+        ${this.selection.kind!==`none`&&this.activeMobileSheet===`none`?o`
               <div class="mobile-selection-bar">
                 <span class="selection-text">Selected: <strong>${this.selection.kind}</strong></span>
                 <div class="selection-actions">
@@ -4225,7 +3687,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
         </div>
 
         <!-- Slide-Up Bottom Sheets -->
-        ${this.activeMobileSheet===`none`?``:s`
+        ${this.activeMobileSheet===`none`?``:o`
               <div
                 class="mobile-sheet-backdrop"
                 @click=${()=>this.activeMobileSheet=`none`}
@@ -4244,7 +3706,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
                   </button>
                 </div>
                 <div class="mobile-sheet-content">
-                  ${this.activeMobileSheet===`palette`?s`
+                  ${this.activeMobileSheet===`palette`?o`
                         <floorplan-entity-palette
                           ?mobile=${!0}
                           .hass=${this.hass}
@@ -4252,7 +3714,7 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
                           .selectedRoomAreaId=${t}
                           @palette-place=${this.handlePalettePlace}
                         ></floorplan-entity-palette>
-                      `:s`
+                      `:o`
                         <floorplan-property-inspector
                           ?mobile=${!0}
                           .hass=${this.hass}
@@ -4268,4 +3730,4 @@ import{a as e,c as t,i as n,l as r,n as i,o as a,r as o,s}from"./chunks/lit-vend
               </div>
             `}
       </div>
-    `}};b([o({attribute:!1})],z.prototype,`hass`,void 0),b([o({type:Boolean})],z.prototype,`narrow`,void 0),b([i()],z.prototype,`floorplans`,void 0),b([i()],z.prototype,`activeFloorplanId`,void 0),b([i()],z.prototype,`activeFloorId`,void 0),b([i()],z.prototype,`activeTool`,void 0),b([i()],z.prototype,`viewLayout`,void 0),b([i()],z.prototype,`gridSize`,void 0),b([i()],z.prototype,`snapToGrid`,void 0),b([i()],z.prototype,`onionSkin`,void 0),b([i()],z.prototype,`selection`,void 0),b([i()],z.prototype,`isBlueprintModalOpen`,void 0),b([i()],z.prototype,`isDirty`,void 0),b([i()],z.prototype,`canUndo`,void 0),b([i()],z.prototype,`canRedo`,void 0),b([i()],z.prototype,`toastMessage`,void 0),b([i()],z.prototype,`isViewportNarrow`,void 0),b([i()],z.prototype,`activeMobileSheet`,void 0),b([i()],z.prototype,`isLeftPaneCollapsed`,void 0),b([i()],z.prototype,`isRightPaneCollapsed`,void 0),b([i()],z.prototype,`isTopToolbarCollapsed`,void 0),b([i()],z.prototype,`splitRatio`,void 0),z=b([n(`floorplan-editor-panel`)],z);
+    `}};S([a({attribute:!1})],U.prototype,`hass`,void 0),S([a({type:Boolean})],U.prototype,`narrow`,void 0),S([r()],U.prototype,`floorplans`,void 0),S([r()],U.prototype,`activeFloorplanId`,void 0),S([r()],U.prototype,`activeFloorId`,void 0),S([r()],U.prototype,`activeTool`,void 0),S([r()],U.prototype,`viewLayout`,void 0),S([r()],U.prototype,`gridSize`,void 0),S([r()],U.prototype,`snapToGrid`,void 0),S([r()],U.prototype,`onionSkin`,void 0),S([r()],U.prototype,`selection`,void 0),S([r()],U.prototype,`isBlueprintModalOpen`,void 0),S([r()],U.prototype,`isDirty`,void 0),S([r()],U.prototype,`canUndo`,void 0),S([r()],U.prototype,`canRedo`,void 0),S([r()],U.prototype,`toastMessage`,void 0),S([r()],U.prototype,`isViewportNarrow`,void 0),S([r()],U.prototype,`activeMobileSheet`,void 0),S([r()],U.prototype,`isLeftPaneCollapsed`,void 0),S([r()],U.prototype,`isRightPaneCollapsed`,void 0),S([r()],U.prototype,`isTopToolbarCollapsed`,void 0),S([r()],U.prototype,`splitRatio`,void 0),U=S([n(`floorplan-editor-panel`)],U);

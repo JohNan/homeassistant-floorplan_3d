@@ -1,3 +1,4 @@
+import polylabel from 'polylabel';
 import type {
   FloorLevel,
   Point2D,
@@ -377,38 +378,7 @@ export function polygonCentroid2D(polygon: Point2D[]): Point2D {
 }
 
 /**
- * Distance from point to polygon perimeter.
- * Returns positive if inside, negative if outside.
- */
-function pointToPolygonDistance(pt: Point2D, polygon: Point2D[]): number {
-  const inside = pointInPolygon2D(pt, polygon);
-  let minDistanceSq = Infinity;
-
-  const n = polygon.length;
-  for (let i = 0, j = n - 1; i < n; j = i++) {
-    const a = polygon[j];
-    const b = polygon[i];
-    const proj = projectPointOntoSegment(pt, a, b);
-    const dSq = (pt.x - proj.point.x) ** 2 + (pt.y - proj.point.y) ** 2;
-    if (dSq < minDistanceSq) {
-      minDistanceSq = dSq;
-    }
-  }
-
-  const d = Math.sqrt(minDistanceSq);
-  return inside ? d : -d;
-}
-
-interface PolylabelCell {
-  x: number;
-  y: number;
-  h: number;
-  d: number;
-  max: number;
-}
-
-/**
- * Finds the pole-of-inaccessibility (polylabel algorithm) of a polygon.
+ * Finds the pole-of-inaccessibility (Mapbox polylabel algorithm) of a polygon.
  * Ensures the returned label center point is strictly inside concave (L-shape, U-shape) rooms.
  */
 export function findPolygonLabelCenter2D(polygon: Point2D[], precision = 0.05): Point2D {
@@ -416,117 +386,18 @@ export function findPolygonLabelCenter2D(polygon: Point2D[], precision = 0.05): 
   if (polygon.length === 1) return { x: polygon[0].x, y: polygon[0].y };
   if (polygon.length === 2) return midpoint2D(polygon[0], polygon[1]);
 
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-
-  for (const p of polygon) {
-    if (p.x < minX) minX = p.x;
-    if (p.x > maxX) maxX = p.x;
-    if (p.y < minY) minY = p.y;
-    if (p.y > maxY) maxY = p.y;
+  const ring: number[][] = polygon.map((p) => [p.x, p.y]);
+  const first = polygon[0];
+  const last = polygon[polygon.length - 1];
+  if (first.x !== last.x || first.y !== last.y) {
+    ring.push([first.x, first.y]);
   }
 
-  const width = maxX - minX;
-  const height = maxY - minY;
-  const cellSize = Math.min(width, height);
-
-  if (cellSize <= 0) {
-    return { x: minX, y: minY };
+  const center = polylabel([ring], precision);
+  if (!Number.isFinite(center[0]) || !Number.isFinite(center[1])) {
+    return polygonCentroid2D(polygon);
   }
-
-  // Initial candidate: Centroid
-  const centroid = polygonCentroid2D(polygon);
-  let bestCell: PolylabelCell = {
-    x: centroid.x,
-    y: centroid.y,
-    h: 0,
-    d: pointToPolygonDistance(centroid, polygon),
-    max: 0
-  };
-
-  // If centroid is outside, check bounding box center
-  const bboxCenter = { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
-  const bboxDist = pointToPolygonDistance(bboxCenter, polygon);
-  if (bboxDist > bestCell.d) {
-    bestCell = {
-      x: bboxCenter.x,
-      y: bboxCenter.y,
-      h: 0,
-      d: bboxDist,
-      max: 0
-    };
-  }
-
-  const queue: PolylabelCell[] = [];
-  const h = cellSize / 2;
-
-  // Cover bounding box with initial cells
-  for (let x = minX; x < maxX; x += cellSize) {
-    for (let y = minY; y < maxY; y += cellSize) {
-      const cx = x + h;
-      const cy = y + h;
-      const d = pointToPolygonDistance({ x: cx, y: cy }, polygon);
-      const cell: PolylabelCell = {
-        x: cx,
-        y: cy,
-        h,
-        d,
-        max: d + h * Math.SQRT2
-      };
-      if (d > bestCell.d) {
-        bestCell = cell;
-      }
-      queue.push(cell);
-    }
-  }
-
-  // Sort cells descending by max possible distance
-  queue.sort((a, b) => b.max - a.max);
-
-  let iterations = 0;
-  const maxIterations = 2000;
-
-  while (queue.length > 0 && iterations++ < maxIterations) {
-    // Pop highest potential cell
-    const cell = queue.shift()!;
-
-    if (cell.max - bestCell.d <= precision) {
-      continue;
-    }
-
-    // Subdivide into 4 quadrants
-    const h2 = cell.h / 2;
-    const subCells: PolylabelCell[] = [
-      { x: cell.x - h2, y: cell.y - h2, h: h2, d: 0, max: 0 },
-      { x: cell.x + h2, y: cell.y - h2, h: h2, d: 0, max: 0 },
-      { x: cell.x - h2, y: cell.y + h2, h: h2, d: 0, max: 0 },
-      { x: cell.x + h2, y: cell.y + h2, h: h2, d: 0, max: 0 }
-    ];
-
-    for (const sub of subCells) {
-      sub.d = pointToPolygonDistance({ x: sub.x, y: sub.y }, polygon);
-      sub.max = sub.d + sub.h * Math.SQRT2;
-
-      if (sub.d > bestCell.d) {
-        bestCell = sub;
-      }
-      if (sub.max > bestCell.d) {
-        // Binary insert or push and keep queue sorted
-        let low = 0;
-        let high = queue.length;
-        while (low < high) {
-          const mid = (low + high) >>> 1;
-          if (queue[mid].max > sub.max) low = mid + 1;
-          else high = mid;
-        }
-        queue.splice(low, 0, sub);
-      }
-    }
-  }
-
-  return { x: bestCell.x, y: bestCell.y };
+  return { x: center[0], y: center[1] };
 }
 
 /**
@@ -987,4 +858,211 @@ export function splitWallIntervalsForOpenings(
   }
 
   return intervals;
+}
+
+/**
+ * Automatically detects minimal closed interior room cycles from the planar wall graph
+ * (Blueprint3D Half-Edge / Left-Turn Wedge Traversal algorithm) and synchronizes them
+ * with `floor.rooms`, preserving existing room names, HA Area bindings, and floor materials.
+ */
+export function syncAutoDetectedRoomsFromWalls(floor: FloorLevel): RoomPolygon[] {
+  const nodeMap = new Map<string, WallNode>();
+  for (const n of floor.nodes) {
+    nodeMap.set(n.id, n);
+  }
+
+  // 1. Build undirected adjacency list of valid walls
+  const adj = new Map<string, Set<string>>();
+  for (const w of floor.walls) {
+    if (w.start_node_id === w.end_node_id) continue;
+    const a = nodeMap.get(w.start_node_id);
+    const b = nodeMap.get(w.end_node_id);
+    if (!a || !b || distance2D(a, b) < 1e-4) continue;
+
+    if (!adj.has(a.id)) adj.set(a.id, new Set());
+    if (!adj.has(b.id)) adj.set(b.id, new Set());
+    adj.get(a.id)!.add(b.id);
+    adj.get(b.id)!.add(a.id);
+  }
+
+  // 2. Iteratively prune degree-1 ("dangling") vertices so open partitions don't break cycles
+  let pruned = true;
+  while (pruned) {
+    pruned = false;
+    for (const [u, neighbors] of adj.entries()) {
+      if (neighbors.size < 2) {
+        for (const v of neighbors) {
+          adj.get(v)?.delete(u);
+        }
+        adj.delete(u);
+        pruned = true;
+      }
+    }
+  }
+
+  // 3. Sort outgoing neighbors at each vertex by angle atan2(dy, dx) in [-pi, pi)
+  const sortedNeighbors = new Map<string, string[]>();
+  for (const [uId, neighbors] of adj.entries()) {
+    const u = nodeMap.get(uId)!;
+    const sorted = Array.from(neighbors).sort((aId, bId) => {
+      const a = nodeMap.get(aId)!;
+      const b = nodeMap.get(bId)!;
+      return Math.atan2(a.y - u.y, a.x - u.x) - Math.atan2(b.y - u.y, b.x - u.x);
+    });
+    sortedNeighbors.set(uId, sorted);
+  }
+
+  // 4. Trace directed half-edges to extract minimal interior faces (signedArea > 0.1 m^2)
+  const visitedHalfEdges = new Set<string>();
+  const detectedCycles: WallNode[][] = [];
+  const seenCanonicalCycleKeys = new Set<string>();
+
+  for (const [uId, neighbors] of sortedNeighbors.entries()) {
+    for (const vId of neighbors) {
+      const startKey = `${uId}->${vId}`;
+      if (visitedHalfEdges.has(startKey)) continue;
+
+      const cycleIds: string[] = [];
+      let curr = uId;
+      let next = vId;
+      let steps = 0;
+      const maxSteps = sortedNeighbors.size * 4 + 8;
+
+      while (steps++ < maxSteps) {
+        const edgeKey = `${curr}->${next}`;
+        if (visitedHalfEdges.has(edgeKey)) break;
+        visitedHalfEdges.add(edgeKey);
+        cycleIds.push(curr);
+
+        const nextList = sortedNeighbors.get(next);
+        if (!nextList || nextList.length < 2) break;
+        const revIdx = nextList.indexOf(curr);
+        if (revIdx === -1) break;
+
+        // Sharpest interior turn in screen-down (+Y) coordinates is previous angle in ascending order
+        const outNodeId = nextList[(revIdx - 1 + nextList.length) % nextList.length];
+        curr = next;
+        next = outNodeId;
+
+        if (curr === uId && next === vId) {
+          break;
+        }
+      }
+
+      if (curr === uId && next === vId && cycleIds.length >= 3) {
+        const uniqueCheck = new Set(cycleIds);
+        if (uniqueCheck.size !== cycleIds.length) continue;
+
+        const cycleNodes = cycleIds.map((id) => nodeMap.get(id)!);
+        const signedArea = polygonSignedArea2D(cycleNodes);
+        if (signedArea > 0.1) {
+          const canonicalKey = [...cycleIds].sort().join(':');
+          if (!seenCanonicalCycleKeys.has(canonicalKey)) {
+            seenCanonicalCycleKeys.add(canonicalKey);
+            detectedCycles.push(cycleNodes);
+          }
+        }
+      }
+    }
+  }
+
+  if (detectedCycles.length === 0) {
+    // Still sync any existing room vertices that have explicit node_id references
+    return floor.rooms.map((room) => ({
+      ...room,
+      points: room.points.map((pt) => {
+        if (pt.node_id && nodeMap.has(pt.node_id)) {
+          const n = nodeMap.get(pt.node_id)!;
+          return { x: n.x, y: n.y, node_id: n.id };
+        }
+        return pt;
+      })
+    }));
+  }
+
+  // 5. Match detected cycles to existing floor.rooms to preserve names, ha_area_id, and materials
+  const matchedExistingIds = new Set<string>();
+  const resultRooms: RoomPolygon[] = [];
+
+  for (const cycleNodes of detectedCycles) {
+    const cycleKey = cycleNodes.map((n) => n.id).sort().join(':');
+    let matchedRoom: RoomPolygon | undefined;
+
+    // 5a. Match by exact node_id set or matching vertex positions
+    for (const existing of floor.rooms) {
+      if (matchedExistingIds.has(existing.id)) continue;
+      const existingNodeIds = existing.points
+        .map((p) => {
+          if (p.node_id && nodeMap.has(p.node_id)) return p.node_id;
+          for (const n of floor.nodes) {
+            if (Math.hypot(n.x - p.x, n.y - p.y) < 0.15) return n.id;
+          }
+          return null;
+        })
+        .filter((id): id is string => id !== null);
+
+      if (
+        existingNodeIds.length === cycleNodes.length &&
+        existingNodeIds.slice().sort().join(':') === cycleKey
+      ) {
+        matchedRoom = existing;
+        break;
+      }
+    }
+
+    // 5b. Fallback: match if an unmatched existing room's label center lies inside this cycle
+    if (!matchedRoom) {
+      for (const existing of floor.rooms) {
+        if (matchedExistingIds.has(existing.id)) continue;
+        const existingCenter = findPolygonLabelCenter2D(existing.points);
+        if (pointInPolygon2D(existingCenter, cycleNodes)) {
+          matchedRoom = existing;
+          break;
+        }
+      }
+    }
+
+    const updatedPoints: Point2D[] = cycleNodes.map((n) => ({
+      x: n.x,
+      y: n.y,
+      node_id: n.id
+    }));
+
+    if (matchedRoom) {
+      matchedExistingIds.add(matchedRoom.id);
+      resultRooms.push({
+        ...matchedRoom,
+        points: updatedPoints
+      });
+    } else {
+      resultRooms.push({
+        id: `room_${cycleNodes.map((n) => n.id).join('_')}`,
+        name: `Room ${floor.rooms.length + resultRooms.length + 1}`,
+        ha_area_id: null,
+        points: updatedPoints,
+        floor_material: 'wood_oak',
+        floor_color: '#d4a373',
+        show_label: true,
+        temp_entity_id: null,
+        humidity_entity_id: null,
+        motion_entity_id: null,
+        room_tap_action: { action: 'zoom-room' }
+      });
+    }
+  }
+
+  // 6. Preserve any manually drawn rooms that were not matched and whose center is outside auto cycles
+  for (const existing of floor.rooms) {
+    if (matchedExistingIds.has(existing.id)) continue;
+    const hasNodeLinks = existing.points.some((p) => Boolean(p.node_id));
+    if (!hasNodeLinks) {
+      const center = findPolygonLabelCenter2D(existing.points);
+      const insideAuto = detectedCycles.some((cycle) => pointInPolygon2D(center, cycle));
+      if (!insideAuto) {
+        resultRooms.push(existing);
+      }
+    }
+  }
+
+  return resultRooms;
 }

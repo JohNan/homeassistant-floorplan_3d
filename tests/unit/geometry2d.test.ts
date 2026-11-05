@@ -23,7 +23,8 @@ import {
   snapPoint2D,
   snapToGrid,
   solveWallMiterFootprints,
-  splitWallIntervalsForOpenings
+  splitWallIntervalsForOpenings,
+  syncAutoDetectedRoomsFromWalls
 } from '../../src/utils/geometry2d';
 
 describe('geometry2d: Basic vector and calibration math', () => {
@@ -691,5 +692,46 @@ describe('geometry2d: splitWallIntervalsForOpenings', () => {
     ]);
     expect(shortWall).toHaveLength(1);
     expect(shortWall[0].kind).toBe('solid');
+  });
+
+  it('auto-detects closed rooms from walls and splits rooms when an interior wall is added', () => {
+    const floor: FloorLevel = {
+      id: 'f1',
+      name: 'Ground',
+      level_index: 0,
+      elevation: 0,
+      wall_height: 2.6,
+      slab_thickness: 0.2,
+      ha_floor_id: null,
+      blueprint: null,
+      default_camera: null,
+      nodes: [
+        { id: 'n1', x: 0, y: 0 },
+        { id: 'n2', x: 6, y: 0 },
+        { id: 'n3', x: 6, y: 4 },
+        { id: 'n4', x: 0, y: 4 },
+        { id: 'n5', x: 3, y: 0 },
+        { id: 'n6', x: 3, y: 4 }
+      ],
+      walls: [
+        { id: 'w1', start_node_id: 'n1', end_node_id: 'n5', thickness: 0.15, height_override: null, is_exterior: true, color_override: null },
+        { id: 'w2', start_node_id: 'n5', end_node_id: 'n2', thickness: 0.15, height_override: null, is_exterior: true, color_override: null },
+        { id: 'w3', start_node_id: 'n2', end_node_id: 'n3', thickness: 0.15, height_override: null, is_exterior: true, color_override: null },
+        { id: 'w4', start_node_id: 'n3', end_node_id: 'n6', thickness: 0.15, height_override: null, is_exterior: true, color_override: null },
+        { id: 'w5', start_node_id: 'n6', end_node_id: 'n4', thickness: 0.15, height_override: null, is_exterior: true, color_override: null },
+        { id: 'w6', start_node_id: 'n4', end_node_id: 'n1', thickness: 0.15, height_override: null, is_exterior: true, color_override: null },
+        // Dividing interior wall splitting the 6x4 floor into two 3x4 rooms
+        { id: 'w_div', start_node_id: 'n5', end_node_id: 'n6', thickness: 0.15, height_override: null, is_exterior: false, color_override: null }
+      ],
+      openings: [],
+      rooms: [],
+      furniture: [],
+      entities: []
+    };
+
+    const detected = syncAutoDetectedRoomsFromWalls(floor);
+    expect(detected).toHaveLength(2);
+    expect(polygonArea2D(detected[0].points)).toBeCloseTo(12, 3);
+    expect(polygonArea2D(detected[1].points)).toBeCloseTo(12, 3);
   });
 });

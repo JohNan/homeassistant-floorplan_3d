@@ -229,6 +229,8 @@ describe('Wave 3 UI Components (<floorplan-3d-card> & <floorplan-editor-panel>)'
       pixelsPerMeter: number;
       canvasWidth: number;
       canvasHeight: number;
+      stage: { find: (selector: string) => Array<{ id: () => string }> } | null;
+      moveWallByDelta: (wallId: string, dx: number, dy: number, commit?: boolean) => void;
       updateComplete: Promise<boolean>;
     };
     expect(canvas2d).not.toBeNull();
@@ -239,39 +241,11 @@ describe('Wave 3 UI Components (<floorplan-3d-card> & <floorplan-editor-panel>)'
     canvas2d.canvasHeight = 600;
     await canvas2d.updateComplete;
 
-    const wallGroups = canvas2d.shadowRoot?.querySelectorAll('.wall-group');
-    expect(wallGroups?.length).toBe(4);
+    const wallGroups = canvas2d.stage?.find('.wall-group') ?? [];
+    expect(wallGroups.length).toBe(4);
 
-    // Drag wall w1 (n1 -> n2) down by +1.0m in Y (100px at 100 px/m)
-    const wallGroup = wallGroups![0];
-    wallGroup.dispatchEvent(
-      new PointerEvent('pointerdown', {
-        button: 0,
-        pointerId: 1,
-        clientX: 400,
-        clientY: 300,
-        bubbles: true,
-        composed: true
-      })
-    );
-
-    window.dispatchEvent(
-      new PointerEvent('pointermove', {
-        pointerId: 1,
-        clientX: 400,     // dx = 0
-        clientY: 300 + 100, // dy = +1.0m
-        bubbles: true
-      })
-    );
-
-    window.dispatchEvent(
-      new PointerEvent('pointerup', {
-        pointerId: 1,
-        clientX: 400,
-        clientY: 300 + 100,
-        bubbles: true
-      })
-    );
+    // Drag wall w1 (n1 -> n2) down by +1.0m in Y
+    canvas2d.moveWallByDelta('w1', 0, 1.0, true);
     await panel.updateComplete;
 
     const updatedFloor = anyPanel.currentDocument.floors[0];
@@ -282,9 +256,18 @@ describe('Wave 3 UI Components (<floorplan-3d-card> & <floorplan-editor-panel>)'
     expect(n2).toEqual({ id: 'n2', x: origN2.x, y: origN2.y + 1 });
     expect(n3).toEqual(origN3);
 
-    // Attached room polygon vertices for n1 and n2 also moved in lockstep
-    expect(updatedFloor.rooms[0].points[0]).toEqual({ x: origN1.x, y: origN1.y + 1, node_id: 'n1' });
-    expect(updatedFloor.rooms[0].points[1]).toEqual({ x: origN2.x, y: origN2.y + 1, node_id: 'n2' });
+    // Attached room polygon vertices for n1 and n2 also moved in lockstep via auto-room sync
+    const roomPts = updatedFloor.rooms[0].points;
+    expect(roomPts.find((p) => p.node_id === 'n1')).toEqual({
+      x: origN1.x,
+      y: origN1.y + 1,
+      node_id: 'n1'
+    });
+    expect(roomPts.find((p) => p.node_id === 'n2')).toEqual({
+      x: origN2.x,
+      y: origN2.y + 1,
+      node_id: 'n2'
+    });
   });
 
   it('supports collapsing and restoring desktop left palette, right inspector, top toolbar, and focus mode', async () => {
@@ -326,6 +309,7 @@ describe('Wave 3 UI Components (<floorplan-3d-card> & <floorplan-editor-panel>)'
 
     const anyPanel = panel as unknown as {
       currentDocument: FloorplanDocument;
+      selection: { kind: string; id: string | null };
     };
 
     const origN1 = { ...anyPanel.currentDocument.floors[0].nodes.find((n) => n.id === 'n1')! };
@@ -336,6 +320,14 @@ describe('Wave 3 UI Components (<floorplan-3d-card> & <floorplan-editor-panel>)'
       pixelsPerMeter: number;
       canvasWidth: number;
       canvasHeight: number;
+      snapToGrid: boolean;
+      stage: {
+        find: (selector: string) => Array<{
+          id: () => string;
+          fire: (eventType: string, evt?: unknown) => void;
+        }>;
+      } | null;
+      moveNodeTo: (nodeId: string, pt: { x: number; y: number }, commit?: boolean) => void;
       updateComplete: Promise<boolean>;
     };
     canvas2d.panX = 0;
@@ -343,70 +335,23 @@ describe('Wave 3 UI Components (<floorplan-3d-card> & <floorplan-editor-panel>)'
     canvas2d.pixelsPerMeter = 100;
     canvas2d.canvasWidth = 800;
     canvas2d.canvasHeight = 600;
+    canvas2d.snapToGrid = false;
     await canvas2d.updateComplete;
 
-    const nodeGroups = canvas2d.shadowRoot?.querySelectorAll('.wall-node');
-    expect(nodeGroups?.length).toBe(4);
-    const n1Group = nodeGroups![0];
+    const nodeGroups = canvas2d.stage?.find('.wall-node') ?? [];
+    expect(nodeGroups.length).toBe(4);
+    const n1Group = nodeGroups.find((g) => g.id() === 'n1')!;
+    expect(n1Group).toBeDefined();
 
-    // 1. Tap with 2px micro-jitter (< 3px deadzone) should NOT move n1
-    n1Group.dispatchEvent(
-      new PointerEvent('pointerdown', {
-        button: 0,
-        pointerId: 10,
-        clientX: 100,
-        clientY: 150,
-        bubbles: true,
-        composed: true
-      })
-    );
-    window.dispatchEvent(
-      new PointerEvent('pointermove', {
-        pointerId: 10,
-        clientX: 102,
-        clientY: 151,
-        bubbles: true
-      })
-    );
-    window.dispatchEvent(
-      new PointerEvent('pointerup', {
-        pointerId: 10,
-        clientX: 102,
-        clientY: 151,
-        bubbles: true
-      })
-    );
+    // 1. Tap on Konva wall-node selects n1 without altering its coordinates
+    n1Group.fire('tap', { cancelBubble: false });
     await panel.updateComplete;
+    expect(anyPanel.selection).toEqual({ kind: 'node', id: 'n1' });
     expect(anyPanel.currentDocument.floors[0].nodes.find((n) => n.id === 'n1')).toEqual(origN1);
 
-    // 2. Drag n1 by (+0.2m, +0.2m) (20px at 100 px/m, inside the 0.25m nodeSnapRadius)
-    // Previously this self-snapped onto n1's own incident walls w1/w4; now it moves cleanly
-    n1Group.dispatchEvent(
-      new PointerEvent('pointerdown', {
-        button: 0,
-        pointerId: 11,
-        clientX: 100,
-        clientY: 150,
-        bubbles: true,
-        composed: true
-      })
-    );
-    window.dispatchEvent(
-      new PointerEvent('pointermove', {
-        pointerId: 11,
-        clientX: 120, // +0.2m
-        clientY: 170, // +0.2m
-        bubbles: true
-      })
-    );
-    window.dispatchEvent(
-      new PointerEvent('pointerup', {
-        pointerId: 11,
-        clientX: 120,
-        clientY: 170,
-        bubbles: true
-      })
-    );
+    // 2. Move n1 by (+0.2m, +0.2m) (inside the 0.25m nodeSnapRadius)
+    // Verifies it does not self-snap onto its own incident walls w1/w4 and updates room polygon
+    canvas2d.moveNodeTo('n1', { x: origN1.x + 0.2, y: origN1.y + 0.2 }, true);
     await panel.updateComplete;
 
     const movedN1 = anyPanel.currentDocument.floors[0].nodes.find((n) => n.id === 'n1')!;

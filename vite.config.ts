@@ -25,6 +25,9 @@ export default defineConfig({
           if (id.includes('node_modules/three')) {
             return 'three-vendor';
           }
+          if (id.includes('node_modules/konva')) {
+            return 'konva-vendor';
+          }
           if (id.includes('node_modules/lit') || id.includes('node_modules/@lit')) {
             return 'lit-vendor';
           }
