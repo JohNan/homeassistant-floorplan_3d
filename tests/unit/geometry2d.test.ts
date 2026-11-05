@@ -148,7 +148,7 @@ describe('geometry2d: snapPoint2D', () => {
     expect(res.point).toEqual({ x: 5, y: 0 });
   });
 
-  it('excludes specified node IDs', () => {
+  it('excludes specified node IDs and their incident walls from self-snapping', () => {
     const res = snapPoint2D({ x: 0.1, y: 0.1 }, {
       gridSize: 0.1,
       snapToGrid: false,
@@ -157,9 +157,10 @@ describe('geometry2d: snapPoint2D', () => {
       nodeSnapRadius: 0.25,
       excludeNodeIds: new Set(['n1'])
     });
-    // Should snap to wall w1 instead of node n1
+    // Should exclude both node n1 and its incident wall w1 so dragging n1 does not self-snap
     expect(res.snappedNodeId).toBeNull();
-    expect(res.snappedWallId).toBe('w1');
+    expect(res.snappedWallId).toBeNull();
+    expect(res.point).toEqual({ x: 0.1, y: 0.1 });
   });
 
   it('snaps to wall edge within radius (Priority 2)', () => {

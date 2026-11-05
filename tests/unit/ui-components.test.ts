@@ -318,4 +318,99 @@ describe('Wave 3 UI Components (<floorplan-3d-card> & <floorplan-editor-panel>)'
     expect(panel.shadowRoot?.querySelector('floorplan-entity-palette')).not.toBeNull();
     expect(panel.shadowRoot?.querySelector('floorplan-property-inspector')).not.toBeNull();
   });
+
+  it('selects a wall anchor on tap without jitter and moves it smoothly without self-snapping onto incident walls', async () => {
+    const panel = document.createElement('floorplan-editor-panel') as FloorplanEditorPanel;
+    document.body.appendChild(panel);
+    await panel.updateComplete;
+
+    const anyPanel = panel as unknown as {
+      currentDocument: FloorplanDocument;
+    };
+
+    const origN1 = { ...anyPanel.currentDocument.floors[0].nodes.find((n) => n.id === 'n1')! };
+
+    const canvas2d = panel.shadowRoot?.querySelector('floorplan-canvas-2d') as HTMLElement & {
+      panX: number;
+      panY: number;
+      pixelsPerMeter: number;
+      canvasWidth: number;
+      canvasHeight: number;
+      updateComplete: Promise<boolean>;
+    };
+    canvas2d.panX = 0;
+    canvas2d.panY = 0;
+    canvas2d.pixelsPerMeter = 100;
+    canvas2d.canvasWidth = 800;
+    canvas2d.canvasHeight = 600;
+    await canvas2d.updateComplete;
+
+    const nodeGroups = canvas2d.shadowRoot?.querySelectorAll('.wall-node');
+    expect(nodeGroups?.length).toBe(4);
+    const n1Group = nodeGroups![0];
+
+    // 1. Tap with 2px micro-jitter (< 3px deadzone) should NOT move n1
+    n1Group.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        button: 0,
+        pointerId: 10,
+        clientX: 100,
+        clientY: 150,
+        bubbles: true,
+        composed: true
+      })
+    );
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        pointerId: 10,
+        clientX: 102,
+        clientY: 151,
+        bubbles: true
+      })
+    );
+    window.dispatchEvent(
+      new PointerEvent('pointerup', {
+        pointerId: 10,
+        clientX: 102,
+        clientY: 151,
+        bubbles: true
+      })
+    );
+    await panel.updateComplete;
+    expect(anyPanel.currentDocument.floors[0].nodes.find((n) => n.id === 'n1')).toEqual(origN1);
+
+    // 2. Drag n1 by (+0.2m, +0.2m) (20px at 100 px/m, inside the 0.25m nodeSnapRadius)
+    // Previously this self-snapped onto n1's own incident walls w1/w4; now it moves cleanly
+    n1Group.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        button: 0,
+        pointerId: 11,
+        clientX: 100,
+        clientY: 150,
+        bubbles: true,
+        composed: true
+      })
+    );
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        pointerId: 11,
+        clientX: 120, // +0.2m
+        clientY: 170, // +0.2m
+        bubbles: true
+      })
+    );
+    window.dispatchEvent(
+      new PointerEvent('pointerup', {
+        pointerId: 11,
+        clientX: 120,
+        clientY: 170,
+        bubbles: true
+      })
+    );
+    await panel.updateComplete;
+
+    const movedN1 = anyPanel.currentDocument.floors[0].nodes.find((n) => n.id === 'n1')!;
+    expect(movedN1.x).toBeCloseTo(origN1.x + 0.2, 5);
+    expect(movedN1.y).toBeCloseTo(origN1.y + 0.2, 5);
+  });
 });

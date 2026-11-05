@@ -156,6 +156,12 @@ export function snapPoint2D(pt: Point2D, options: SnapOptions): SnapResult {
     let minWallDist = Infinity;
 
     for (const wall of options.walls) {
+      if (
+        options.excludeNodeIds?.has(wall.start_node_id) ||
+        options.excludeNodeIds?.has(wall.end_node_id)
+      ) {
+        continue;
+      }
       const a = nodeMap.get(wall.start_node_id);
       const b = nodeMap.get(wall.end_node_id);
       if (!a || !b) continue;

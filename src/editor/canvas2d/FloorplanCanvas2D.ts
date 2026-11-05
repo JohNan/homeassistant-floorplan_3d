@@ -81,21 +81,18 @@ export class FloorplanCanvas2D extends LitElement {
 
     .wall-footprint {
       cursor: move;
-      transition: fill 0.15s, stroke 0.15s;
     }
 
     .wall-node {
       cursor: move;
-      transition: transform 0.15s;
     }
 
-    .wall-node:hover {
-      transform: scale(1.2);
+    .wall-node:hover .wall-node-dot {
+      fill: #38bdf8;
     }
 
     .room-polygon {
       cursor: pointer;
-      transition: fill-opacity 0.15s, stroke 0.15s;
     }
 
     .furniture-item {
@@ -360,6 +357,7 @@ export class FloorplanCanvas2D extends LitElement {
   // Selection Drag State
   private dragKind: 'node' | 'wall' | 'furniture' | 'furniture_rotate' | 'entity' | 'opening' | 'strip_point' | null = null;
   private dragItemId: string | null = null;
+  private dragStartScreen: Point2D = { x: 0, y: 0 };
   private dragStartWorld: Point2D = { x: 0, y: 0 };
   private itemOriginalPos: Point2D = { x: 0, y: 0 };
   private dragWallOrigStart: Point2D = { x: 0, y: 0 };
@@ -747,7 +745,11 @@ export class FloorplanCanvas2D extends LitElement {
     this.cursorWorld = this.screenToWorld(screenX, screenY);
 
     if (this.toolMode === 'draw_wall' && this.wallDrawStartPoint) {
-      const snap = this.getSnapResult(this.cursorWorld, this.wallDrawStartPoint);
+      const snap = this.getSnapResult(
+        this.cursorWorld,
+        this.wallDrawStartPoint,
+        this.wallDrawStartNodeId ? new Set([this.wallDrawStartNodeId]) : undefined
+      );
       this.snappedCursor = snap.point;
     } else {
       const snap = this.getSnapResult(this.cursorWorld);
@@ -759,7 +761,13 @@ export class FloorplanCanvas2D extends LitElement {
     }
 
     if (this.isItemDragging && this.floor) {
-      this.handleItemDragMove(this.cursorWorld);
+      const moveDistPx = Math.hypot(
+        e.clientX - this.dragStartScreen.x,
+        e.clientY - this.dragStartScreen.y
+      );
+      if (this.hasItemDragMoved || moveDistPx > 3) {
+        this.handleItemDragMove(this.cursorWorld);
+      }
     }
 
     if (this.toolMode === 'measure' && this.measureP1 && !this.measureLocked) {
@@ -1000,11 +1008,12 @@ export class FloorplanCanvas2D extends LitElement {
     if (this.toolMode !== 'select' || e.button !== 0 || this.spaceHeld) return;
     e.stopPropagation();
     this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    this.dragStartScreen = { x: e.clientX, y: e.clientY };
     this.updateCursorFromPointerEvent(e);
     this.emitSelectionChange({ kind: 'node', id: node.id });
     this.dragKind = 'node';
     this.dragItemId = node.id;
-    this.dragStartWorld = { x: node.x, y: node.y };
+    this.dragStartWorld = { ...this.cursorWorld };
     this.itemOriginalPos = { x: node.x, y: node.y };
     this.isItemDragging = true;
     this.hasItemDragMoved = false;
@@ -1017,6 +1026,7 @@ export class FloorplanCanvas2D extends LitElement {
     if (!startNode || !endNode) return;
     e.stopPropagation();
     this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    this.dragStartScreen = { x: e.clientX, y: e.clientY };
     this.updateCursorFromPointerEvent(e);
     this.emitSelectionChange({ kind: 'wall', id: wall.id });
     this.dragKind = 'wall';
@@ -1032,6 +1042,7 @@ export class FloorplanCanvas2D extends LitElement {
     if (this.toolMode !== 'select' || e.button !== 0 || this.spaceHeld) return;
     e.stopPropagation();
     this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    this.dragStartScreen = { x: e.clientX, y: e.clientY };
     this.updateCursorFromPointerEvent(e);
     this.emitSelectionChange({ kind: 'furniture', id: furniture.id });
     this.dragKind = 'furniture';
@@ -1046,6 +1057,7 @@ export class FloorplanCanvas2D extends LitElement {
     if (this.toolMode !== 'select' || e.button !== 0 || this.spaceHeld) return;
     e.stopPropagation();
     this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    this.dragStartScreen = { x: e.clientX, y: e.clientY };
     this.updateCursorFromPointerEvent(e);
     this.emitSelectionChange({ kind: 'furniture', id: furniture.id });
     this.dragKind = 'furniture_rotate';
@@ -1059,6 +1071,7 @@ export class FloorplanCanvas2D extends LitElement {
     if (this.toolMode !== 'select' || e.button !== 0 || this.spaceHeld) return;
     e.stopPropagation();
     this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    this.dragStartScreen = { x: e.clientX, y: e.clientY };
     this.updateCursorFromPointerEvent(e);
     this.emitSelectionChange({ kind: 'entity', id: entity.id });
     this.dragKind = 'entity';
@@ -1073,6 +1086,7 @@ export class FloorplanCanvas2D extends LitElement {
     if (this.toolMode !== 'select' || e.button !== 0 || this.spaceHeld) return;
     e.stopPropagation();
     this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    this.dragStartScreen = { x: e.clientX, y: e.clientY };
     this.updateCursorFromPointerEvent(e);
     this.emitSelectionChange({ kind: 'opening', id: opening.id });
     this.dragKind = 'opening';
@@ -1086,9 +1100,15 @@ export class FloorplanCanvas2D extends LitElement {
     this.hasItemDragMoved = true;
 
     if (this.dragKind === 'node') {
-      const snap = this.getSnapResult(worldPt, undefined, new Set([this.dragItemId]));
-      const nx = snap.point.x;
-      const ny = snap.point.y;
+      const dx = worldPt.x - this.dragStartWorld.x;
+      const dy = worldPt.y - this.dragStartWorld.y;
+      const targetPt = {
+        x: this.itemOriginalPos.x + dx,
+        y: this.itemOriginalPos.y + dy
+      };
+      const snap = this.getSnapResult(targetPt, undefined, new Set([this.dragItemId]));
+      const nx = Number(snap.point.x.toFixed(3));
+      const ny = Number(snap.point.y.toFixed(3));
 
       const updatedNodes = this.floor.nodes.map((n) =>
         n.id === this.dragItemId ? { ...n, x: nx, y: ny } : n
@@ -1818,18 +1838,20 @@ export class FloorplanCanvas2D extends LitElement {
       return svg`
         <g
           class="wall-node"
-          transform="translate(${nx}, ${ny})"
           @pointerdown="${(e: PointerEvent) => this.startNodeDrag(e, node)}"
         >
           <!-- Enlarged touch target -->
-          <circle r="18" fill="transparent" />
+          <circle cx="${nx}" cy="${ny}" r="18" fill="transparent" />
 
           ${isSelected
             ? svg`
-                <circle r="12" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="2,2" />
+                <circle cx="${nx}" cy="${ny}" r="12" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="2,2" />
               `
             : nothing}
           <circle
+            class="wall-node-dot"
+            cx="${nx}"
+            cy="${ny}"
             r="${isSelected ? 7 : 5}"
             fill="${isSelected ? '#38bdf8' : '#94a3b8'}"
             stroke="#0f172a"
