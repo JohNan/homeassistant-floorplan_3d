@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from pathlib import Path
 from typing import Any
@@ -29,6 +30,28 @@ async def async_setup(hass: Any, config: dict[str, Any]) -> bool:
     return True
 
 
+def _compute_bundle_cache_tag(dist_path: Path, filename: str) -> str:
+    """Compute a content-based cache tag (VERSION-sha256[:10]) for a frontend bundle."""
+    bundle_path = dist_path / filename
+    try:
+        if bundle_path.is_file():
+            digest = hashlib.sha256(bundle_path.read_bytes()).hexdigest()[:10]
+            return f"{VERSION}-{digest}"
+    except OSError as exc:
+        _LOGGER.debug("Could not hash bundle %s: %s", bundle_path, exc)
+    return VERSION
+
+
+async def _async_get_bundle_cache_tag(hass: Any, filename: str) -> str:
+    """Resolve content-based cache tag off the event loop."""
+    dist_path = Path(__file__).parent / "frontend" / "dist"
+    if hasattr(hass, "async_add_executor_job"):
+        return await hass.async_add_executor_job(
+            _compute_bundle_cache_tag, dist_path, filename
+        )
+    return _compute_bundle_cache_tag(dist_path, filename)
+
+
 async def _async_register_static_paths(hass: Any) -> None:
     """Register static path for pre-compiled frontend bundles."""
     dist_path = Path(__file__).parent / "frontend" / "dist"
@@ -42,7 +65,7 @@ async def _async_register_static_paths(hass: Any) -> None:
             from homeassistant.components.http import StaticPathConfig
 
             await http.async_register_static_paths(
-                [StaticPathConfig(STATIC_URL_PATH, str(dist_path), cache_headers=True)]
+                [StaticPathConfig(STATIC_URL_PATH, str(dist_path), cache_headers=False)]
             )
             return
         except Exception as exc:  # noqa: BLE001
@@ -51,7 +74,7 @@ async def _async_register_static_paths(hass: Any) -> None:
     if hasattr(http, "register_static_path"):
         try:
             http.register_static_path(
-                STATIC_URL_PATH, str(dist_path), cache_headers=True
+                STATIC_URL_PATH, str(dist_path), cache_headers=False
             )
         except Exception as exc:  # noqa: BLE001
             _LOGGER.debug("Could not register_static_path: %s", exc)
@@ -59,7 +82,8 @@ async def _async_register_static_paths(hass: Any) -> None:
 
 async def _async_register_panel(hass: Any) -> None:
     """Register admin-only 2D/3D editor sidebar panel."""
-    panel_module_url = f"{STATIC_URL_PATH}/{PANEL_BUNDLE_FILENAME}?v={VERSION}"
+    panel_cache_tag = await _async_get_bundle_cache_tag(hass, PANEL_BUNDLE_FILENAME)
+    panel_module_url = f"{STATIC_URL_PATH}/{PANEL_BUNDLE_FILENAME}?v={panel_cache_tag}"
     custom_panel_config = {
         "_panel_custom": {
             "name": PANEL_COMPONENT_NAME,
@@ -143,7 +167,8 @@ async def _async_register_panel(hass: Any) -> None:
 
 async def _async_register_lovelace_card(hass: Any) -> None:
     """Auto-register Lovelace card resource in storage mode if available."""
-    card_url = f"{STATIC_URL_PATH}/{CARD_BUNDLE_FILENAME}?v={VERSION}"
+    card_cache_tag = await _async_get_bundle_cache_tag(hass, CARD_BUNDLE_FILENAME)
+    card_url = f"{STATIC_URL_PATH}/{CARD_BUNDLE_FILENAME}?v={card_cache_tag}"
     lovelace = hass.data.get("lovelace")
     if not lovelace:
         return

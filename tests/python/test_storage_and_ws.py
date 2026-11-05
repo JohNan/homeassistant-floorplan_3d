@@ -700,18 +700,36 @@ async def test_integration_lifecycle(tmp_path: Path) -> None:
     assert DOMAIN in hass.data
     assert DATA_STORAGE_MANAGER in hass.data[DOMAIN]
 
-    # Panel registered
+    # Panel registered with content-hashed cache buster
     assert PANEL_URL_PATH in hass.frontend.panels
     panel_info = hass.frontend.panels[PANEL_URL_PATH]
     assert panel_info["component_name"] == "custom"
     assert panel_info["config"]["_panel_custom"]["name"] == PANEL_COMPONENT_NAME
     assert panel_info["require_admin"] is True
-    assert f"{STATIC_URL_PATH}/{PANEL_BUNDLE_FILENAME}?v={VERSION}" in panel_info["config"]["module_url"]
+    panel_url = panel_info["config"]["module_url"]
+    assert panel_url.startswith(f"{STATIC_URL_PATH}/{PANEL_BUNDLE_FILENAME}?v={VERSION}-")
+    assert len(panel_url.split(f"?v={VERSION}-")[1]) == 10
 
-    # Lovelace card registered
+    # Static path registered with cache_headers=False
+    assert len(hass.http.static_paths) == 1
+    assert hass.http.static_paths[0][2] is False
+
+    # Lovelace card registered with content-hashed cache buster
     items = hass.data["lovelace"].resources.async_get_items()
     assert len(items) == 1
-    assert f"{STATIC_URL_PATH}/{CARD_BUNDLE_FILENAME}?v={VERSION}" == items[0]["url"]
+    card_url = items[0]["url"]
+    assert card_url.startswith(f"{STATIC_URL_PATH}/{CARD_BUNDLE_FILENAME}?v={VERSION}-")
+    assert len(card_url.split(f"?v={VERSION}-")[1]) == 10
+
+    # Simulate stale cached Lovelace resource URL being automatically busted on reload
+    await hass.data["lovelace"].resources.async_update_item(
+        items[0]["id"],
+        {"res_type": "module", "url": f"{STATIC_URL_PATH}/{CARD_BUNDLE_FILENAME}?v=0.1.0-stale00000"},
+    )
+    await async_setup_entry(hass, entry)
+    refreshed_items = hass.data["lovelace"].resources.async_get_items()
+    assert len(refreshed_items) == 1
+    assert refreshed_items[0]["url"] == card_url
 
     # Unload entry
     unload_success = await async_unload_entry(hass, entry)
