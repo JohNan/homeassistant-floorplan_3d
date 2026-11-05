@@ -145,6 +145,9 @@ describe('Wave 3 UI Components (<floorplan-3d-card> & <floorplan-editor-panel>)'
 
     // Split mode automatically collapses to single 2d viewport on mobile
     expect(anyPanel.viewLayout).toBe('2d');
+    expect(panel.hasAttribute('mobile')).toBe(true);
+    expect(panel.style.height).toBe(`${window.innerHeight}px`);
+    expect(panel.style.maxHeight).toBe(`${window.innerHeight}px`);
 
     // Bottom CAD dock is rendered
     const bottomDock = panel.shadowRoot?.querySelector('.mobile-bottom-dock');

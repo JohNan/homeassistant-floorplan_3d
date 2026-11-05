@@ -134,7 +134,8 @@ export class FloorplanCanvas2D extends LitElement {
   static styles = css`
     :host {
       display: block;
-      position: relative;
+      position: absolute;
+      inset: 0;
       width: 100%;
       height: 100%;
       overflow: hidden;

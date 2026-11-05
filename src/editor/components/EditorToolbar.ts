@@ -50,10 +50,13 @@ export class EditorToolbar extends LitElement {
     }
 
     :host([narrow]) {
-      height: 52px;
+      height: 48px;
+      min-height: 48px;
+      flex-shrink: 0;
       overflow: visible;
       padding: 0 8px;
       gap: 6px;
+      touch-action: manipulation;
     }
 
     :host::-webkit-scrollbar {

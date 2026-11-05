@@ -81,38 +81,65 @@ export class FloorplanEditorPanel extends LitElement {
       flex-direction: column;
       width: 100%;
       height: 100vh;
+      height: 100dvh;
+      max-height: 100dvh;
       background: var(--primary-background-color, #090d16);
       color: var(--primary-text-color, #f8fafc);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       overflow: hidden;
+      overscroll-behavior: none;
       box-sizing: border-box;
       position: relative;
     }
 
+    :host([mobile]) {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      max-height: 100dvh;
+    }
+
+    floorplan-editor-toolbar {
+      flex-shrink: 0;
+      z-index: 50;
+    }
+
     .editor-body {
       display: flex;
-      flex: 1;
+      flex: 1 1 0%;
       min-height: 0;
+      overflow: hidden;
       position: relative;
     }
 
     .editor-body.mobile {
       flex-direction: column;
+      flex: 1 1 0%;
+      min-height: 0;
+      overflow: hidden;
     }
 
     .center-viewport {
       display: flex;
-      flex: 1;
+      flex: 1 1 0%;
       min-width: 0;
       min-height: 0;
+      overflow: hidden;
       background: var(--primary-background-color, #090d16);
       position: relative;
     }
 
     .viewport-pane {
-      flex: 1;
+      flex: 1 1 0%;
+      width: 100%;
       height: 100%;
       min-width: 0;
+      min-height: 0;
       position: relative;
       overflow: hidden;
     }
@@ -270,16 +297,18 @@ export class FloorplanEditorPanel extends LitElement {
 
     /* Mobile Bottom CAD Dock */
     .mobile-bottom-dock {
-      height: 58px;
+      min-height: 54px;
+      height: calc(54px + env(safe-area-inset-bottom, 0px));
+      padding: 0 4px env(safe-area-inset-bottom, 0px) 4px;
       background: var(--card-background-color, #0f172a);
       border-top: 1px solid var(--divider-color, #334155);
       display: flex;
       align-items: center;
       justify-content: space-around;
-      padding: 0 4px;
       box-sizing: border-box;
       flex-shrink: 0;
       z-index: 50;
+      touch-action: manipulation;
     }
 
     .dock-btn {
@@ -330,7 +359,7 @@ export class FloorplanEditorPanel extends LitElement {
     /* Floating Selection Bar on Mobile */
     .mobile-selection-bar {
       position: absolute;
-      bottom: 66px;
+      bottom: calc(62px + env(safe-area-inset-bottom, 0px));
       left: 12px;
       right: 12px;
       background: var(--card-background-color, #1e293b);
@@ -391,7 +420,8 @@ export class FloorplanEditorPanel extends LitElement {
       bottom: 0;
       left: 0;
       right: 0;
-      max-height: 75vh;
+      max-height: 75%;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
       background: var(--card-background-color, #0f172a);
       border-top: 1px solid var(--divider-color, #334155);
       border-radius: 16px 16px 0 0;
@@ -464,6 +494,9 @@ export class FloorplanEditorPanel extends LitElement {
     window.addEventListener('keydown', this.handleKeyDown);
     window.addEventListener('pointermove', this.handleSplitPointerMove);
     window.addEventListener('pointerup', this.handleSplitPointerUp);
+    window.addEventListener('resize', this.syncViewportHeight);
+    window.visualViewport?.addEventListener('resize', this.syncViewportHeight);
+    window.visualViewport?.addEventListener('scroll', this.syncViewportHeight);
 
     if (typeof ResizeObserver !== 'undefined') {
       this.hostResizeObserver = new ResizeObserver((entries) => {
@@ -471,9 +504,12 @@ export class FloorplanEditorPanel extends LitElement {
           const width = entry.contentRect.width;
           this.isViewportNarrow = width > 0 && width < 768;
         }
+        this.syncViewportHeight();
       });
       this.hostResizeObserver.observe(this);
     }
+
+    this.syncViewportHeight();
   }
 
   override disconnectedCallback(): void {
@@ -481,6 +517,9 @@ export class FloorplanEditorPanel extends LitElement {
     window.removeEventListener('keydown', this.handleKeyDown);
     window.removeEventListener('pointermove', this.handleSplitPointerMove);
     window.removeEventListener('pointerup', this.handleSplitPointerUp);
+    window.removeEventListener('resize', this.syncViewportHeight);
+    window.visualViewport?.removeEventListener('resize', this.syncViewportHeight);
+    window.visualViewport?.removeEventListener('scroll', this.syncViewportHeight);
     this.hostResizeObserver?.disconnect();
     this.hostResizeObserver = null;
     if (this.toastTimer) {
@@ -490,8 +529,50 @@ export class FloorplanEditorPanel extends LitElement {
     this.scene3d = null;
   }
 
+  /**
+   * Synchronizes the panel's pixel height to the exact visible viewport height
+   * (`window.visualViewport.height` / `window.innerHeight` minus any top header offset)
+   * so that on mobile browsers (where `100vh` exceeds the visible area due to address/nav bars)
+   * both the top toolbar and the bottom CAD dock remain simultaneously visible without page scrolling.
+   */
+  private syncViewportHeight = (): void => {
+    if (typeof window === 'undefined') return;
+
+    const isMobileView = this.isMobile;
+    if (isMobileView !== this.hasAttribute('mobile')) {
+      this.toggleAttribute('mobile', isMobileView);
+    }
+
+    if (isMobileView && window.scrollY !== 0) {
+      window.scrollTo(0, 0);
+    }
+
+    const vvHeight = window.visualViewport?.height ?? 0;
+    const innerH = window.innerHeight ?? 0;
+    const visibleH =
+      vvHeight > 0 && innerH > 0 ? Math.min(vvHeight, innerH) : vvHeight || innerH;
+    if (visibleH <= 0) return;
+
+    const rect = this.getBoundingClientRect();
+    const topOffset = isMobileView ? 0 : Math.max(0, Math.min(120, rect.top));
+    const exactHeight = Math.max(240, Math.floor(visibleH - topOffset));
+
+    const heightCss = `${exactHeight}px`;
+    if (this.style.height !== heightCss) {
+      this.style.height = heightCss;
+      this.style.maxHeight = heightCss;
+    }
+  };
+
+  override firstUpdated(): void {
+    this.syncViewportHeight();
+  }
+
   override willUpdate(changedProperties: PropertyValues): void {
     super.willUpdate(changedProperties);
+    if (changedProperties.has('narrow') || changedProperties.has('isViewportNarrow')) {
+      this.syncViewportHeight();
+    }
     if (
       (changedProperties.has('narrow') || changedProperties.has('isViewportNarrow')) &&
       this.isMobile &&
@@ -523,7 +604,11 @@ export class FloorplanEditorPanel extends LitElement {
   }
 
   private get isMobile(): boolean {
-    return this.narrow || this.isViewportNarrow;
+    return (
+      this.narrow ||
+      this.isViewportNarrow ||
+      (typeof window !== 'undefined' && window.innerWidth > 0 && window.innerWidth < 768)
+    );
   }
 
   private get isFocusMode(): boolean {

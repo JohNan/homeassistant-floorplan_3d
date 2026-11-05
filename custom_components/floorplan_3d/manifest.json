@@ -7,5 +7,5 @@
   "documentation": "https://github.com/JohNan/homeassistant-floorplan_3d",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/JohNan/homeassistant-floorplan_3d/issues",
-  "version": "0.2.0"
+  "version": "0.2.1"
 }
