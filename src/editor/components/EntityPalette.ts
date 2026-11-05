@@ -92,7 +92,8 @@ export class EntityPalette extends LitElement {
     :host {
       display: flex;
       flex-direction: column;
-      width: 320px;
+      width: 260px;
+      flex-shrink: 0;
       height: 100%;
       background: var(--card-background-color, #0f172a);
       border-right: 1px solid var(--divider-color, #334155);
@@ -112,8 +113,29 @@ export class EntityPalette extends LitElement {
 
     .tabs-header {
       display: flex;
+      align-items: center;
       background: var(--secondary-background-color, #1e293b);
       border-bottom: 1px solid var(--divider-color, #334155);
+    }
+
+    .pane-collapse-btn {
+      background: transparent;
+      border: none;
+      border-left: 1px solid var(--divider-color, #334155);
+      color: var(--secondary-text-color, #94a3b8);
+      padding: 0 10px;
+      height: 44px;
+      cursor: pointer;
+      font-size: 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .pane-collapse-btn:hover {
+      color: var(--primary-text-color, #f8fafc);
+      background: rgba(255, 255, 255, 0.08);
     }
 
     .tab-button {
@@ -448,8 +470,23 @@ export class EntityPalette extends LitElement {
           class="tab-button ${this.activeTab === 'catalog' ? 'active' : ''}"
           @click=${() => (this.activeTab = 'catalog')}
         >
-          Catalog & Furniture
+          Catalog
         </button>
+        ${!this.mobile
+          ? html`
+              <button
+                class="pane-collapse-btn"
+                title="Collapse Left Panel ["
+                aria-label="Collapse left panel"
+                @click=${() =>
+                  this.dispatchEvent(
+                    new CustomEvent('collapse-pane', { bubbles: true, composed: true })
+                  )}
+              >
+                ◀
+              </button>
+            `
+          : ''}
       </div>
 
       <!-- Tab 1: HA Entities -->

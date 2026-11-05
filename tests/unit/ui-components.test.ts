@@ -286,4 +286,36 @@ describe('Wave 3 UI Components (<floorplan-3d-card> & <floorplan-editor-panel>)'
     expect(updatedFloor.rooms[0].points[0]).toEqual({ x: origN1.x, y: origN1.y + 1, node_id: 'n1' });
     expect(updatedFloor.rooms[0].points[1]).toEqual({ x: origN2.x, y: origN2.y + 1, node_id: 'n2' });
   });
+
+  it('supports collapsing and restoring desktop left palette, right inspector, top toolbar, and focus mode', async () => {
+    const panel = document.createElement('floorplan-editor-panel') as FloorplanEditorPanel;
+    document.body.appendChild(panel);
+    await panel.updateComplete;
+
+    expect(panel.shadowRoot?.querySelector('floorplan-entity-palette')).not.toBeNull();
+    expect(panel.shadowRoot?.querySelector('floorplan-property-inspector')).not.toBeNull();
+
+    // Collapse left palette via '[' shortcut
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: '[', bubbles: true }));
+    await panel.updateComplete;
+    expect(panel.shadowRoot?.querySelector('floorplan-entity-palette')).toBeNull();
+    expect(panel.shadowRoot?.querySelector('.pane-expand-tab.left')).not.toBeNull();
+
+    // Expand left palette via edge tab click
+    (panel.shadowRoot?.querySelector('.pane-expand-tab.left') as HTMLButtonElement)?.click();
+    await panel.updateComplete;
+    expect(panel.shadowRoot?.querySelector('floorplan-entity-palette')).not.toBeNull();
+
+    // Toggle Focus Mode via 'f' shortcut (collapses both left and right panes)
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', bubbles: true }));
+    await panel.updateComplete;
+    expect(panel.shadowRoot?.querySelector('floorplan-entity-palette')).toBeNull();
+    expect(panel.shadowRoot?.querySelector('floorplan-property-inspector')).toBeNull();
+
+    // Restore from Focus Mode via 'f' shortcut
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', bubbles: true }));
+    await panel.updateComplete;
+    expect(panel.shadowRoot?.querySelector('floorplan-entity-palette')).not.toBeNull();
+    expect(panel.shadowRoot?.querySelector('floorplan-property-inspector')).not.toBeNull();
+  });
 });

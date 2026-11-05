@@ -102,7 +102,8 @@ export class PropertyInspector extends LitElement {
     :host {
       display: flex;
       flex-direction: column;
-      width: 320px;
+      width: 260px;
+      flex-shrink: 0;
       height: 100%;
       background: var(--card-background-color, #0f172a);
       border-left: 1px solid var(--divider-color, #334155);
@@ -121,12 +122,33 @@ export class PropertyInspector extends LitElement {
     }
 
     .inspector-header {
-      padding: 12px 14px;
+      padding: 8px 10px 8px 14px;
       background: var(--secondary-background-color, #1e293b);
       border-bottom: 1px solid var(--divider-color, #334155);
       display: flex;
       align-items: center;
       justify-content: space-between;
+      min-height: 44px;
+      box-sizing: border-box;
+    }
+
+    .pane-collapse-btn {
+      background: transparent;
+      border: 1px solid var(--divider-color, #334155);
+      border-radius: 4px;
+      color: var(--secondary-text-color, #94a3b8);
+      padding: 4px 8px;
+      cursor: pointer;
+      font-size: 11px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .pane-collapse-btn:hover {
+      color: var(--primary-text-color, #f8fafc);
+      background: rgba(255, 255, 255, 0.08);
     }
 
     .inspector-title {
@@ -405,6 +427,21 @@ export class PropertyInspector extends LitElement {
           <span>Properties</span>
           <span class="badge-kind">${kind === 'none' ? 'Global / Floor' : kind}</span>
         </div>
+        ${!this.mobile
+          ? html`
+              <button
+                class="pane-collapse-btn"
+                title="Collapse Inspector ]"
+                aria-label="Collapse right panel"
+                @click=${() =>
+                  this.dispatchEvent(
+                    new CustomEvent('collapse-pane', { bubbles: true, composed: true })
+                  )}
+              >
+                ▶
+              </button>
+            `
+          : ''}
       </div>
 
       <div class="inspector-body">

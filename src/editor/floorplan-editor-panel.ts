@@ -42,7 +42,7 @@ export class FloorplanEditorPanel extends LitElement {
   @state() private activeFloorplanId = '';
   @state() private activeFloorId = '';
   @state() private activeTool: EditorToolMode = 'select';
-  @state() private viewLayout: EditorViewLayout = 'split';
+  @state() private viewLayout: EditorViewLayout = '2d';
   @state() private gridSize = 0.1;
   @state() private snapToGrid = true;
   @state() private onionSkin = false;
@@ -54,6 +54,10 @@ export class FloorplanEditorPanel extends LitElement {
   @state() private toastMessage: string | null = null;
   @state() private isViewportNarrow = false;
   @state() private activeMobileSheet: 'none' | 'palette' | 'inspector' = 'none';
+  @state() private isLeftPaneCollapsed = false;
+  @state() private isRightPaneCollapsed = false;
+  @state() private isTopToolbarCollapsed = false;
+  @state() private splitRatio = 0.65;
 
   private history!: EditorHistory<FloorplanDocument>;
   private wsClient!: FloorplanWsClient;
@@ -63,6 +67,13 @@ export class FloorplanEditorPanel extends LitElement {
   private toastTimer: number | null = null;
   private isWsInitialized = false;
   private hostResizeObserver: ResizeObserver | null = null;
+  private isResizingSplit = false;
+  private prevFocusState: {
+    left: boolean;
+    right: boolean;
+    top: boolean;
+    layout: EditorViewLayout;
+  } | null = null;
 
   static styles = css`
     :host {
@@ -111,12 +122,110 @@ export class FloorplanEditorPanel extends LitElement {
     }
 
     .viewport-divider {
-      width: 4px;
+      width: 6px;
       background: var(--secondary-background-color, #1e293b);
       border-left: 1px solid var(--divider-color, #334155);
       border-right: 1px solid var(--divider-color, #334155);
       cursor: col-resize;
       flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+      user-select: none;
+      z-index: 20;
+    }
+
+    .viewport-divider:hover {
+      background: var(--primary-color, #3b82f6);
+    }
+
+    .viewport-divider::after {
+      content: '⋮';
+      font-size: 11px;
+      color: var(--secondary-text-color, #94a3b8);
+      line-height: 1;
+    }
+
+    .pane-expand-tab {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 30;
+      background: var(--card-background-color, rgba(15, 23, 42, 0.92));
+      color: var(--primary-text-color, #f8fafc);
+      border: 1px solid var(--divider-color, #334155);
+      padding: 10px 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(4px);
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .pane-expand-tab:hover {
+      background: var(--secondary-background-color, #1e293b);
+      border-color: var(--primary-color, #38bdf8);
+      color: var(--primary-color, #38bdf8);
+    }
+
+    .pane-expand-tab.left {
+      left: 0;
+      border-left: none;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .pane-expand-tab.right {
+      right: 0;
+      border-right: none;
+      border-radius: 8px 0 0 8px;
+    }
+
+    .viewport-floating-bar {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 25;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--card-background-color, rgba(15, 23, 42, 0.9));
+      border: 1px solid var(--divider-color, #334155);
+      border-radius: 8px;
+      padding: 4px 6px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(4px);
+    }
+
+    .floating-chip-btn {
+      background: transparent;
+      color: var(--primary-text-color, #cbd5e1);
+      border: 1px solid transparent;
+      border-radius: 5px;
+      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    .floating-chip-btn:hover {
+      background: var(--secondary-background-color, #334155);
+      color: var(--primary-text-color, #ffffff);
+    }
+
+    .floating-chip-btn.active {
+      background: var(--primary-color, #2563eb);
+      color: #ffffff;
     }
 
     .scene-3d-container {
@@ -353,6 +462,8 @@ export class FloorplanEditorPanel extends LitElement {
     this.wsClient = new FloorplanWsClient(() => this.hass);
 
     window.addEventListener('keydown', this.handleKeyDown);
+    window.addEventListener('pointermove', this.handleSplitPointerMove);
+    window.addEventListener('pointerup', this.handleSplitPointerUp);
 
     if (typeof ResizeObserver !== 'undefined') {
       this.hostResizeObserver = new ResizeObserver((entries) => {
@@ -368,6 +479,8 @@ export class FloorplanEditorPanel extends LitElement {
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     window.removeEventListener('keydown', this.handleKeyDown);
+    window.removeEventListener('pointermove', this.handleSplitPointerMove);
+    window.removeEventListener('pointerup', this.handleSplitPointerUp);
     this.hostResizeObserver?.disconnect();
     this.hostResizeObserver = null;
     if (this.toastTimer) {
@@ -412,6 +525,62 @@ export class FloorplanEditorPanel extends LitElement {
   private get isMobile(): boolean {
     return this.narrow || this.isViewportNarrow;
   }
+
+  private get isFocusMode(): boolean {
+    return (
+      this.isLeftPaneCollapsed &&
+      this.isRightPaneCollapsed &&
+      this.viewLayout === '2d'
+    );
+  }
+
+  private toggleFocusMode(): void {
+    if (!this.isFocusMode) {
+      this.prevFocusState = {
+        left: this.isLeftPaneCollapsed,
+        right: this.isRightPaneCollapsed,
+        top: this.isTopToolbarCollapsed,
+        layout: this.viewLayout
+      };
+      this.isLeftPaneCollapsed = true;
+      this.isRightPaneCollapsed = true;
+      this.viewLayout = '2d';
+    } else if (this.prevFocusState) {
+      this.isLeftPaneCollapsed = this.prevFocusState.left;
+      this.isRightPaneCollapsed = this.prevFocusState.right;
+      this.isTopToolbarCollapsed = this.prevFocusState.top;
+      this.viewLayout = this.prevFocusState.layout;
+      this.prevFocusState = null;
+    } else {
+      this.isLeftPaneCollapsed = false;
+      this.isRightPaneCollapsed = false;
+      this.isTopToolbarCollapsed = false;
+    }
+  }
+
+  private startSplitResize = (e: PointerEvent): void => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    this.isResizingSplit = true;
+  };
+
+  private handleSplitPointerMove = (e: PointerEvent): void => {
+    if (!this.isResizingSplit) return;
+    const centerEl = this.renderRoot.querySelector('.center-viewport') as HTMLElement | null;
+    if (!centerEl) return;
+    const rect = centerEl.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const rawRatio = (e.clientX - rect.left) / rect.width;
+    this.splitRatio = Math.max(0.2, Math.min(0.85, Number(rawRatio.toFixed(3))));
+    this.scene3d?.resize();
+  };
+
+  private handleSplitPointerUp = (): void => {
+    if (this.isResizingSplit) {
+      this.isResizingSplit = false;
+      this.scene3d?.resize();
+    }
+  };
 
   private async loadInitialData(): Promise<void> {
     try {
@@ -527,6 +696,15 @@ export class FloorplanEditorPanel extends LitElement {
         break;
       case 'b':
         this.isBlueprintModalOpen = true;
+        break;
+      case '[':
+        this.isLeftPaneCollapsed = !this.isLeftPaneCollapsed;
+        break;
+      case ']':
+        this.isRightPaneCollapsed = !this.isRightPaneCollapsed;
+        break;
+      case 'f':
+        this.toggleFocusMode();
         break;
       case 'delete':
       case 'backspace':
@@ -1036,44 +1214,58 @@ export class FloorplanEditorPanel extends LitElement {
 
     return html`
       <!-- Top CAD Command Bar -->
-      <floorplan-editor-toolbar
-        .floorplans=${this.floorplans}
-        .activeFloorplanId=${this.activeFloorplanId}
-        .floors=${this.currentDocument.floors}
-        .activeFloorId=${this.activeFloorId}
-        .activeTool=${this.activeTool}
-        .gridSize=${this.gridSize}
-        .snapToGrid=${this.snapToGrid}
-        .canUndo=${this.canUndo}
-        .canRedo=${this.canRedo}
-        .viewLayout=${this.viewLayout}
-        .isDirty=${this.isDirty}
-        .onionSkin=${this.onionSkin}
-        .narrow=${isMobile}
-        @floorplan-change=${this.handleFloorplanChange}
-        @floorplan-new=${this.handleFloorplanNew}
-        @floorplan-delete=${this.handleFloorplanDelete}
-        @floor-change=${this.handleFloorChange}
-        @floor-add=${this.handleFloorAdd}
-        @duplicate-perimeter=${this.handleDuplicatePerimeter}
-        @toggle-onion-skin=${(ev: CustomEvent<{ onionSkin: boolean }>) =>
-          (this.onionSkin = ev.detail.onionSkin)}
-        @tool-change=${(ev: CustomEvent<{ tool: EditorToolMode }>) =>
-          (this.activeTool = ev.detail.tool)}
-        @calibrate-blueprint=${() => (this.isBlueprintModalOpen = true)}
-        @grid-size-change=${(ev: CustomEvent<{ gridSize: number }>) =>
-          (this.gridSize = ev.detail.gridSize)}
-        @snap-toggle=${(ev: CustomEvent<{ snap: boolean }>) =>
-          (this.snapToGrid = ev.detail.snap)}
-        @undo=${this.handleUndo}
-        @redo=${this.handleRedo}
-        @layout-change=${(ev: CustomEvent<{ layout: EditorViewLayout }>) =>
-          (this.viewLayout = ev.detail.layout)}
-        @save-camera=${this.handleSaveCamera}
-        @import-json=${this.handleImportJsonClick}
-        @export-json=${this.handleExportJson}
-        @save-floorplan=${this.handleSaveFloorplan}
-      ></floorplan-editor-toolbar>
+      ${!this.isTopToolbarCollapsed || isMobile
+        ? html`
+            <floorplan-editor-toolbar
+              .floorplans=${this.floorplans}
+              .activeFloorplanId=${this.activeFloorplanId}
+              .floors=${this.currentDocument.floors}
+              .activeFloorId=${this.activeFloorId}
+              .activeTool=${this.activeTool}
+              .gridSize=${this.gridSize}
+              .snapToGrid=${this.snapToGrid}
+              .canUndo=${this.canUndo}
+              .canRedo=${this.canRedo}
+              .viewLayout=${this.viewLayout}
+              .isDirty=${this.isDirty}
+              .onionSkin=${this.onionSkin}
+              .narrow=${isMobile}
+              .leftPaneCollapsed=${this.isLeftPaneCollapsed}
+              .rightPaneCollapsed=${this.isRightPaneCollapsed}
+              .focusMode=${this.isFocusMode}
+              @floorplan-change=${this.handleFloorplanChange}
+              @floorplan-new=${this.handleFloorplanNew}
+              @floorplan-delete=${this.handleFloorplanDelete}
+              @floor-change=${this.handleFloorChange}
+              @floor-add=${this.handleFloorAdd}
+              @duplicate-perimeter=${this.handleDuplicatePerimeter}
+              @toggle-onion-skin=${(ev: CustomEvent<{ onionSkin: boolean }>) =>
+                (this.onionSkin = ev.detail.onionSkin)}
+              @tool-change=${(ev: CustomEvent<{ tool: EditorToolMode }>) =>
+                (this.activeTool = ev.detail.tool)}
+              @calibrate-blueprint=${() => (this.isBlueprintModalOpen = true)}
+              @grid-size-change=${(ev: CustomEvent<{ gridSize: number }>) =>
+                (this.gridSize = ev.detail.gridSize)}
+              @snap-toggle=${(ev: CustomEvent<{ snap: boolean }>) =>
+                (this.snapToGrid = ev.detail.snap)}
+              @undo=${this.handleUndo}
+              @redo=${this.handleRedo}
+              @layout-change=${(ev: CustomEvent<{ layout: EditorViewLayout }>) =>
+                (this.viewLayout = ev.detail.layout)}
+              @toggle-left-pane=${() =>
+                (this.isLeftPaneCollapsed = !this.isLeftPaneCollapsed)}
+              @toggle-right-pane=${() =>
+                (this.isRightPaneCollapsed = !this.isRightPaneCollapsed)}
+              @toggle-focus-mode=${() => this.toggleFocusMode()}
+              @toggle-top-toolbar=${() =>
+                (this.isTopToolbarCollapsed = !this.isTopToolbarCollapsed)}
+              @save-camera=${this.handleSaveCamera}
+              @import-json=${this.handleImportJsonClick}
+              @export-json=${this.handleExportJson}
+              @save-floorplan=${this.handleSaveFloorplan}
+            ></floorplan-editor-toolbar>
+          `
+        : ''}
 
       ${isMobile ? this.renderMobileLayout(activeFloor, selectedRoomAreaId, floorBelow) : this.renderDesktopLayout(activeFloor, selectedRoomAreaId, floorBelow)}
 
@@ -1114,20 +1306,61 @@ export class FloorplanEditorPanel extends LitElement {
     selectedRoomAreaId: string | null,
     floorBelow: FloorLevel | null
   ) {
+    const pane2dStyle =
+      this.viewLayout === 'split' ? `flex: ${this.splitRatio};` : 'flex: 1;';
+    const pane3dStyle =
+      this.viewLayout === 'split' ? `flex: ${1 - this.splitRatio};` : 'flex: 1;';
+
     return html`
       <div class="editor-body">
-        <!-- Left Dock: Entity & Catalog Palette -->
-        <floorplan-entity-palette
-          .hass=${this.hass}
-          .activeFloor=${activeFloor}
-          .selectedRoomAreaId=${selectedRoomAreaId}
-          @palette-place=${this.handlePalettePlace}
-        ></floorplan-entity-palette>
+        <!-- Left Dock: Entity & Catalog Palette (Collapsible) -->
+        ${!this.isLeftPaneCollapsed
+          ? html`
+              <floorplan-entity-palette
+                .hass=${this.hass}
+                .activeFloor=${activeFloor}
+                .selectedRoomAreaId=${selectedRoomAreaId}
+                @palette-place=${this.handlePalettePlace}
+                @collapse-pane=${() => (this.isLeftPaneCollapsed = true)}
+              ></floorplan-entity-palette>
+            `
+          : ''}
 
         <!-- Center Viewport: 2D CAD Canvas + Split/3D Live Preview -->
         <div class="center-viewport">
+          <!-- Floating Left Expand Tab when Left Palette is Collapsed -->
+          ${this.isLeftPaneCollapsed
+            ? html`
+                <button
+                  class="pane-expand-tab left"
+                  title="Expand Catalog & Entities ["
+                  aria-label="Expand left catalog panel"
+                  @click=${() => (this.isLeftPaneCollapsed = false)}
+                >
+                  ▶ Catalog [
+                </button>
+              `
+            : ''}
+
+          <!-- Floating Right Expand Tab when Right Inspector is Collapsed -->
+          ${this.isRightPaneCollapsed
+            ? html`
+                <button
+                  class="pane-expand-tab right"
+                  title="Expand Property Inspector ]"
+                  aria-label="Expand right property inspector"
+                  @click=${() => (this.isRightPaneCollapsed = false)}
+                >
+                  ◀ Inspector ]
+                </button>
+              `
+            : ''}
+
           <!-- 2D Viewport Pane -->
-          <div class="viewport-pane ${this.viewLayout === '3d' ? 'hidden' : ''}">
+          <div
+            class="viewport-pane ${this.viewLayout === '3d' ? 'hidden' : ''}"
+            style=${pane2dStyle}
+          >
             <floorplan-canvas-2d
               .document=${this.currentDocument}
               .floor=${activeFloor ?? null}
@@ -1145,28 +1378,134 @@ export class FloorplanEditorPanel extends LitElement {
               @open-blueprint-modal=${() => (this.isBlueprintModalOpen = true)}
               @palette-place=${this.handlePalettePlace}
             ></floorplan-canvas-2d>
+
+            <!-- Floating 2D Pane Quick Controls (Top-Right) -->
+            <div class="viewport-floating-bar">
+              ${this.isTopToolbarCollapsed
+                ? html`
+                    <button
+                      class="floating-chip-btn"
+                      title="Toggle Home Assistant Sidebar"
+                      @click=${() =>
+                        this.dispatchEvent(
+                          new CustomEvent('hass-toggle-menu', {
+                            bubbles: true,
+                            composed: true
+                          })
+                        )}
+                    >
+                      ☰
+                    </button>
+                    <button
+                      class="floating-chip-btn"
+                      title="Show Top Toolbar"
+                      @click=${() => (this.isTopToolbarCollapsed = false)}
+                    >
+                      ▼ Toolbar
+                    </button>
+                  `
+                : ''}
+              <button
+                class="floating-chip-btn ${this.viewLayout === 'split' ? 'active' : ''}"
+                title="Toggle 3D Split Preview"
+                @click=${() =>
+                  (this.viewLayout = this.viewLayout === 'split' ? '2d' : 'split')}
+              >
+                ◫ 3D Split
+              </button>
+              <button
+                class="floating-chip-btn ${this.isFocusMode ? 'active' : ''}"
+                title="Focus Mode: Hide Sidebars & Maximize Canvas [F]"
+                @click=${() => this.toggleFocusMode()}
+              >
+                ${this.isFocusMode ? '🗗 Restore [F]' : '⛶ Focus [F]'}
+              </button>
+            </div>
           </div>
 
           ${this.viewLayout === 'split'
-            ? html`<div class="viewport-divider"></div>`
+            ? html`
+                <div
+                  class="viewport-divider"
+                  title="Drag to resize 2D/3D split (Double-click to hide 3D)"
+                  @pointerdown=${this.startSplitResize}
+                  @dblclick=${() => (this.viewLayout = '2d')}
+                ></div>
+              `
             : ''}
 
           <!-- 3D Preview Pane -->
-          <div class="viewport-pane ${this.viewLayout === '2d' ? 'hidden' : ''}">
+          <div
+            class="viewport-pane ${this.viewLayout === '2d' ? 'hidden' : ''}"
+            style=${pane3dStyle}
+          >
             <div class="scene-3d-container" id="scene-3d-root"></div>
+
+            <!-- Floating 3D Pane Quick Controls (Top-Right) -->
+            <div class="viewport-floating-bar">
+              ${this.isTopToolbarCollapsed && this.viewLayout === '3d'
+                ? html`
+                    <button
+                      class="floating-chip-btn"
+                      title="Show Top Toolbar"
+                      @click=${() => (this.isTopToolbarCollapsed = false)}
+                    >
+                      ▼ Toolbar
+                    </button>
+                  `
+                : ''}
+              ${this.viewLayout === 'split'
+                ? html`
+                    <button
+                      class="floating-chip-btn"
+                      title="Maximize 3D Preview"
+                      @click=${() => (this.viewLayout = '3d')}
+                    >
+                      ⛶ Full 3D
+                    </button>
+                    <button
+                      class="floating-chip-btn"
+                      title="Collapse 3D Preview Pane"
+                      @click=${() => (this.viewLayout = '2d')}
+                    >
+                      ✕ Hide 3D
+                    </button>
+                  `
+                : html`
+                    <button
+                      class="floating-chip-btn"
+                      title="Return to Split 2D + 3D View"
+                      @click=${() => (this.viewLayout = 'split')}
+                    >
+                      ◫ Split 2D+3D
+                    </button>
+                    <button
+                      class="floating-chip-btn"
+                      title="Switch to 2D Canvas Only"
+                      @click=${() => (this.viewLayout = '2d')}
+                    >
+                      2D Only
+                    </button>
+                  `}
+            </div>
           </div>
         </div>
 
-        <!-- Right Dock: Context-Sensitive Property Inspector -->
-        <floorplan-property-inspector
-          .hass=${this.hass}
-          .document=${this.currentDocument}
-          .floor=${activeFloor}
-          .selection=${this.selection}
-          @document-mutate=${this.handleDocumentMutate}
-          @delete-selected=${() => this.deleteSelection()}
-          @open-blueprint-modal=${() => (this.isBlueprintModalOpen = true)}
-        ></floorplan-property-inspector>
+        <!-- Right Dock: Context-Sensitive Property Inspector (Collapsible) -->
+        ${!this.isRightPaneCollapsed
+          ? html`
+              <floorplan-property-inspector
+                .hass=${this.hass}
+                .document=${this.currentDocument}
+                .floor=${activeFloor}
+                .selection=${this.selection}
+                @document-mutate=${this.handleDocumentMutate}
+                @delete-selected=${() => this.deleteSelection()}
+                @open-blueprint-modal=${() => (this.isBlueprintModalOpen = true)}
+                @collapse-pane=${() => (this.isRightPaneCollapsed = true)}
+              ></floorplan-property-inspector>
+            `
+          : ''}
       </div>
     `;
   }

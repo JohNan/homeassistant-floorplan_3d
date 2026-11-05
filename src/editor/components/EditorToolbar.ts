@@ -22,6 +22,9 @@ export class EditorToolbar extends LitElement {
   @property({ type: Boolean }) public isDirty = false;
   @property({ type: Boolean }) public onionSkin = false;
   @property({ type: Boolean, reflect: true }) public narrow = false;
+  @property({ type: Boolean }) public leftPaneCollapsed = false;
+  @property({ type: Boolean }) public rightPaneCollapsed = false;
+  @property({ type: Boolean }) public focusMode = false;
 
   @state() private isMoreMenuOpen = false;
 
@@ -793,31 +796,52 @@ export class EditorToolbar extends LitElement {
 
       <div class="separator"></div>
 
-      <!-- 6. View Layout Mode & Camera Bookmark -->
+      <!-- 6. View Layout Mode, Pane Toggles & Camera Bookmark -->
       <div class="toolbar-section">
         <div class="btn-group">
+          <button
+            class=${!this.leftPaneCollapsed ? 'active' : ''}
+            title="Toggle Left Catalog & Entities Panel ["
+            @click=${() => this.dispatchEvent(new CustomEvent('toggle-left-pane', { bubbles: true, composed: true }))}
+          >
+            ◧ Catalog
+          </button>
           <button
             class=${this.viewLayout === '2d' ? 'active' : ''}
             title="2D CAD Viewport Only"
             @click=${() => this.handleLayoutSelect('2d')}
           >
-            2D Only
+            2D
           </button>
           <button
             class=${this.viewLayout === 'split' ? 'active' : ''}
             title="Split 2D Viewport + 3D Live Preview"
             @click=${() => this.handleLayoutSelect('split')}
           >
-            Split 2D + 3D
+            2D+3D
           </button>
           <button
             class=${this.viewLayout === '3d' ? 'active' : ''}
             title="3D Preview Only"
             @click=${() => this.handleLayoutSelect('3d')}
           >
-            3D Preview
+            3D
+          </button>
+          <button
+            class=${!this.rightPaneCollapsed ? 'active' : ''}
+            title="Toggle Right Property Inspector ]"
+            @click=${() => this.dispatchEvent(new CustomEvent('toggle-right-pane', { bubbles: true, composed: true }))}
+          >
+            ◨ Inspector
           </button>
         </div>
+        <button
+          class=${this.focusMode ? 'active' : ''}
+          title="Focus Mode: Hide All Sidebars & Maximize Canvas [F]"
+          @click=${() => this.dispatchEvent(new CustomEvent('toggle-focus-mode', { bubbles: true, composed: true }))}
+        >
+          ⛶ Focus
+        </button>
         ${this.viewLayout !== '2d'
           ? html`
               <button
@@ -838,13 +862,13 @@ export class EditorToolbar extends LitElement {
           title="Import Floorplan JSON"
           @click=${() => this.dispatchEvent(new CustomEvent('import-json', { bubbles: true, composed: true }))}
         >
-          Import JSON
+          Import
         </button>
         <button
           title="Export Floorplan JSON"
           @click=${() => this.dispatchEvent(new CustomEvent('export-json', { bubbles: true, composed: true }))}
         >
-          Export JSON
+          Export
         </button>
 
         <div class="dirty-pill ${this.isDirty ? 'unsaved' : 'saved'}">
@@ -858,6 +882,13 @@ export class EditorToolbar extends LitElement {
           @click=${() => this.dispatchEvent(new CustomEvent('save-floorplan', { bubbles: true, composed: true }))}
         >
           Save
+        </button>
+        <button
+          title="Collapse Top Toolbar"
+          aria-label="Collapse top toolbar"
+          @click=${() => this.dispatchEvent(new CustomEvent('toggle-top-toolbar', { bubbles: true, composed: true }))}
+        >
+          ▲
         </button>
       </div>
     `;
