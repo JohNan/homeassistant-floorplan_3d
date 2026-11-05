@@ -17,8 +17,10 @@ import {
   distance2D,
   findPolygonLabelCenter2D,
   midpoint2D,
+  pointInPolygon2D,
   polygonArea2D,
   projectPointOntoSegment,
+  segmentIntersection2D,
   snapPoint2D,
   solveWallMiterFootprints,
   splitWallIntervalsForOpenings,
@@ -149,6 +151,19 @@ export class FloorplanCanvas2D extends LitElement {
       width: 100%;
       height: 100%;
       overflow: hidden;
+      touch-action: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .konva-mount *,
+    .konva-mount .konvajs-content,
+    .konva-mount canvas {
+      touch-action: none !important;
+      -webkit-touch-callout: none !important;
+      -webkit-user-select: none !important;
+      user-select: none !important;
     }
 
     .hud-overlay {
@@ -202,8 +217,8 @@ export class FloorplanCanvas2D extends LitElement {
 
     .hud-tool-badge {
       position: absolute;
-      top: 1rem;
-      left: 1rem;
+      top: 0.75rem;
+      left: 0.75rem;
       background: var(--card-background-color, rgba(15, 23, 42, 0.9));
       color: var(--primary-color, #38bdf8);
       backdrop-filter: blur(4px);
@@ -221,16 +236,17 @@ export class FloorplanCanvas2D extends LitElement {
 
     .touch-action-bar {
       position: absolute;
-      top: 1rem;
+      top: 3.1rem;
       left: 50%;
       transform: translateX(-50%);
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
       gap: 0.5rem;
-      z-index: 10;
+      z-index: 30;
       pointer-events: auto;
-      max-width: 90vw;
+      max-width: 94vw;
+      width: max-content;
     }
 
     .touch-pill {
@@ -369,7 +385,6 @@ export class FloorplanCanvas2D extends LitElement {
   private isSpacePressed = false;
   private isShiftPressed = false;
   private isPanningStage = false;
-  private wallDrawDownHandled = false;
   private currentSnapResult: {
     point: Point2D;
     snappedNodeId: string | null;
@@ -378,12 +393,40 @@ export class FloorplanCanvas2D extends LitElement {
   private panStartClient: Point2D = { x: 0, y: 0 };
   private panStartWorld: Point2D = { x: 0, y: 0 };
 
+  // Unified mobile & desktop wall drawing gesture state
+  private isDrawingWallPress = false;
+  private wallPressDownScreen: Point2D = { x: 0, y: 0 };
+  private wallPressDownSnap: {
+    point: Point2D;
+    snappedNodeId: string | null;
+    snappedWallId: string | null;
+  } | null = null;
+  private wallChainExistedBeforePress = false;
+  private wallChainBeforePress: {
+    point: Point2D;
+    nodeId: string | null;
+    wallId: string | null;
+  } | null = null;
+  private isDraggingWallSegment = false;
+  private isDrawingOtherToolPress = false;
+  private otherToolPressDownScreen: Point2D = { x: 0, y: 0 };
+
+  // Stage-level select & drag state (prevents Konva DD destroy crashes during live scene rebuilds)
+  private activeSelectDrag: {
+    kind: 'node' | 'wall' | 'opening' | 'furniture' | 'entity';
+    id: string;
+    startScreen: Point2D;
+    startWorld: Point2D;
+    hasMoved: boolean;
+  } | null = null;
+
   // Multi-touch pinch state
   private activeTouchPoints = new Map<number, Point2D>();
   private pinchInitialDistance = 0;
   private pinchInitialScale = 60;
   private pinchInitialPan: Point2D = { x: 0, y: 0 };
   private pinchInitialMidScreen: Point2D = { x: 0, y: 0 };
+  private wasMultiTouchGesture = false;
 
   connectedCallback(): void {
     super.connectedCallback();
@@ -497,6 +540,28 @@ export class FloorplanCanvas2D extends LitElement {
     this.stage.add(this.sceneLayer);
     this.stage.add(this.overlayLayer);
 
+    // Enforce touch-action: none on Konva's internal wrapper div & canvases so mobile browsers never cancel touch drags
+    const contentEl = this.stage.getContent();
+    if (contentEl) {
+      contentEl.style.touchAction = 'none';
+    }
+
+    // Prevent native mobile browser scroll/zoom/back-swipe takeover on touchstart/touchmove
+    this.konvaMountEl.addEventListener(
+      'touchstart',
+      (ev) => {
+        if (ev.cancelable) ev.preventDefault();
+      },
+      { passive: false }
+    );
+    this.konvaMountEl.addEventListener(
+      'touchmove',
+      (ev) => {
+        if (ev.cancelable) ev.preventDefault();
+      },
+      { passive: false }
+    );
+
     // Stage Wheel Zoom (zooms toward cursor)
     this.stage.on('wheel', (e) => {
       e.evt.preventDefault();
@@ -528,80 +593,6 @@ export class FloorplanCanvas2D extends LitElement {
       }
     });
 
-    // Unified Stage Pointer Down / Move / Up for background pan & drawing tools
-    this.stage.on('pointerdown', (e) => {
-      const evt = e.evt as PointerEvent;
-      const pointer = this.stage?.getPointerPosition();
-      if (!pointer) return;
-
-      // Right-click during wall/room drawing finishes the active chain immediately
-      if (evt.button === 2 && this.toolMode !== 'select') {
-        if (this.toolMode === 'draw_room' && this.roomChainPoints.length >= 3) {
-          this.commitRoomPolygon();
-        } else {
-          this.cancelActiveToolChain();
-        }
-        return;
-      }
-
-      // Middle click, right click, Spacebar+drag, or dragging empty stage in 'select' mode pans viewport
-      const isMiddleOrRight = evt.button === 1 || evt.button === 2;
-      const clickedOnEmptyStage = e.target === this.stage;
-
-      if (isMiddleOrRight || this.isSpacePressed || (this.toolMode === 'select' && clickedOnEmptyStage)) {
-        this.isPanningStage = true;
-        this.panStartClient = { x: pointer.x, y: pointer.y };
-        this.panStartWorld = { x: this.panX, y: this.panY };
-        if (clickedOnEmptyStage && this.toolMode === 'select' && !this.isSpacePressed && !isMiddleOrRight) {
-          this.emitSelectionChange({ kind: 'none', id: null });
-        }
-        return;
-      }
-
-      if (this.toolMode !== 'select') {
-        const worldPt = this.screenToWorld(pointer.x, pointer.y);
-        this.updateCursorAndSnap(worldPt);
-        this.handleDrawingToolClick();
-      }
-    });
-
-    this.stage.on('pointermove', () => {
-      const pointer = this.stage?.getPointerPosition();
-      if (!pointer) return;
-
-      if (this.isPanningStage && this.activeTouchPoints.size < 2) {
-        const dx = pointer.x - this.panStartClient.x;
-        const dy = pointer.y - this.panStartClient.y;
-        this.panX = this.panStartWorld.x - dx / this.pixelsPerMeter;
-        this.panY = this.panStartWorld.y - dy / this.pixelsPerMeter;
-        this.syncKonvaViewport();
-        return;
-      }
-
-      const worldPt = this.screenToWorld(pointer.x, pointer.y);
-      this.updateCursorAndSnap(worldPt);
-      this.rebuildOverlayLayer();
-    });
-
-    this.stage.on('pointerup', () => {
-      this.isPanningStage = false;
-      const pointer = this.stage?.getPointerPosition();
-      if (
-        pointer &&
-        this.toolMode === 'draw_wall' &&
-        this.wallChainStart &&
-        this.wallDrawDownHandled
-      ) {
-        const worldPt = this.screenToWorld(pointer.x, pointer.y);
-        this.updateCursorAndSnap(worldPt);
-        // Support Click-Drag-Release wall drawing if user dragged >= 0.25m from start point
-        if (distance2D(this.currentSnapResult.point, this.wallChainStart.point) >= 0.25) {
-          this.commitWallSegment(this.currentSnapResult);
-        }
-      }
-      this.wallDrawDownHandled = false;
-    });
-
     this.stage.on('dblclick dbltap', () => {
       if (this.toolMode === 'draw_wall' && this.wallChainStart) {
         this.wallChainStart = null;
@@ -611,11 +602,11 @@ export class FloorplanCanvas2D extends LitElement {
       }
     });
 
-    // Multi-touch pinch-zoom support on mount container
+    // Unified Pointer Events on mount container for reliable mobile touch & desktop mouse handling
     this.konvaMountEl.addEventListener('pointerdown', this.onMountPointerDown);
     this.konvaMountEl.addEventListener('pointermove', this.onMountPointerMove);
     this.konvaMountEl.addEventListener('pointerup', this.onMountPointerUp);
-    this.konvaMountEl.addEventListener('pointercancel', this.onMountPointerUp);
+    this.konvaMountEl.addEventListener('pointercancel', this.onMountPointerCancel);
   }
 
   public worldToScreen(pt: Point2D): Point2D {
@@ -712,7 +703,7 @@ export class FloorplanCanvas2D extends LitElement {
    * and its incident walls so it never self-snaps) and auto-synchronizes room polygons.
    */
   public moveNodeTo(nodeId: string, rawWorldPt: Point2D, commit = true): void {
-    const baseFloor = this.activeFloorDraft ?? this.floor;
+    const baseFloor = this.floor;
     if (!baseFloor) return;
 
     const nextFloor: FloorLevel = structuredClone(baseFloor);
@@ -724,7 +715,7 @@ export class FloorplanCanvas2D extends LitElement {
       snapToGrid: this.snapToGrid,
       nodes: nextFloor.nodes,
       walls: nextFloor.walls,
-      nodeSnapRadius: 0.25,
+      nodeSnapRadius: Math.min(0.6, Math.max(0.25, 22 / Math.max(15, this.pixelsPerMeter))),
       excludeNodeIds: new Set([nodeId])
     });
 
@@ -810,6 +801,163 @@ export class FloorplanCanvas2D extends LitElement {
       this.activeFloorDraft = nextFloor;
       this.rebuildSceneLayer();
     }
+  }
+
+  private moveOpeningTo(openingId: string, rawWorldPt: Point2D, commit = true): void {
+    const baseFloor = this.floor;
+    if (!baseFloor) return;
+    const nextFloor: FloorLevel = structuredClone(baseFloor);
+    const targetOp = nextFloor.openings.find((o) => o.id === openingId);
+    if (!targetOp) return;
+    const wall = nextFloor.walls.find((w) => w.id === targetOp.wall_id);
+    if (!wall) return;
+    const start = nextFloor.nodes.find((n) => n.id === wall.start_node_id);
+    const end = nextFloor.nodes.find((n) => n.id === wall.end_node_id);
+    if (!start || !end) return;
+
+    const proj = projectPointOntoSegment(rawWorldPt, start, end);
+    targetOp.t = Number(Math.max(0.05, Math.min(0.95, proj.t)).toFixed(4));
+
+    if (commit) {
+      this.activeFloorDraft = null;
+      this.emitFloorChange(nextFloor, 'Move wall opening');
+    } else {
+      this.activeFloorDraft = nextFloor;
+      this.rebuildSceneLayer();
+    }
+  }
+
+  private moveFurnitureTo(furnitureId: string, rawWorldPt: Point2D, commit = true): void {
+    const baseFloor = this.floor;
+    if (!baseFloor) return;
+    const nextFloor: FloorLevel = structuredClone(baseFloor);
+    const target = nextFloor.furniture.find((f) => f.id === furnitureId);
+    if (!target) return;
+    const snapped = snapPoint2D(rawWorldPt, {
+      gridSize: this.gridSize,
+      snapToGrid: this.snapToGrid
+    });
+    target.x = Number(snapped.point.x.toFixed(3));
+    target.y = Number(snapped.point.y.toFixed(3));
+
+    if (commit) {
+      this.activeFloorDraft = null;
+      this.emitFloorChange(nextFloor, 'Move furniture');
+    } else {
+      this.activeFloorDraft = nextFloor;
+      this.rebuildSceneLayer();
+    }
+  }
+
+  private moveEntityTo(entityId: string, rawWorldPt: Point2D, commit = true): void {
+    const baseFloor = this.floor;
+    if (!baseFloor) return;
+    const nextFloor: FloorLevel = structuredClone(baseFloor);
+    const target = nextFloor.entities.find((en) => en.id === entityId);
+    if (!target) return;
+    const snapped = snapPoint2D(rawWorldPt, {
+      gridSize: this.gridSize,
+      snapToGrid: this.snapToGrid
+    });
+    target.x = Number(snapped.point.x.toFixed(3));
+    target.y = Number(snapped.point.y.toFixed(3));
+
+    if (commit) {
+      this.activeFloorDraft = null;
+      this.emitFloorChange(nextFloor, 'Move entity');
+    } else {
+      this.activeFloorDraft = nextFloor;
+      this.rebuildSceneLayer();
+    }
+  }
+
+  /**
+   * Hit-tests scene items in metric world space using screen-adaptive touch tolerances
+   * so mobile fingers reliably select and drag nodes, entities, openings, furniture, walls, and rooms.
+   */
+  private hitTestSceneItem(worldPt: Point2D): EditorSelection {
+    const floor = this.activeFloorDraft ?? this.floor;
+    if (!floor) return { kind: 'none', id: null };
+
+    const invScale = 1 / Math.max(15, this.pixelsPerMeter);
+    const nodeHitRadius = Math.max(0.32, 22 * invScale);
+    const entityHitRadius = Math.max(0.32, 20 * invScale);
+    const openingHitRadius = Math.max(0.35, 22 * invScale);
+    const wallHitRadius = Math.max(0.25, 20 * invScale);
+
+    // 1. Wall Anchor Nodes (highest priority so corners are always easy to grab)
+    let bestNode: { id: string; dist: number } | null = null;
+    for (const node of floor.nodes) {
+      const d = distance2D(worldPt, node);
+      if (d <= nodeHitRadius && (!bestNode || d < bestNode.dist)) {
+        bestNode = { id: node.id, dist: d };
+      }
+    }
+    if (bestNode) return { kind: 'node', id: bestNode.id };
+
+    // 2. Smart Home Entity Badges
+    let bestEntity: { id: string; dist: number } | null = null;
+    for (const ent of floor.entities) {
+      const d = distance2D(worldPt, ent);
+      if (d <= entityHitRadius && (!bestEntity || d < bestEntity.dist)) {
+        bestEntity = { id: ent.id, dist: d };
+      }
+    }
+    if (bestEntity) return { kind: 'entity', id: bestEntity.id };
+
+    // 3. Wall Openings (Doors / Windows)
+    const nodeMap = new Map(floor.nodes.map((n) => [n.id, n]));
+    const wallMap = new Map(floor.walls.map((w) => [w.id, w]));
+    for (const op of floor.openings) {
+      const w = wallMap.get(op.wall_id);
+      if (!w) continue;
+      const a = nodeMap.get(w.start_node_id);
+      const b = nodeMap.get(w.end_node_id);
+      if (!a || !b) continue;
+      const cx = a.x + (b.x - a.x) * op.t;
+      const cy = a.y + (b.y - a.y) * op.t;
+      if (distance2D(worldPt, { x: cx, y: cy }) <= Math.max(openingHitRadius, op.width / 2)) {
+        return { kind: 'opening', id: op.id };
+      }
+    }
+
+    // 4. Furniture Items (rotated bounding box)
+    for (let i = floor.furniture.length - 1; i >= 0; i--) {
+      const item = floor.furniture[i];
+      const dx = worldPt.x - item.x;
+      const dy = worldPt.y - item.y;
+      const rad = (-item.rotation_deg * Math.PI) / 180;
+      const lx = dx * Math.cos(rad) - dy * Math.sin(rad);
+      const ly = dx * Math.sin(rad) + dy * Math.cos(rad);
+      const pad = 6 * invScale;
+      if (Math.abs(lx) <= item.width / 2 + pad && Math.abs(ly) <= item.depth / 2 + pad) {
+        return { kind: 'furniture', id: item.id };
+      }
+    }
+
+    // 5. Wall Edges
+    let bestWall: { id: string; dist: number } | null = null;
+    for (const wall of floor.walls) {
+      const a = nodeMap.get(wall.start_node_id);
+      const b = nodeMap.get(wall.end_node_id);
+      if (!a || !b) continue;
+      const proj = projectPointOntoSegment(worldPt, a, b);
+      const tol = Math.max(wallHitRadius, wall.thickness / 2 + 0.12);
+      if (proj.distance <= tol && (!bestWall || proj.distance < bestWall.dist)) {
+        bestWall = { id: wall.id, dist: proj.distance };
+      }
+    }
+    if (bestWall) return { kind: 'wall', id: bestWall.id };
+
+    // 6. Room Polygons
+    for (let i = floor.rooms.length - 1; i >= 0; i--) {
+      const room = floor.rooms[i];
+      if (room.points.length >= 3 && pointInPolygon2D(worldPt, room.points)) {
+        return { kind: 'room', id: room.id };
+      }
+    }
+
+    return { kind: 'none', id: null };
   }
 
   // ============================================================================
@@ -1048,7 +1196,6 @@ export class FloorplanCanvas2D extends LitElement {
       const wallGroup = new Konva.Group({
         id: wall.id,
         name: 'wall-group',
-        draggable: this.toolMode === 'select',
         listening: this.toolMode === 'select'
       });
 
@@ -1117,33 +1264,6 @@ export class FloorplanCanvas2D extends LitElement {
         this.emitSelectionChange({ kind: 'wall', id: wall.id });
       });
 
-      wallGroup.on('dragstart', (e) => {
-        e.cancelBubble = true;
-        this.emitSelectionChange({ kind: 'wall', id: wall.id });
-      });
-
-      wallGroup.on('dragmove', (e) => {
-        e.cancelBubble = true;
-        const dx = wallGroup.x();
-        const dy = wallGroup.y();
-        wallGroup.position({ x: 0, y: 0 });
-        this.moveWallByDelta(wall.id, dx, dy, false);
-      });
-
-      wallGroup.on('dragend', (e) => {
-        e.cancelBubble = true;
-        const dx = wallGroup.x();
-        const dy = wallGroup.y();
-        wallGroup.position({ x: 0, y: 0 });
-        if (this.activeFloorDraft) {
-          const committed = structuredClone(this.activeFloorDraft);
-          this.activeFloorDraft = null;
-          this.emitFloorChange(committed, 'Move wall');
-        } else if (Math.hypot(dx, dy) > 1e-4) {
-          this.moveWallByDelta(wall.id, dx, dy, true);
-        }
-      });
-
       this.sceneLayer.add(wallGroup);
     }
   }
@@ -1151,13 +1271,13 @@ export class FloorplanCanvas2D extends LitElement {
   private addWallNodeToLayer(node: WallNode, invScale: number): void {
     if (!this.sceneLayer) return;
     const isSelected = this.selection.kind === 'node' && this.selection.id === node.id;
+    const isDrawWallMode = this.toolMode === 'draw_wall';
 
     const nodeGroup = new Konva.Group({
       id: node.id,
       name: 'wall-node',
       x: node.x,
       y: node.y,
-      draggable: this.toolMode === 'select',
       listening: this.toolMode === 'select'
     });
 
@@ -1171,14 +1291,14 @@ export class FloorplanCanvas2D extends LitElement {
       })
     );
 
-    if (isSelected) {
+    if (isSelected || isDrawWallMode) {
       nodeGroup.add(
         new Konva.Circle({
           x: 0,
           y: 0,
-          radius: 10 * invScale,
-          fill: 'rgba(56, 189, 248, 0.25)',
-          stroke: '#38bdf8',
+          radius: (isSelected ? 10 : 8) * invScale,
+          fill: isSelected ? 'rgba(56, 189, 248, 0.25)' : 'rgba(16, 185, 129, 0.18)',
+          stroke: isSelected ? '#38bdf8' : '#10b981',
           strokeWidth: 1.5,
           strokeScaleEnabled: false,
           listening: false
@@ -1191,7 +1311,7 @@ export class FloorplanCanvas2D extends LitElement {
         x: 0,
         y: 0,
         radius: (isSelected ? 6 : 5) * invScale,
-        fill: isSelected ? '#38bdf8' : '#f8fafc',
+        fill: isSelected ? '#38bdf8' : isDrawWallMode ? '#10b981' : '#f8fafc',
         stroke: '#0f172a',
         strokeWidth: 2,
         strokeScaleEnabled: false,
@@ -1203,23 +1323,6 @@ export class FloorplanCanvas2D extends LitElement {
       if (this.toolMode !== 'select') return;
       e.cancelBubble = true;
       this.emitSelectionChange({ kind: 'node', id: node.id });
-    });
-
-    nodeGroup.on('dragstart', (e) => {
-      e.cancelBubble = true;
-      this.emitSelectionChange({ kind: 'node', id: node.id });
-    });
-
-    nodeGroup.on('dragmove', (e) => {
-      e.cancelBubble = true;
-      const targetWorld = { x: nodeGroup.x(), y: nodeGroup.y() };
-      this.moveNodeTo(node.id, targetWorld, false);
-    });
-
-    nodeGroup.on('dragend', (e) => {
-      e.cancelBubble = true;
-      const targetWorld = { x: nodeGroup.x(), y: nodeGroup.y() };
-      this.moveNodeTo(node.id, targetWorld, true);
     });
 
     this.sceneLayer.add(nodeGroup);
@@ -1248,7 +1351,6 @@ export class FloorplanCanvas2D extends LitElement {
         x: cx,
         y: cy,
         rotation: angleDeg,
-        draggable: this.toolMode === 'select',
         listening: this.toolMode === 'select'
       });
 
@@ -1318,16 +1420,6 @@ export class FloorplanCanvas2D extends LitElement {
         this.emitSelectionChange({ kind: 'opening', id: op.id });
       });
 
-      opGroup.on('dragend', (e) => {
-        e.cancelBubble = true;
-        const nextFloor: FloorLevel = structuredClone(floor);
-        const targetOp = nextFloor.openings.find((o) => o.id === op.id);
-        if (!targetOp) return;
-        const proj = projectPointOntoSegment({ x: opGroup.x(), y: opGroup.y() }, start, end);
-        targetOp.t = Number(Math.max(0.05, Math.min(0.95, proj.t)).toFixed(4));
-        this.emitFloorChange(nextFloor, 'Move wall opening');
-      });
-
       this.sceneLayer.add(opGroup);
     }
   }
@@ -1342,7 +1434,6 @@ export class FloorplanCanvas2D extends LitElement {
       x: item.x,
       y: item.y,
       rotation: item.rotation_deg,
-      draggable: this.toolMode === 'select',
       listening: this.toolMode === 'select'
     });
 
@@ -1380,21 +1471,6 @@ export class FloorplanCanvas2D extends LitElement {
       if (this.toolMode !== 'select') return;
       e.cancelBubble = true;
       this.emitSelectionChange({ kind: 'furniture', id: item.id });
-    });
-
-    group.on('dragend', (e) => {
-      e.cancelBubble = true;
-      if (!this.floor) return;
-      const nextFloor: FloorLevel = structuredClone(this.floor);
-      const target = nextFloor.furniture.find((f) => f.id === item.id);
-      if (!target) return;
-      const snapped = snapPoint2D(
-        { x: group.x(), y: group.y() },
-        { gridSize: this.gridSize, snapToGrid: this.snapToGrid }
-      );
-      target.x = Number(snapped.point.x.toFixed(3));
-      target.y = Number(snapped.point.y.toFixed(3));
-      this.emitFloorChange(nextFloor, 'Move furniture');
     });
 
     group.on('transformend', () => {
@@ -1439,7 +1515,6 @@ export class FloorplanCanvas2D extends LitElement {
       name: 'entity-item',
       x: entity.x,
       y: entity.y,
-      draggable: this.toolMode === 'select',
       listening: this.toolMode === 'select'
     });
 
@@ -1485,21 +1560,6 @@ export class FloorplanCanvas2D extends LitElement {
       if (this.toolMode !== 'select') return;
       e.cancelBubble = true;
       this.emitSelectionChange({ kind: 'entity', id: entity.id });
-    });
-
-    group.on('dragend', (e) => {
-      e.cancelBubble = true;
-      if (!this.floor) return;
-      const nextFloor: FloorLevel = structuredClone(this.floor);
-      const target = nextFloor.entities.find((en) => en.id === entity.id);
-      if (!target) return;
-      const snapped = snapPoint2D(
-        { x: group.x(), y: group.y() },
-        { gridSize: this.gridSize, snapToGrid: this.snapToGrid }
-      );
-      target.x = Number(snapped.point.x.toFixed(3));
-      target.y = Number(snapped.point.y.toFixed(3));
-      this.emitFloorChange(nextFloor, 'Move entity');
     });
 
     this.sceneLayer.add(group);
@@ -1625,20 +1685,50 @@ export class FloorplanCanvas2D extends LitElement {
   }
 
   // ============================================================================
-  // Drawing Tools & Multi-Touch Handlers
+  // Drawing Tools & Unified Mobile/Desktop Pointer Handlers
   // ============================================================================
 
-  private updateCursorAndSnap(worldPt: Point2D): void {
-    this.cursorWorld = worldPt;
+  /**
+   * Screen-adaptive magnetic corner/endpoint snap radius in meters (~22px on screen, clamped to [0.32m, 0.65m]).
+   * Ensures fingers on mobile phone screens (24-35 px/m) reliably snap to existing corners & wall endpoints.
+   */
+  private getAdaptiveSnapRadiusWorld(): number {
+    return Math.min(0.65, Math.max(0.32, 22 / Math.max(15, this.pixelsPerMeter)));
+  }
+
+  /**
+   * Screen-adaptive magnetic wall-edge snap radius in meters (~14px on screen, clamped to [0.25m, 0.45m]).
+   * Tighter than 0D corner snap so parallel walls 0.6m+ away aren't sucked onto existing walls.
+   */
+  private getAdaptiveWallSnapRadiusWorld(): number {
+    return Math.min(0.45, Math.max(0.25, 14 / Math.max(15, this.pixelsPerMeter)));
+  }
+
+  /**
+   * Computes snapped world coordinates and magnetic node/wall attachment.
+   * When `forSegmentEnd === true` and `this.wallChainStart` is active, excludes the
+   * start node and its incident walls so dragging away from an existing corner/wall never self-snaps.
+   */
+  private computeSnapForPoint(
+    worldPt: Point2D,
+    forSegmentEnd: boolean
+  ): { point: Point2D; snappedNodeId: string | null; snappedWallId: string | null } {
     if (!this.floor) {
-      this.snappedCursorWorld = worldPt;
-      this.currentSnapResult = { point: worldPt, snappedNodeId: null, snappedWallId: null };
-      return;
+      return { point: worldPt, snappedNodeId: null, snappedWallId: null };
     }
 
     let anchorPoint: Point2D | undefined;
-    if (this.toolMode === 'draw_wall' && this.wallChainStart) {
+    const excludeNodeIds = new Set<string>();
+    let candidateWalls = this.floor.walls;
+
+    if (this.toolMode === 'draw_wall' && this.wallChainStart && forSegmentEnd) {
       anchorPoint = this.wallChainStart.point;
+      if (this.wallChainStart.nodeId) {
+        excludeNodeIds.add(this.wallChainStart.nodeId);
+      }
+      if (this.wallChainStart.wallId) {
+        candidateWalls = candidateWalls.filter((w) => w.id !== this.wallChainStart!.wallId);
+      }
     } else if (this.toolMode === 'draw_room' && this.roomChainPoints.length > 0) {
       anchorPoint = this.roomChainPoints[this.roomChainPoints.length - 1];
     }
@@ -1647,10 +1737,12 @@ export class FloorplanCanvas2D extends LitElement {
       gridSize: this.gridSize,
       snapToGrid: this.snapToGrid,
       nodes: this.floor.nodes,
-      walls: this.floor.walls,
-      nodeSnapRadius: 0.35,
+      walls: candidateWalls,
+      nodeSnapRadius: this.getAdaptiveSnapRadiusWorld(),
+      wallSnapRadius: this.getAdaptiveWallSnapRadiusWorld(),
       anchorPoint,
-      snapAngleDeg: this.isShiftPressed ? 45 : undefined
+      snapAngleDeg: this.isShiftPressed ? 45 : undefined,
+      excludeNodeIds: excludeNodeIds.size > 0 ? excludeNodeIds : undefined
     });
 
     // Soft orthogonal axis alignment when drawing walls without locking out diagonals or target nodes
@@ -1660,19 +1752,34 @@ export class FloorplanCanvas2D extends LitElement {
       !snap.snappedNodeId &&
       !snap.snappedWallId
     ) {
-      if (Math.abs(snap.point.x - anchorPoint.x) <= 0.12) {
+      const orthoTol = Math.min(0.25, Math.max(0.12, 10 / Math.max(15, this.pixelsPerMeter)));
+      if (Math.abs(snap.point.x - anchorPoint.x) <= orthoTol) {
         snap.point.x = anchorPoint.x;
-      } else if (Math.abs(snap.point.y - anchorPoint.y) <= 0.12) {
+      } else if (Math.abs(snap.point.y - anchorPoint.y) <= orthoTol) {
         snap.point.y = anchorPoint.y;
       }
     }
 
-    this.snappedCursorWorld = snap.point;
-    this.currentSnapResult = {
+    return {
       point: snap.point,
       snappedNodeId: snap.snappedNodeId,
       snappedWallId: snap.snappedWallId
     };
+  }
+
+  public updateCursorAndSnap(worldPt: Point2D): void {
+    this.cursorWorld = worldPt;
+    if (!this.floor) {
+      this.snappedCursorWorld = worldPt;
+      this.currentSnapResult = { point: worldPt, snappedNodeId: null, snappedWallId: null };
+      return;
+    }
+
+    const forSegmentEnd = Boolean(this.toolMode === 'draw_wall' && this.wallChainStart);
+    const snap = this.computeSnapForPoint(worldPt, forSegmentEnd);
+
+    this.snappedCursorWorld = snap.point;
+    this.currentSnapResult = snap;
 
     if (this.toolMode === 'add_opening') {
       this.openingPreview = this.findNearestWallProjection(worldPt);
@@ -1684,6 +1791,7 @@ export class FloorplanCanvas2D extends LitElement {
   private findNearestWallProjection(pt: Point2D): { wallId: string; t: number; point: Point2D } | null {
     if (!this.floor) return null;
     const nodeMap = new Map(this.floor.nodes.map((n) => [n.id, n]));
+    const maxDist = Math.max(0.6, 36 / Math.max(15, this.pixelsPerMeter));
     let best: { wallId: string; t: number; point: Point2D; dist: number } | null = null;
 
     for (const wall of this.floor.walls) {
@@ -1691,7 +1799,7 @@ export class FloorplanCanvas2D extends LitElement {
       const b = nodeMap.get(wall.end_node_id);
       if (!a || !b) continue;
       const proj = projectPointOntoSegment(pt, a, b);
-      if (proj.distance <= 0.6 && (!best || proj.distance < best.dist)) {
+      if (proj.distance <= maxDist && (!best || proj.distance < best.dist)) {
         best = {
           wallId: wall.id,
           t: Math.max(0.08, Math.min(0.92, proj.t)),
@@ -1703,7 +1811,7 @@ export class FloorplanCanvas2D extends LitElement {
     return best ? { wallId: best.wallId, t: best.t, point: best.point } : null;
   }
 
-  private handleDrawingToolClick(): void {
+  public handleDrawingToolClick(): void {
     if (!this.floor) return;
 
     if (this.toolMode === 'draw_wall') {
@@ -1730,9 +1838,11 @@ export class FloorplanCanvas2D extends LitElement {
       return snap.nodeId;
     }
 
+    const mergeTol = Math.min(0.35, Math.max(0.2, 14 / Math.max(15, this.pixelsPerMeter)));
+
     // Check if an existing node is already at this coordinate
     for (const existing of floor.nodes) {
-      if (distance2D(existing, snap.point) <= 0.2) {
+      if (distance2D(existing, snap.point) <= mergeTol) {
         return existing.id;
       }
     }
@@ -1755,7 +1865,9 @@ export class FloorplanCanvas2D extends LitElement {
         const b = nodeMap.get(w.end_node_id);
         if (!a || !b) continue;
         const proj = projectPointOntoSegment(newNode, a, b);
-        if (proj.distance <= 0.2 && proj.t > 0.03 && proj.t < 0.97) {
+        if (proj.distance <= mergeTol && proj.t > 0.03 && proj.t < 0.97) {
+          newNode.x = Number(proj.point.x.toFixed(4));
+          newNode.y = Number(proj.point.y.toFixed(4));
           targetWall = w;
           break;
         }
@@ -1773,7 +1885,7 @@ export class FloorplanCanvas2D extends LitElement {
         const w1 = {
           ...targetWall,
           id: floor.walls.some((w) => w.id === w1Id)
-            ? `wall_${Date.now().toString(36)}_a`
+            ? `wall_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 5)}_a`
             : w1Id,
           start_node_id: targetWall.start_node_id,
           end_node_id: newNodeId
@@ -1781,7 +1893,7 @@ export class FloorplanCanvas2D extends LitElement {
         const w2 = {
           ...targetWall,
           id: floor.walls.some((w) => w.id === w2Id)
-            ? `wall_${Date.now().toString(36)}_b`
+            ? `wall_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 5)}_b`
             : w2Id,
           start_node_id: newNodeId,
           end_node_id: targetWall.end_node_id
@@ -1791,7 +1903,11 @@ export class FloorplanCanvas2D extends LitElement {
         floor.openings = floor.openings.map((op) => {
           if (op.wall_id !== targetWall!.id) return op;
           if (op.t < splitT) {
-            return { ...op, wall_id: w1.id, t: Number(Math.max(0.08, Math.min(0.92, op.t / splitT)).toFixed(4)) };
+            return {
+              ...op,
+              wall_id: w1.id,
+              t: Number(Math.max(0.08, Math.min(0.92, op.t / splitT)).toFixed(4))
+            };
           }
           return {
             ...op,
@@ -1807,31 +1923,34 @@ export class FloorplanCanvas2D extends LitElement {
 
   private handleDrawWallStep(): void {
     if (!this.floor) return;
-    const snap = this.currentSnapResult;
 
     // Step 1: Start a new wall chain (no orphan node added until segment is completed)
     if (!this.wallChainStart) {
+      const startSnap = this.computeSnapForPoint(this.cursorWorld, false);
+      this.currentSnapResult = startSnap;
+      this.snappedCursorWorld = startSnap.point;
       this.wallChainStart = {
-        point: { ...snap.point },
-        nodeId: snap.snappedNodeId,
-        wallId: snap.snappedWallId
+        point: { ...startSnap.point },
+        nodeId: startSnap.snappedNodeId,
+        wallId: startSnap.snappedWallId
       };
-      this.wallDrawDownHandled = true;
       this.rebuildOverlayLayer();
       return;
     }
 
-    // Clicking the current start/end point again (or double-clicking) finishes the wall chain!
-    if (distance2D(snap.point, this.wallChainStart.point) < 0.08) {
+    // Clicking/tapping the current start/end point again finishes the wall chain!
+    const finishTol = this.getAdaptiveSnapRadiusWorld();
+    if (
+      distance2D(this.cursorWorld, this.wallChainStart.point) < finishTol &&
+      distance2D(this.currentSnapResult.point, this.wallChainStart.point) < finishTol
+    ) {
       this.wallChainStart = null;
-      this.wallDrawDownHandled = false;
       this.rebuildOverlayLayer();
       return;
     }
 
-    // Step 2: Commit wall segment from wallChainStart to snap
-    this.wallDrawDownHandled = false;
-    this.commitWallSegment(snap);
+    // Step 2: Commit wall segment from wallChainStart to currentSnapResult
+    this.commitWallSegment(this.currentSnapResult);
   }
 
   private commitWallSegment(snap: {
@@ -1855,24 +1974,68 @@ export class FloorplanCanvas2D extends LitElement {
       return;
     }
 
-    // Avoid duplicate wall between the same two nodes
-    const alreadyExists = nextFloor.walls.some(
-      (w) =>
-        (w.start_node_id === startNodeId && w.end_node_id === endNodeId) ||
-        (w.start_node_id === endNodeId && w.end_node_id === startNodeId)
-    );
+    const startNode = nextFloor.nodes.find((n) => n.id === startNodeId);
+    const endNode = nextFloor.nodes.find((n) => n.id === endNodeId);
+    if (!startNode || !endNode) return;
 
-    if (!alreadyExists) {
-      const wallId = `wall_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
-      nextFloor.walls.push({
-        id: wallId,
-        start_node_id: startNodeId,
-        end_node_id: endNodeId,
-        thickness: 0.15,
-        height_override: null,
-        is_exterior: false,
-        color_override: null
+    // Check for X-junction intersections with existing walls so crossing walls automatically planarize
+    const crossings: Array<{ t: number; point: Point2D; wallId: string }> = [];
+    const nodeMap = new Map(nextFloor.nodes.map((n) => [n.id, n]));
+    for (const existingWall of [...nextFloor.walls]) {
+      if (
+        existingWall.start_node_id === startNodeId ||
+        existingWall.end_node_id === startNodeId ||
+        existingWall.start_node_id === endNodeId ||
+        existingWall.end_node_id === endNodeId
+      ) {
+        continue;
+      }
+      const wa = nodeMap.get(existingWall.start_node_id);
+      const wb = nodeMap.get(existingWall.end_node_id);
+      if (!wa || !wb) continue;
+      const inter = segmentIntersection2D(startNode, endNode, wa, wb);
+      if (inter && inter.t > 0.03 && inter.t < 0.97 && inter.u > 0.03 && inter.u < 0.97) {
+        crossings.push({ t: inter.t, point: inter.point, wallId: existingWall.id });
+      }
+    }
+    crossings.sort((a, b) => a.t - b.t);
+
+    const chainNodeIds: string[] = [startNodeId];
+    for (const cross of crossings) {
+      const crossNodeId = this.resolveOrSplitWallNode(nextFloor, {
+        point: cross.point,
+        nodeId: null,
+        wallId: cross.wallId
       });
+      if (chainNodeIds[chainNodeIds.length - 1] !== crossNodeId) {
+        chainNodeIds.push(crossNodeId);
+      }
+    }
+    if (chainNodeIds[chainNodeIds.length - 1] !== endNodeId) {
+      chainNodeIds.push(endNodeId);
+    }
+
+    for (let i = 0; i < chainNodeIds.length - 1; i++) {
+      const aId = chainNodeIds[i];
+      const bId = chainNodeIds[i + 1];
+      if (aId === bId) continue;
+      const alreadyExists = nextFloor.walls.some(
+        (w) =>
+          (w.start_node_id === aId && w.end_node_id === bId) ||
+          (w.start_node_id === bId && w.end_node_id === aId)
+      );
+      if (!alreadyExists) {
+        const wallId = `wall_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}_${i}`;
+        nextFloor.walls.push({
+          id: wallId,
+          start_node_id: aId,
+          end_node_id: bId,
+          thickness: 0.15,
+          height_override: null,
+          is_exterior: false,
+          color_override: null
+        });
+      }
     }
 
     // Automatically detect closed wall loops and create/update rooms!
@@ -1880,20 +2043,32 @@ export class FloorplanCanvas2D extends LitElement {
 
     // If the user connected onto an existing node or split an existing wall, finish the chain cleanly;
     // otherwise continue chaining from the newly placed corner node
-    const connectedToExisting = Boolean(snap.snappedNodeId || snap.snappedWallId);
-    const endNode = nextFloor.nodes.find((n) => n.id === endNodeId);
-    this.wallChainStart =
-      connectedToExisting || !endNode
-        ? null
-        : { point: { x: endNode.x, y: endNode.y }, nodeId: endNode.id, wallId: null };
+    const connectedToExisting = Boolean(
+      snap.snappedNodeId || snap.snappedWallId || crossings.length > 0
+    );
+    const finalEndNode = nextFloor.nodes.find((n) => n.id === endNodeId);
+    if (connectedToExisting || !finalEndNode) {
+      this.wallChainStart = null;
+    } else {
+      this.wallChainStart = {
+        point: { x: finalEndNode.x, y: finalEndNode.y },
+        nodeId: finalEndNode.id,
+        wallId: null
+      };
+      this.snappedCursorWorld = { x: finalEndNode.x, y: finalEndNode.y };
+    }
 
     this.emitFloorChange(nextFloor, 'Draw wall');
     this.rebuildOverlayLayer();
   }
 
   private handleDrawRoomStep(): void {
-    const pt = { x: Number(this.snappedCursorWorld.x.toFixed(3)), y: Number(this.snappedCursorWorld.y.toFixed(3)) };
-    if (this.roomChainPoints.length >= 3 && distance2D(pt, this.roomChainPoints[0]) <= 0.3) {
+    const pt = {
+      x: Number(this.snappedCursorWorld.x.toFixed(3)),
+      y: Number(this.snappedCursorWorld.y.toFixed(3))
+    };
+    const closeTol = this.getAdaptiveSnapRadiusWorld();
+    if (this.roomChainPoints.length >= 3 && distance2D(pt, this.roomChainPoints[0]) <= closeTol) {
       this.commitRoomPolygon();
       return;
     }
@@ -1910,7 +2085,7 @@ export class FloorplanCanvas2D extends LitElement {
       name: `Room ${nextFloor.rooms.length + 1}`,
       ha_area_id: null,
       points: this.roomChainPoints.map((p) => {
-        const nearNode = nextFloor.nodes.find((n) => distance2D(n, p) <= 0.2);
+        const nearNode = nextFloor.nodes.find((n) => distance2D(n, p) <= 0.25);
         return nearNode ? { x: nearNode.x, y: nearNode.y, node_id: nearNode.id } : p;
       }),
       floor_material: 'wood_oak',
@@ -1981,17 +2156,34 @@ export class FloorplanCanvas2D extends LitElement {
 
   private cancelActiveToolChain(): void {
     this.wallChainStart = null;
-    this.wallDrawDownHandled = false;
+    this.isDrawingWallPress = false;
+    this.wallPressDownSnap = null;
+    this.wallChainBeforePress = null;
+    this.isDraggingWallSegment = false;
+    this.isDrawingOtherToolPress = false;
     this.roomChainPoints = [];
     this.calibrationStartPoint = null;
     this.openingPreview = null;
     this.rebuildOverlayLayer();
   }
 
+  private finishWallToolAndSelect(): void {
+    this.cancelActiveToolChain();
+    this.dispatchEvent(
+      new CustomEvent('tool-change', {
+        detail: { tool: 'select' as EditorToolMode },
+        bubbles: true,
+        composed: true
+      })
+    );
+  }
+
   private onKeyDown = (e: KeyboardEvent): void => {
     const path = e.composedPath();
     const inInput = path.some(
-      (el) => el instanceof HTMLElement && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')
+      (el) =>
+        el instanceof HTMLElement &&
+        (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')
     );
     if (inInput) return;
 
@@ -2018,48 +2210,401 @@ export class FloorplanCanvas2D extends LitElement {
     }
   };
 
-  // Multi-touch pinch-zoom handlers
-  private onMountPointerDown = (e: PointerEvent): void => {
-    if (e.pointerType !== 'touch') return;
-    this.activeTouchPoints.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (this.activeTouchPoints.size === 2) {
-      const pts = Array.from(this.activeTouchPoints.values());
-      this.pinchInitialDistance = Math.max(10, distance2D(pts[0], pts[1]));
-      this.pinchInitialScale = this.pixelsPerMeter;
-      this.pinchInitialPan = { x: this.panX, y: this.panY };
-      const rect = this.getBoundingClientRect();
-      this.pinchInitialMidScreen = {
-        x: (pts[0].x + pts[1].x) / 2 - rect.left,
-        y: (pts[0].y + pts[1].y) / 2 - rect.top
-      };
+  private getScreenPointFromEvent(e: PointerEvent): Point2D {
+    const rect = this.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) {
+      return { x: e.clientX, y: e.clientY };
     }
+    return {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    };
+  }
+
+  private isPointerOnTransformerAnchor(screenPt: Point2D): boolean {
+    if (!this.stage || !this.transformer || this.transformer.nodes().length === 0) {
+      return false;
+    }
+    const shape = this.stage.getIntersection(screenPt);
+    if (!shape) return false;
+    let cur: Konva.Node | null = shape;
+    while (cur) {
+      if (cur === this.transformer) return true;
+      cur = cur.getParent();
+    }
+    return false;
+  }
+
+  // Unified Mount Pointer Down / Move / Up / Cancel for Mobile Touch & Desktop Mouse
+  private onMountPointerDown = (e: PointerEvent): void => {
+    if (e.pointerType === 'touch') {
+      this.activeTouchPoints.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (this.activeTouchPoints.size >= 2) {
+        this.wasMultiTouchGesture = true;
+        this.isPanningStage = false;
+        this.activeSelectDrag = null;
+        if (this.isDrawingWallPress) {
+          this.isDrawingWallPress = false;
+          this.wallChainStart = this.wallChainExistedBeforePress ? this.wallChainBeforePress : null;
+          this.rebuildOverlayLayer();
+        }
+        this.isDrawingOtherToolPress = false;
+
+        if (this.activeTouchPoints.size === 2) {
+          const pts = Array.from(this.activeTouchPoints.values());
+          this.pinchInitialDistance = Math.max(10, distance2D(pts[0], pts[1]));
+          this.pinchInitialScale = this.pixelsPerMeter;
+          this.pinchInitialPan = { x: this.panX, y: this.panY };
+          const rect = this.getBoundingClientRect();
+          this.pinchInitialMidScreen = {
+            x: (pts[0].x + pts[1].x) / 2 - rect.left,
+            y: (pts[0].y + pts[1].y) / 2 - rect.top
+          };
+        }
+        return;
+      }
+      this.wasMultiTouchGesture = false;
+    }
+
+    const screenPt = this.getScreenPointFromEvent(e);
+    const worldPt = this.screenToWorld(screenPt.x, screenPt.y);
+
+    // Right-click during wall/room drawing finishes the active chain immediately
+    if (e.button === 2 && this.toolMode !== 'select') {
+      if (this.toolMode === 'draw_room' && this.roomChainPoints.length >= 3) {
+        this.commitRoomPolygon();
+      } else {
+        this.cancelActiveToolChain();
+      }
+      return;
+    }
+
+    const isMiddleOrRight = e.button === 1 || e.button === 2;
+    if (isMiddleOrRight || this.isSpacePressed) {
+      this.isPanningStage = true;
+      this.panStartClient = { ...screenPt };
+      this.panStartWorld = { x: this.panX, y: this.panY };
+      return;
+    }
+
+    // 1. SELECT MODE: Hit-test scene items for selection & drag, or pan empty canvas
+    if (this.toolMode === 'select') {
+      if (this.isPointerOnTransformerAnchor(screenPt)) {
+        return;
+      }
+
+      const hit = this.hitTestSceneItem(worldPt);
+      if (
+        hit.id &&
+        (hit.kind === 'node' ||
+          hit.kind === 'wall' ||
+          hit.kind === 'opening' ||
+          hit.kind === 'furniture' ||
+          hit.kind === 'entity')
+      ) {
+        this.emitSelectionChange(hit);
+        this.activeSelectDrag = {
+          kind: hit.kind,
+          id: hit.id,
+          startScreen: { ...screenPt },
+          startWorld: { ...worldPt },
+          hasMoved: false
+        };
+        try {
+          this.konvaMountEl?.setPointerCapture?.(e.pointerId);
+        } catch {
+          // ignore synthetic events
+        }
+        return;
+      }
+
+      // Hit room or empty canvas -> update selection and start background pan
+      this.emitSelectionChange(hit);
+      this.isPanningStage = true;
+      this.panStartClient = { ...screenPt };
+      this.panStartWorld = { x: this.panX, y: this.panY };
+      try {
+        this.konvaMountEl?.setPointerCapture?.(e.pointerId);
+      } catch {
+        // ignore synthetic events
+      }
+      return;
+    }
+
+    // 2. DRAW WALL MODE: Unified Tap-Tap & Touch-Drag-Release
+    if (this.toolMode === 'draw_wall') {
+      try {
+        this.konvaMountEl?.setPointerCapture?.(e.pointerId);
+      } catch {
+        // ignore synthetic events
+      }
+
+      const startSnap = this.computeSnapForPoint(worldPt, false);
+      this.cursorWorld = worldPt;
+      this.isDrawingWallPress = true;
+      this.wallPressDownScreen = { ...screenPt };
+      this.wallPressDownSnap = startSnap;
+      this.wallChainExistedBeforePress = Boolean(this.wallChainStart);
+      this.wallChainBeforePress = this.wallChainStart
+        ? {
+            point: { ...this.wallChainStart.point },
+            nodeId: this.wallChainStart.nodeId,
+            wallId: this.wallChainStart.wallId
+          }
+        : null;
+      this.isDraggingWallSegment = false;
+
+      if (!this.wallChainStart) {
+        this.wallChainStart = {
+          point: { ...startSnap.point },
+          nodeId: startSnap.snappedNodeId,
+          wallId: startSnap.snappedWallId
+        };
+        this.currentSnapResult = startSnap;
+        this.snappedCursorWorld = { ...startSnap.point };
+      } else {
+        const snapRad = this.getAdaptiveSnapRadiusWorld();
+        if (distance2D(startSnap.point, this.wallChainStart.point) <= snapRad) {
+          this.currentSnapResult = startSnap;
+          this.snappedCursorWorld = { ...this.wallChainStart.point };
+        } else {
+          const endSnap = this.computeSnapForPoint(worldPt, true);
+          this.currentSnapResult = endSnap;
+          this.snappedCursorWorld = { ...endSnap.point };
+        }
+      }
+      this.rebuildOverlayLayer();
+      return;
+    }
+
+    // 3. OTHER DRAWING TOOLS (draw_room, add_opening, measure)
+    try {
+      this.konvaMountEl?.setPointerCapture?.(e.pointerId);
+    } catch {
+      // ignore synthetic events
+    }
+    this.isDrawingOtherToolPress = true;
+    this.otherToolPressDownScreen = { ...screenPt };
+    this.updateCursorAndSnap(worldPt);
+    this.rebuildOverlayLayer();
   };
 
   private onMountPointerMove = (e: PointerEvent): void => {
-    if (!this.activeTouchPoints.has(e.pointerId)) return;
-    this.activeTouchPoints.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (this.activeTouchPoints.size === 2) {
-      const pts = Array.from(this.activeTouchPoints.values());
-      const dist = Math.max(10, distance2D(pts[0], pts[1]));
-      const ratio = dist / this.pinchInitialDistance;
-      this.pixelsPerMeter = Math.max(15, Math.min(300, this.pinchInitialScale * ratio));
+    if (e.pointerType === 'touch' && this.activeTouchPoints.has(e.pointerId)) {
+      this.activeTouchPoints.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (this.activeTouchPoints.size === 2) {
+        const pts = Array.from(this.activeTouchPoints.values());
+        const dist = Math.max(10, distance2D(pts[0], pts[1]));
+        const ratio = dist / this.pinchInitialDistance;
+        this.pixelsPerMeter = Math.max(15, Math.min(300, this.pinchInitialScale * ratio));
 
-      const rect = this.getBoundingClientRect();
-      const midScreen = {
-        x: (pts[0].x + pts[1].x) / 2 - rect.left,
-        y: (pts[0].y + pts[1].y) / 2 - rect.top
-      };
-      this.panX =
-        this.pinchInitialPan.x - (midScreen.x - this.pinchInitialMidScreen.x) / this.pixelsPerMeter;
-      this.panY =
-        this.pinchInitialPan.y - (midScreen.y - this.pinchInitialMidScreen.y) / this.pixelsPerMeter;
-      this.syncKonvaViewport();
-      this.rebuildSceneLayer();
+        const rect = this.getBoundingClientRect();
+        const midScreen = {
+          x: (pts[0].x + pts[1].x) / 2 - rect.left,
+          y: (pts[0].y + pts[1].y) / 2 - rect.top
+        };
+        this.panX =
+          this.pinchInitialPan.x - (midScreen.x - this.pinchInitialMidScreen.x) / this.pixelsPerMeter;
+        this.panY =
+          this.pinchInitialPan.y - (midScreen.y - this.pinchInitialMidScreen.y) / this.pixelsPerMeter;
+        this.syncKonvaViewport();
+        this.rebuildSceneLayer();
+        this.rebuildOverlayLayer();
+        return;
+      }
     }
+
+    if (this.wasMultiTouchGesture && this.activeTouchPoints.size > 0) {
+      return;
+    }
+
+    const screenPt = this.getScreenPointFromEvent(e);
+    const worldPt = this.screenToWorld(screenPt.x, screenPt.y);
+
+    // 1. Active Select-Mode Item Dragging
+    if (this.activeSelectDrag) {
+      if (
+        !this.activeSelectDrag.hasMoved &&
+        distance2D(screenPt, this.activeSelectDrag.startScreen) < 4
+      ) {
+        return;
+      }
+      this.activeSelectDrag.hasMoved = true;
+      const { kind, id, startWorld } = this.activeSelectDrag;
+      if (kind === 'node') {
+        this.moveNodeTo(id, worldPt, false);
+      } else if (kind === 'wall') {
+        this.moveWallByDelta(id, worldPt.x - startWorld.x, worldPt.y - startWorld.y, false);
+      } else if (kind === 'opening') {
+        this.moveOpeningTo(id, worldPt, false);
+      } else if (kind === 'furniture') {
+        this.moveFurnitureTo(id, worldPt, false);
+      } else if (kind === 'entity') {
+        this.moveEntityTo(id, worldPt, false);
+      }
+      return;
+    }
+
+    // 2. Active Viewport Panning
+    if (this.isPanningStage) {
+      const dx = screenPt.x - this.panStartClient.x;
+      const dy = screenPt.y - this.panStartClient.y;
+      this.panX = this.panStartWorld.x - dx / this.pixelsPerMeter;
+      this.panY = this.panStartWorld.y - dy / this.pixelsPerMeter;
+      this.syncKonvaViewport();
+      return;
+    }
+
+    // 3. Active Wall Drawing Drag
+    if (this.toolMode === 'draw_wall' && this.isDrawingWallPress && this.wallPressDownSnap) {
+      this.cursorWorld = worldPt;
+      const screenDragDist = distance2D(screenPt, this.wallPressDownScreen);
+      if (screenDragDist >= 10) {
+        this.isDraggingWallSegment = true;
+        // When dragging a wall, the segment starts where the finger pressed down
+        this.wallChainStart = {
+          point: { ...this.wallPressDownSnap.point },
+          nodeId: this.wallPressDownSnap.snappedNodeId,
+          wallId: this.wallPressDownSnap.snappedWallId
+        };
+      }
+      const endSnap = this.computeSnapForPoint(worldPt, true);
+      this.currentSnapResult = endSnap;
+      this.snappedCursorWorld = endSnap.point;
+      this.rebuildOverlayLayer();
+      return;
+    }
+
+    // 4. Default Cursor & Snap Update (Desktop Hover or Other Drawing Tools)
+    this.updateCursorAndSnap(worldPt);
+    this.rebuildOverlayLayer();
   };
 
   private onMountPointerUp = (e: PointerEvent): void => {
     this.activeTouchPoints.delete(e.pointerId);
+    try {
+      this.konvaMountEl?.releasePointerCapture?.(e.pointerId);
+    } catch {
+      // ignore
+    }
+
+    if (this.wasMultiTouchGesture) {
+      if (this.activeTouchPoints.size === 0) {
+        this.wasMultiTouchGesture = false;
+      }
+      this.isPanningStage = false;
+      this.activeSelectDrag = null;
+      this.isDrawingWallPress = false;
+      this.isDrawingOtherToolPress = false;
+      return;
+    }
+
+    const screenPt = this.getScreenPointFromEvent(e);
+    const worldPt = this.screenToWorld(screenPt.x, screenPt.y);
+
+    // 1. Finish Select-Mode Item Drag
+    if (this.activeSelectDrag) {
+      const drag = this.activeSelectDrag;
+      this.activeSelectDrag = null;
+      if (drag.hasMoved) {
+        if (drag.kind === 'node') {
+          this.moveNodeTo(drag.id, worldPt, true);
+        } else if (drag.kind === 'wall') {
+          this.moveWallByDelta(
+            drag.id,
+            worldPt.x - drag.startWorld.x,
+            worldPt.y - drag.startWorld.y,
+            true
+          );
+        } else if (drag.kind === 'opening') {
+          this.moveOpeningTo(drag.id, worldPt, true);
+        } else if (drag.kind === 'furniture') {
+          this.moveFurnitureTo(drag.id, worldPt, true);
+        } else if (drag.kind === 'entity') {
+          this.moveEntityTo(drag.id, worldPt, true);
+        }
+      }
+      return;
+    }
+
+    this.isPanningStage = false;
+
+    // 2. Finish Draw-Wall Press (Touch-Drag-Release OR Tap-Tap)
+    if (this.toolMode === 'draw_wall' && this.isDrawingWallPress) {
+      this.isDrawingWallPress = false;
+      this.cursorWorld = worldPt;
+
+      if (this.isDraggingWallSegment && this.wallPressDownSnap) {
+        // User dragged from wallPressDownSnap to current release point
+        this.wallChainStart = {
+          point: { ...this.wallPressDownSnap.point },
+          nodeId: this.wallPressDownSnap.snappedNodeId,
+          wallId: this.wallPressDownSnap.snappedWallId
+        };
+        const endSnap = this.computeSnapForPoint(worldPt, true);
+        this.currentSnapResult = endSnap;
+        this.snappedCursorWorld = endSnap.point;
+        if (distance2D(endSnap.point, this.wallChainStart.point) >= 0.15) {
+          this.commitWallSegment(endSnap);
+        } else {
+          this.rebuildOverlayLayer();
+        }
+        return;
+      }
+
+      // User tapped without dragging
+      if (!this.wallChainExistedBeforePress) {
+        // First tap started the chain at this.wallChainStart; keep it active for the second tap
+        this.rebuildOverlayLayer();
+        return;
+      }
+
+      // Chain already existed at this.wallChainBeforePress before this tap
+      if (this.wallChainBeforePress) {
+        this.wallChainStart = this.wallChainBeforePress;
+        const finishTol = this.getAdaptiveSnapRadiusWorld();
+        const rawDist = distance2D(worldPt, this.wallChainStart.point);
+        const startSnapDist = this.wallPressDownSnap
+          ? distance2D(this.wallPressDownSnap.point, this.wallChainStart.point)
+          : rawDist;
+
+        if (Math.min(rawDist, startSnapDist) <= finishTol) {
+          // Tapped active endpoint again -> finish wall chain
+          this.wallChainStart = null;
+          this.rebuildOverlayLayer();
+          return;
+        }
+
+        const endSnap = this.computeSnapForPoint(worldPt, true);
+        this.currentSnapResult = endSnap;
+        this.snappedCursorWorld = endSnap.point;
+        if (distance2D(endSnap.point, this.wallChainStart.point) >= 0.15) {
+          this.commitWallSegment(endSnap);
+        }
+      }
+      return;
+    }
+
+    // 3. Finish Other Drawing Tool Press (draw_room, add_opening, measure)
+    if (this.isDrawingOtherToolPress) {
+      this.isDrawingOtherToolPress = false;
+      this.updateCursorAndSnap(worldPt);
+      if (this.toolMode === 'draw_room') {
+        this.handleDrawRoomStep();
+      } else if (this.toolMode === 'add_opening') {
+        this.handlePlaceOpeningStep();
+      } else if (this.toolMode === 'measure') {
+        this.handleCalibrationStep();
+      }
+    }
+  };
+
+  private onMountPointerCancel = (e: PointerEvent): void => {
+    this.activeTouchPoints.delete(e.pointerId);
+    this.isPanningStage = false;
+    this.activeSelectDrag = null;
+    this.isDrawingWallPress = false;
+    this.isDrawingOtherToolPress = false;
   };
 
   private emitFloorChange(floor: FloorLevel, description: string): void {
@@ -2087,14 +2632,24 @@ export class FloorplanCanvas2D extends LitElement {
   // ============================================================================
 
   private renderTouchActionBar() {
-    if (this.toolMode === 'draw_wall' && this.wallChainStart) {
+    if (this.toolMode === 'draw_wall') {
       return html`
         <div class="touch-action-bar">
+          ${this.wallChainStart
+            ? html`
+                <button
+                  class="touch-pill touch-pill-warning"
+                  @click=${() => this.cancelActiveToolChain()}
+                >
+                  ✂️ End Chain (Start New Wall)
+                </button>
+              `
+            : nothing}
           <button
             class="touch-pill touch-pill-success"
-            @click=${() => this.cancelActiveToolChain()}
+            @click=${() => this.finishWallToolAndSelect()}
           >
-            ✓ Finish Wall Chain (Esc / Right-Click)
+            ✓ Done Drawing Walls
           </button>
         </div>
       `;
@@ -2126,7 +2681,7 @@ export class FloorplanCanvas2D extends LitElement {
   render() {
     const toolLabels: Record<EditorToolMode, string> = {
       select: 'Select & Move (Konva 2D)',
-      draw_wall: 'Draw Wall (Auto-Room)',
+      draw_wall: 'Draw Wall (Drag or Tap 2 Pts)',
       draw_room: 'Draw Custom Room',
       add_opening: 'Add Door / Window',
       measure: 'Measure / Calibrate'

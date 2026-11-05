@@ -420,4 +420,110 @@ describe('Wave 3 UI Components (<floorplan-3d-card> & <floorplan-editor-panel>)'
     canvas2d.handleDrawingToolClick();
     expect(canvas2d.wallChainStart).toBeNull();
   });
+
+  it('supports mobile touch-drag-release wall drawing, connected walls at mobile zoom (24 px/m), crossing X-junctions, and Done Drawing Walls action bar', async () => {
+    const panel = document.createElement('floorplan-editor-panel') as FloorplanEditorPanel;
+    panel.narrow = true;
+    document.body.appendChild(panel);
+    await panel.updateComplete;
+
+    const anyPanel = panel as unknown as {
+      currentDocument: FloorplanDocument;
+      activeTool: string;
+    };
+
+    // Switch to draw_wall tool
+    anyPanel.activeTool = 'draw_wall';
+    panel.requestUpdate();
+    await panel.updateComplete;
+
+    const canvas2d = panel.shadowRoot?.querySelector('floorplan-canvas-2d') as unknown as HTMLElement & {
+      panX: number;
+      panY: number;
+      pixelsPerMeter: number;
+      canvasWidth: number;
+      canvasHeight: number;
+      konvaMountEl?: HTMLDivElement;
+      wallChainStart: { point: { x: number; y: number } } | null;
+      worldToScreen: (pt: { x: number; y: number }) => { x: number; y: number };
+      onMountPointerDown: (ev: PointerEvent) => void;
+      onMountPointerMove: (ev: PointerEvent) => void;
+      onMountPointerUp: (ev: PointerEvent) => void;
+      updateComplete: Promise<boolean>;
+    };
+
+    // Simulate a 360px mobile screen at 24 px/m zoom
+    canvas2d.panX = 0;
+    canvas2d.panY = 0;
+    canvas2d.pixelsPerMeter = 24;
+    canvas2d.canvasWidth = 360;
+    canvas2d.canvasHeight = 640;
+    await canvas2d.updateComplete;
+
+    // 1. Touch-Drag-Release wall #1 from (5, -2) to (5, 0)
+    const start1 = canvas2d.worldToScreen({ x: 5, y: -2 });
+    const end1 = canvas2d.worldToScreen({ x: 5, y: 0 });
+    canvas2d.onMountPointerDown({
+      pointerId: 1,
+      pointerType: 'touch',
+      button: 0,
+      clientX: start1.x,
+      clientY: start1.y
+    } as PointerEvent);
+    canvas2d.onMountPointerMove({
+      pointerId: 1,
+      pointerType: 'touch',
+      clientX: end1.x,
+      clientY: end1.y
+    } as PointerEvent);
+    canvas2d.onMountPointerUp({
+      pointerId: 1,
+      pointerType: 'touch',
+      clientX: end1.x,
+      clientY: end1.y
+    } as PointerEvent);
+    await panel.updateComplete;
+
+    // Wall #1 committed and chain continues at (5, 0)
+    expect(canvas2d.wallChainStart?.point).toEqual({ x: 5, y: 0 });
+    expect(anyPanel.currentDocument.floors[0].walls.length).toBe(5);
+
+    // 2. Touch-Drag-Release connected wall #2 starting slightly off (5, 0) by 0.6m (~14px on mobile)
+    // Verifies adaptive snap radius (28px / 24 px/m = 1.05m) snaps onto (5, 0) and drags to (7, 0)
+    const nearEnd1 = canvas2d.worldToScreen({ x: 5.6, y: 0 });
+    const end2 = canvas2d.worldToScreen({ x: 7, y: 0 });
+    canvas2d.onMountPointerDown({
+      pointerId: 2,
+      pointerType: 'touch',
+      button: 0,
+      clientX: nearEnd1.x,
+      clientY: nearEnd1.y
+    } as PointerEvent);
+    canvas2d.onMountPointerMove({
+      pointerId: 2,
+      pointerType: 'touch',
+      clientX: end2.x,
+      clientY: end2.y
+    } as PointerEvent);
+    canvas2d.onMountPointerUp({
+      pointerId: 2,
+      pointerType: 'touch',
+      clientX: end2.x,
+      clientY: end2.y
+    } as PointerEvent);
+    await panel.updateComplete;
+
+    expect(anyPanel.currentDocument.floors[0].walls.length).toBe(6);
+    expect(canvas2d.wallChainStart?.point).toEqual({ x: 7, y: 0 });
+
+    // 3. Tap "✓ Done Drawing Walls" button in floating action bar switches tool back to 'select'
+    await canvas2d.updateComplete;
+    const doneBtn = canvas2d.shadowRoot?.querySelector(
+      '.touch-pill.touch-pill-success'
+    ) as HTMLButtonElement | null;
+    expect(doneBtn).not.toBeNull();
+    doneBtn?.click();
+    await panel.updateComplete;
+    expect(anyPanel.activeTool).toBe('select');
+  });
 });

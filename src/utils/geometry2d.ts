@@ -98,6 +98,7 @@ export interface SnapOptions {
   nodes?: WallNode[];
   walls?: WallEdge[];
   nodeSnapRadius?: number;
+  wallSnapRadius?: number;
   anchorPoint?: Point2D;
   snapAngleDeg?: number;
   excludeNodeIds?: Set<string>;
@@ -119,6 +120,7 @@ export interface SnapResult {
  */
 export function snapPoint2D(pt: Point2D, options: SnapOptions): SnapResult {
   const snapRadius = options.nodeSnapRadius ?? 0.25;
+  const wallSnapRadius = options.wallSnapRadius ?? snapRadius;
 
   // (1) Snap to existing WallNode
   if (options.nodes && options.nodes.length > 0) {
@@ -168,7 +170,7 @@ export function snapPoint2D(pt: Point2D, options: SnapOptions): SnapResult {
       if (!a || !b) continue;
 
       const proj = projectPointOntoSegment(pt, a, b);
-      if (proj.distance <= snapRadius && proj.distance < minWallDist) {
+      if (proj.distance <= wallSnapRadius && proj.distance < minWallDist) {
         minWallDist = proj.distance;
         bestWall = wall;
         bestProj = proj;

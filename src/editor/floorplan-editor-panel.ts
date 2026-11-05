@@ -1377,6 +1377,8 @@ export class FloorplanEditorPanel extends LitElement {
               @document-mutate=${this.handleDocumentMutate}
               @open-blueprint-modal=${() => (this.isBlueprintModalOpen = true)}
               @palette-place=${this.handlePalettePlace}
+              @tool-change=${(ev: CustomEvent<{ tool: EditorToolMode }>) =>
+                (this.activeTool = ev.detail.tool)}
             ></floorplan-canvas-2d>
 
             <!-- Floating 2D Pane Quick Controls (Top-Right) -->
@@ -1537,6 +1539,8 @@ export class FloorplanEditorPanel extends LitElement {
               @document-mutate=${this.handleDocumentMutate}
               @open-blueprint-modal=${() => (this.isBlueprintModalOpen = true)}
               @palette-place=${this.handlePalettePlace}
+              @tool-change=${(ev: CustomEvent<{ tool: EditorToolMode }>) =>
+                (this.activeTool = ev.detail.tool)}
             ></floorplan-canvas-2d>
           </div>
 
