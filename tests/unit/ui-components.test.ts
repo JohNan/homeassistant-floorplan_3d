@@ -223,7 +223,7 @@ describe('Wave 3 UI Components (<floorplan-3d-card> & <floorplan-editor-panel>)'
     panel.requestUpdate();
     await panel.updateComplete;
 
-    const canvas2d = panel.shadowRoot?.querySelector('floorplan-canvas-2d') as HTMLElement & {
+    const canvas2d = panel.shadowRoot?.querySelector('floorplan-canvas-2d') as unknown as HTMLElement & {
       panX: number;
       panY: number;
       pixelsPerMeter: number;
@@ -314,7 +314,7 @@ describe('Wave 3 UI Components (<floorplan-3d-card> & <floorplan-editor-panel>)'
 
     const origN1 = { ...anyPanel.currentDocument.floors[0].nodes.find((n) => n.id === 'n1')! };
 
-    const canvas2d = panel.shadowRoot?.querySelector('floorplan-canvas-2d') as HTMLElement & {
+    const canvas2d = panel.shadowRoot?.querySelector('floorplan-canvas-2d') as unknown as HTMLElement & {
       panX: number;
       panY: number;
       pixelsPerMeter: number;
@@ -357,5 +357,67 @@ describe('Wave 3 UI Components (<floorplan-3d-card> & <floorplan-editor-panel>)'
     const movedN1 = anyPanel.currentDocument.floors[0].nodes.find((n) => n.id === 'n1')!;
     expect(movedN1.x).toBeCloseTo(origN1.x + 0.2, 5);
     expect(movedN1.y).toBeCloseTo(origN1.y + 0.2, 5);
+  });
+
+  it('draws a wall chain, finishes on endpoint click, and splits existing walls at T-junctions to form connected rooms', async () => {
+    const panel = document.createElement('floorplan-editor-panel') as FloorplanEditorPanel;
+    document.body.appendChild(panel);
+    await panel.updateComplete;
+
+    const anyPanel = panel as unknown as {
+      currentDocument: FloorplanDocument;
+      activeTool: string;
+    };
+
+    // Switch to draw_wall tool
+    anyPanel.activeTool = 'draw_wall';
+    panel.requestUpdate();
+    await panel.updateComplete;
+
+    const canvas2d = panel.shadowRoot?.querySelector('floorplan-canvas-2d') as unknown as HTMLElement & {
+      panX: number;
+      panY: number;
+      pixelsPerMeter: number;
+      canvasWidth: number;
+      canvasHeight: number;
+      updateCursorAndSnap: (pt: { x: number; y: number }) => void;
+      handleDrawingToolClick: () => void;
+      wallChainStart: { point: { x: number; y: number } } | null;
+      updateComplete: Promise<boolean>;
+    };
+    canvas2d.panX = 0;
+    canvas2d.panY = 0;
+    canvas2d.pixelsPerMeter = 100;
+    canvas2d.canvasWidth = 800;
+    canvas2d.canvasHeight = 600;
+    await canvas2d.updateComplete;
+
+    // 1. Draw a connected dividing wall from top wall w1 midpoint (0, -3) to bottom wall w3 midpoint (0, 3)
+    canvas2d.updateCursorAndSnap({ x: 0, y: -3 });
+    canvas2d.handleDrawingToolClick();
+    expect(canvas2d.wallChainStart).not.toBeNull();
+
+    canvas2d.updateCursorAndSnap({ x: 0, y: 3 });
+    canvas2d.handleDrawingToolClick();
+    await panel.updateComplete;
+
+    // Connecting onto existing wall w3 automatically finishes the chain and splits the room into 2 rooms
+    expect(canvas2d.wallChainStart).toBeNull();
+    expect(anyPanel.currentDocument.floors[0].rooms.length).toBe(2);
+
+    // 2. Start an open wall chain at (5, 0) -> (7, 0), then click (7, 0) again to finish the chain
+    canvas2d.updateCursorAndSnap({ x: 5, y: 0 });
+    canvas2d.handleDrawingToolClick();
+    expect(canvas2d.wallChainStart).not.toBeNull();
+
+    canvas2d.updateCursorAndSnap({ x: 7, y: 0 });
+    canvas2d.handleDrawingToolClick();
+    // Chain continues from new corner (7, 0)
+    expect(canvas2d.wallChainStart?.point).toEqual({ x: 7, y: 0 });
+
+    // Clicking the current endpoint (7, 0) again finishes the wall chain cleanly
+    canvas2d.updateCursorAndSnap({ x: 7, y: 0 });
+    canvas2d.handleDrawingToolClick();
+    expect(canvas2d.wallChainStart).toBeNull();
   });
 });
