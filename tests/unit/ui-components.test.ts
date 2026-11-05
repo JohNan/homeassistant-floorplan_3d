@@ -404,9 +404,14 @@ describe('Wave 3 UI Components (<floorplan-3d-card> & <floorplan-editor-panel>)'
     canvas2d.handleDrawingToolClick();
     await panel.updateComplete;
 
-    // Connecting onto existing wall w3 automatically finishes the chain and splits the room into 2 rooms
-    expect(canvas2d.wallChainStart).toBeNull();
+    // Connecting onto existing wall w3 splits the room into 2 rooms while keeping chain active at (0, 3)
+    expect(canvas2d.wallChainStart?.point).toEqual({ x: 0, y: 3 });
     expect(anyPanel.currentDocument.floors[0].rooms.length).toBe(2);
+
+    // Clicking the active endpoint (0, 3) again finishes the first chain
+    canvas2d.updateCursorAndSnap({ x: 0, y: 3 });
+    canvas2d.handleDrawingToolClick();
+    expect(canvas2d.wallChainStart).toBeNull();
 
     // 2. Start an open wall chain at (5, 0) -> (7, 0), then click (7, 0) again to finish the chain
     canvas2d.updateCursorAndSnap({ x: 5, y: 0 });
@@ -452,6 +457,7 @@ describe('Wave 3 UI Components (<floorplan-3d-card> & <floorplan-editor-panel>)'
       onMountPointerDown: (ev: PointerEvent) => void;
       onMountPointerMove: (ev: PointerEvent) => void;
       onMountPointerUp: (ev: PointerEvent) => void;
+      onMountPointerCancel: (ev: PointerEvent) => void;
       updateComplete: Promise<boolean>;
     };
 
@@ -528,5 +534,112 @@ describe('Wave 3 UI Components (<floorplan-3d-card> & <floorplan-editor-panel>)'
     doneBtn?.click();
     await panel.updateComplete;
     expect(anyPanel.activeTool).toBe('select');
+  });
+
+  it('chains multiple walls via consecutive taps (Tap 1 = start, Tap 2 = end, Tap 3 = next end, Tap 4 = next end) even with mobile thumb roll', async () => {
+    const panel = document.createElement('floorplan-editor-panel') as FloorplanEditorPanel;
+    panel.narrow = true;
+    document.body.appendChild(panel);
+    await panel.updateComplete;
+
+    const anyPanel = panel as unknown as {
+      currentDocument: FloorplanDocument;
+      activeTool: string;
+    };
+
+    anyPanel.activeTool = 'draw_wall';
+    panel.requestUpdate();
+    await panel.updateComplete;
+
+    const canvas2d = panel.shadowRoot?.querySelector('floorplan-canvas-2d') as unknown as HTMLElement & {
+      panX: number;
+      panY: number;
+      pixelsPerMeter: number;
+      canvasWidth: number;
+      canvasHeight: number;
+      wallChainStart: { point: { x: number; y: number } } | null;
+      worldToScreen: (pt: { x: number; y: number }) => { x: number; y: number };
+      onMountPointerDown: (ev: PointerEvent) => void;
+      onMountPointerMove: (ev: PointerEvent) => void;
+      onMountPointerUp: (ev: PointerEvent) => void;
+      onMountPointerCancel: (ev: PointerEvent) => void;
+      updateComplete: Promise<boolean>;
+    };
+
+    canvas2d.panX = 0;
+    canvas2d.panY = 0;
+    canvas2d.pixelsPerMeter = 24;
+    canvas2d.canvasWidth = 360;
+    canvas2d.canvasHeight = 640;
+    await canvas2d.updateComplete;
+
+    const tapWithThumbRoll = (pointerId: number, worldPt: { x: number; y: number }, rollPx = 14) => {
+      const s = canvas2d.worldToScreen(worldPt);
+      canvas2d.onMountPointerDown({
+        pointerId,
+        pointerType: 'touch',
+        button: 0,
+        clientX: s.x,
+        clientY: s.y
+      } as PointerEvent);
+      // Simulate 14px natural thumb roll during tap (> old 10px bug threshold, < 24px drag threshold)
+      canvas2d.onMountPointerMove({
+        pointerId,
+        pointerType: 'touch',
+        clientX: s.x + rollPx,
+        clientY: s.y
+      } as PointerEvent);
+      canvas2d.onMountPointerUp({
+        pointerId,
+        pointerType: 'touch',
+        clientX: s.x,
+        clientY: s.y
+      } as PointerEvent);
+    };
+
+    // Tap 1: Set start at (5, -2)
+    tapWithThumbRoll(10, { x: 5, y: -2 });
+    expect(canvas2d.wallChainStart?.point).toEqual({ x: 5, y: -2 });
+    expect(anyPanel.currentDocument.floors[0].walls.length).toBe(4);
+
+    // Tap 2: Set end of wall #1 at (5, 1) -> commits (5, -2) -> (5, 1) and advances start to (5, 1)
+    tapWithThumbRoll(11, { x: 5, y: 1 });
+    await panel.updateComplete;
+    expect(anyPanel.currentDocument.floors[0].walls.length).toBe(5);
+    expect(canvas2d.wallChainStart?.point).toEqual({ x: 5, y: 1 });
+
+    // Tap 3: Set next end at (8, 1) -> commits (5, 1) -> (8, 1) (does NOT move previous end!)
+    tapWithThumbRoll(12, { x: 8, y: 1 });
+    await panel.updateComplete;
+    expect(anyPanel.currentDocument.floors[0].walls.length).toBe(6);
+    expect(canvas2d.wallChainStart?.point).toEqual({ x: 8, y: 1 });
+
+    // Tap 4: Set next end at (8, -2) -> commits (8, 1) -> (8, -2)
+    tapWithThumbRoll(13, { x: 8, y: -2 });
+    await panel.updateComplete;
+    expect(anyPanel.currentDocument.floors[0].walls.length).toBe(7);
+    expect(canvas2d.wallChainStart?.point).toEqual({ x: 8, y: -2 });
+
+    // Cancelled touch press at (10, -2) restores wallChainStart to (8, -2) without adding a wall
+    const cancelScreen = canvas2d.worldToScreen({ x: 10, y: -2 });
+    canvas2d.onMountPointerDown({
+      pointerId: 14,
+      pointerType: 'touch',
+      button: 0,
+      clientX: cancelScreen.x,
+      clientY: cancelScreen.y
+    } as PointerEvent);
+    canvas2d.onMountPointerCancel({
+      pointerId: 14,
+      pointerType: 'touch'
+    } as PointerEvent);
+    expect(canvas2d.wallChainStart?.point).toEqual({ x: 8, y: -2 });
+    expect(anyPanel.currentDocument.floors[0].walls.length).toBe(7);
+
+    // Tap 5 on active endpoint (8, -2) finishes the chain without adding a wall
+    tapWithThumbRoll(15, { x: 8, y: -2 }, 0);
+    await panel.updateComplete;
+    expect(canvas2d.wallChainStart).toBeNull();
+    expect(anyPanel.currentDocument.floors[0].walls.length).toBe(7);
   });
 });

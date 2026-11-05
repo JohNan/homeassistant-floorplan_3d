@@ -562,6 +562,16 @@ export class FloorplanCanvas2D extends LitElement {
       },
       { passive: false }
     );
+    this.konvaMountEl.addEventListener('touchend', (ev) => {
+      if (ev.touches.length === 0) {
+        this.activeTouchPoints.clear();
+        this.wasMultiTouchGesture = false;
+      }
+    });
+    this.konvaMountEl.addEventListener('touchcancel', () => {
+      this.activeTouchPoints.clear();
+      this.wasMultiTouchGesture = false;
+    });
 
     // Stage Wheel Zoom (zooms toward cursor)
     this.stage.on('wheel', (e) => {
@@ -595,10 +605,7 @@ export class FloorplanCanvas2D extends LitElement {
     });
 
     this.stage.on('dblclick dbltap', () => {
-      if (this.toolMode === 'draw_wall' && this.wallChainStart) {
-        this.wallChainStart = null;
-        this.rebuildOverlayLayer();
-      } else if (this.toolMode === 'draw_room' && this.roomChainPoints.length >= 3) {
+      if (this.toolMode === 'draw_room' && this.roomChainPoints.length >= 3) {
         this.commitRoomPolygon();
       }
     });
@@ -1706,6 +1713,15 @@ export class FloorplanCanvas2D extends LitElement {
   }
 
   /**
+   * Tight screen-space endpoint finish tolerance in meters (~14px on screen, clamped to [0.15m, 0.25m]).
+   * Used exclusively to detect when the user taps directly on the active `wallChainStart` endpoint
+   * to terminate the chain without prematurely cancelling near-endpoint snaps.
+   */
+  private getChainFinishToleranceWorld(): number {
+    return Math.min(0.25, Math.max(0.15, 14 / Math.max(15, this.pixelsPerMeter)));
+  }
+
+  /**
    * Computes snapped world coordinates and magnetic node/wall attachment.
    * When `forSegmentEnd === true` and `this.wallChainStart` is active, excludes the
    * start node and its incident walls so dragging away from an existing corner/wall never self-snaps.
@@ -1940,11 +1956,8 @@ export class FloorplanCanvas2D extends LitElement {
     }
 
     // Clicking/tapping the current start/end point again finishes the wall chain!
-    const finishTol = this.getAdaptiveSnapRadiusWorld();
-    if (
-      distance2D(this.cursorWorld, this.wallChainStart.point) < finishTol &&
-      distance2D(this.currentSnapResult.point, this.wallChainStart.point) < finishTol
-    ) {
+    const finishTol = this.getChainFinishToleranceWorld();
+    if (distance2D(this.cursorWorld, this.wallChainStart.point) <= finishTol) {
       this.wallChainStart = null;
       this.rebuildOverlayLayer();
       return;
@@ -2042,13 +2055,8 @@ export class FloorplanCanvas2D extends LitElement {
     // Automatically detect closed wall loops and create/update rooms!
     nextFloor.rooms = syncAutoDetectedRoomsFromWalls(nextFloor);
 
-    // If the user connected onto an existing node or split an existing wall, finish the chain cleanly;
-    // otherwise continue chaining from the newly placed corner node
-    const connectedToExisting = Boolean(
-      snap.snappedNodeId || snap.snappedWallId || crossings.length > 0
-    );
     const finalEndNode = nextFloor.nodes.find((n) => n.id === endNodeId);
-    if (connectedToExisting || !finalEndNode) {
+    if (!finalEndNode) {
       this.wallChainStart = null;
     } else {
       this.wallChainStart = {
@@ -2060,7 +2068,6 @@ export class FloorplanCanvas2D extends LitElement {
     }
 
     this.emitFloorChange(nextFloor, 'Draw wall');
-    this.rebuildOverlayLayer();
   }
 
   private handleDrawRoomStep(): void {
@@ -2364,8 +2371,8 @@ export class FloorplanCanvas2D extends LitElement {
         this.currentSnapResult = startSnap;
         this.snappedCursorWorld = { ...startSnap.point };
       } else {
-        const snapRad = this.getAdaptiveSnapRadiusWorld();
-        if (distance2D(startSnap.point, this.wallChainStart.point) <= snapRad) {
+        const finishTol = this.getChainFinishToleranceWorld();
+        if (distance2D(worldPt, this.wallChainStart.point) <= finishTol) {
           this.currentSnapResult = startSnap;
           this.snappedCursorWorld = { ...this.wallChainStart.point };
         } else {
@@ -2460,18 +2467,39 @@ export class FloorplanCanvas2D extends LitElement {
     if (this.toolMode === 'draw_wall' && this.isDrawingWallPress && this.wallPressDownSnap) {
       this.cursorWorld = worldPt;
       const screenDragDist = distance2D(screenPt, this.wallPressDownScreen);
-      if (screenDragDist >= 10) {
-        this.isDraggingWallSegment = true;
-        // When dragging a wall, the segment starts where the finger pressed down
+      if (this.wallChainExistedBeforePress && this.wallChainBeforePress) {
+        if (screenDragDist >= 24) {
+          this.isDraggingWallSegment = true;
+        }
         this.wallChainStart = {
-          point: { ...this.wallPressDownSnap.point },
-          nodeId: this.wallPressDownSnap.snappedNodeId,
-          wallId: this.wallPressDownSnap.snappedWallId
+          point: { ...this.wallChainBeforePress.point },
+          nodeId: this.wallChainBeforePress.nodeId,
+          wallId: this.wallChainBeforePress.wallId
         };
+        const endSnap = this.computeSnapForPoint(worldPt, true);
+        this.currentSnapResult = endSnap;
+        this.snappedCursorWorld = { ...endSnap.point };
+      } else {
+        if (screenDragDist >= 24) {
+          this.isDraggingWallSegment = true;
+          this.wallChainStart = {
+            point: { ...this.wallPressDownSnap.point },
+            nodeId: this.wallPressDownSnap.snappedNodeId,
+            wallId: this.wallPressDownSnap.snappedWallId
+          };
+          const endSnap = this.computeSnapForPoint(worldPt, true);
+          this.currentSnapResult = endSnap;
+          this.snappedCursorWorld = { ...endSnap.point };
+        } else {
+          this.wallChainStart = {
+            point: { ...this.wallPressDownSnap.point },
+            nodeId: this.wallPressDownSnap.snappedNodeId,
+            wallId: this.wallPressDownSnap.snappedWallId
+          };
+          this.currentSnapResult = this.wallPressDownSnap;
+          this.snappedCursorWorld = { ...this.wallPressDownSnap.point };
+        }
       }
-      const endSnap = this.computeSnapForPoint(worldPt, true);
-      this.currentSnapResult = endSnap;
-      this.snappedCursorWorld = endSnap.point;
       this.rebuildOverlayLayer();
       return;
     }
@@ -2535,41 +2563,45 @@ export class FloorplanCanvas2D extends LitElement {
       this.isDrawingWallPress = false;
       this.cursorWorld = worldPt;
 
-      if (this.isDraggingWallSegment && this.wallPressDownSnap) {
-        // User dragged from wallPressDownSnap to current release point
-        this.wallChainStart = {
-          point: { ...this.wallPressDownSnap.point },
-          nodeId: this.wallPressDownSnap.snappedNodeId,
-          wallId: this.wallPressDownSnap.snappedWallId
-        };
-        const endSnap = this.computeSnapForPoint(worldPt, true);
-        this.currentSnapResult = endSnap;
-        this.snappedCursorWorld = endSnap.point;
-        if (distance2D(endSnap.point, this.wallChainStart.point) >= 0.15) {
-          this.commitWallSegment(endSnap);
-        } else {
-          this.rebuildOverlayLayer();
-        }
-        return;
-      }
-
-      // User tapped without dragging
       if (!this.wallChainExistedBeforePress) {
-        // First tap started the chain at this.wallChainStart; keep it active for the second tap
+        if (this.isDraggingWallSegment && this.wallPressDownSnap) {
+          // User deliberately dragged a full wall segment on the first stroke
+          this.wallChainStart = {
+            point: { ...this.wallPressDownSnap.point },
+            nodeId: this.wallPressDownSnap.snappedNodeId,
+            wallId: this.wallPressDownSnap.snappedWallId
+          };
+          const endSnap = this.computeSnapForPoint(worldPt, true);
+          this.currentSnapResult = endSnap;
+          this.snappedCursorWorld = { ...endSnap.point };
+          if (distance2D(endSnap.point, this.wallChainStart.point) >= 0.25) {
+            this.commitWallSegment(endSnap);
+          } else {
+            this.snappedCursorWorld = { ...this.wallChainStart.point };
+            this.rebuildOverlayLayer();
+          }
+          return;
+        }
+
+        // First tap started the chain at this.wallChainStart; keep it anchored for the second tap
+        if (this.wallChainStart) {
+          this.snappedCursorWorld = { ...this.wallChainStart.point };
+        }
         this.rebuildOverlayLayer();
         return;
       }
 
-      // Chain already existed at this.wallChainBeforePress before this tap
+      // Chain already existed at this.wallChainBeforePress before this tap/drag
       if (this.wallChainBeforePress) {
-        this.wallChainStart = this.wallChainBeforePress;
-        const finishTol = this.getAdaptiveSnapRadiusWorld();
+        this.wallChainStart = {
+          point: { ...this.wallChainBeforePress.point },
+          nodeId: this.wallChainBeforePress.nodeId,
+          wallId: this.wallChainBeforePress.wallId
+        };
+        const finishTol = this.getChainFinishToleranceWorld();
         const rawDist = distance2D(worldPt, this.wallChainStart.point);
-        const startSnapDist = this.wallPressDownSnap
-          ? distance2D(this.wallPressDownSnap.point, this.wallChainStart.point)
-          : rawDist;
 
-        if (Math.min(rawDist, startSnapDist) <= finishTol) {
+        if (!this.isDraggingWallSegment && rawDist <= finishTol) {
           // Tapped active endpoint again -> finish wall chain
           this.wallChainStart = null;
           this.rebuildOverlayLayer();
@@ -2578,9 +2610,12 @@ export class FloorplanCanvas2D extends LitElement {
 
         const endSnap = this.computeSnapForPoint(worldPt, true);
         this.currentSnapResult = endSnap;
-        this.snappedCursorWorld = endSnap.point;
+        this.snappedCursorWorld = { ...endSnap.point };
         if (distance2D(endSnap.point, this.wallChainStart.point) >= 0.15) {
           this.commitWallSegment(endSnap);
+        } else {
+          this.snappedCursorWorld = { ...this.wallChainStart.point };
+          this.rebuildOverlayLayer();
         }
       }
       return;
@@ -2602,13 +2637,26 @@ export class FloorplanCanvas2D extends LitElement {
 
   private onMountPointerCancel = (e: PointerEvent): void => {
     this.activeTouchPoints.delete(e.pointerId);
+    if (this.activeTouchPoints.size === 0) {
+      this.wasMultiTouchGesture = false;
+    }
     this.isPanningStage = false;
     this.activeSelectDrag = null;
-    this.isDrawingWallPress = false;
+    if (this.isDrawingWallPress) {
+      this.isDrawingWallPress = false;
+      this.wallChainStart = this.wallChainExistedBeforePress ? this.wallChainBeforePress : null;
+      if (this.wallChainStart) {
+        this.snappedCursorWorld = { ...this.wallChainStart.point };
+      }
+      this.rebuildOverlayLayer();
+    }
     this.isDrawingOtherToolPress = false;
   };
 
   private emitFloorChange(floor: FloorLevel, description: string): void {
+    this.floor = floor;
+    this.rebuildSceneLayer();
+    this.rebuildOverlayLayer();
     this.dispatchEvent(
       new CustomEvent('floor-change', {
         detail: { floor, description },
