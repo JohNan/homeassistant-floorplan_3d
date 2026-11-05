@@ -1,5 +1,5 @@
 import { LitElement, html, css, nothing } from 'lit';
-import { customElement, property, state, query } from 'lit/decorators.js';
+import { property, state, query } from 'lit/decorators.js';
 import type {
   FloorplanCardConfig,
   FloorplanDocument,
@@ -43,7 +43,6 @@ if (!window.customCards.some((c) => c.type === 'floorplan-3d-card')) {
  * Wall-Tablet Optimized Three.js 3D Floorplan Lovelace Card.
  * Features 0-FPS idle render loop, O(1) state diffing, and glassmorphic HUD.
  */
-@customElement('floorplan-3d-card')
 export class Floorplan3DCard extends LitElement implements LovelaceCard {
   public static async getConfigElement(): Promise<HTMLElement> {
     return document.createElement('floorplan-3d-card-editor');
@@ -655,4 +654,8 @@ export class Floorplan3DCard extends LitElement implements LovelaceCard {
       opacity: 0.9;
     }
   `;
+}
+
+if (!customElements.get('floorplan-3d-card')) {
+  customElements.define('floorplan-3d-card', Floorplan3DCard);
 }

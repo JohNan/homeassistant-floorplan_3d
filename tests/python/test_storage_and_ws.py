@@ -97,12 +97,16 @@ class MockConfig:
 
 
 class MockLovelaceResources:
-    """Mock Lovelace storage mode resource collection."""
+    """Mock Lovelace storage mode ResourceStorageCollection."""
 
     def __init__(self) -> None:
         self._items: list[dict[str, Any]] = []
+        self.loaded: bool = False
 
-    def async_get_items(self) -> list[dict[str, Any]]:
+    async def async_load(self) -> None:
+        self.loaded = True
+
+    def async_items(self) -> list[dict[str, Any]]:
         return list(self._items)
 
     async def async_create_item(self, item: dict[str, Any]) -> dict[str, Any]:
@@ -144,6 +148,10 @@ class MockFrontend:
 
     def __init__(self) -> None:
         self.panels: dict[str, dict[str, Any]] = {}
+        self.extra_js_urls: list[str] = []
+
+    def add_extra_js_url(self, hass: Any, url: str, es5: bool = False) -> None:
+        self.extra_js_urls.append(url)
 
     def async_register_built_in_panel(
         self,
@@ -714,12 +722,14 @@ async def test_integration_lifecycle(tmp_path: Path) -> None:
     assert len(hass.http.static_paths) == 1
     assert hass.http.static_paths[0][2] is False
 
-    # Lovelace card registered with content-hashed cache buster
-    items = hass.data["lovelace"].resources.async_get_items()
+    # Lovelace card registered via both frontend.add_extra_js_url and ResourceStorageCollection
+    assert hass.data["lovelace"].resources.loaded is True
+    items = hass.data["lovelace"].resources.async_items()
     assert len(items) == 1
     card_url = items[0]["url"]
     assert card_url.startswith(f"{STATIC_URL_PATH}/{CARD_BUNDLE_FILENAME}?v={VERSION}-")
     assert len(card_url.split(f"?v={VERSION}-")[1]) == 10
+    assert card_url in hass.frontend.extra_js_urls
 
     # Simulate stale cached Lovelace resource URL being automatically busted on reload
     await hass.data["lovelace"].resources.async_update_item(
@@ -727,7 +737,7 @@ async def test_integration_lifecycle(tmp_path: Path) -> None:
         {"res_type": "module", "url": f"{STATIC_URL_PATH}/{CARD_BUNDLE_FILENAME}?v=0.1.0-stale00000"},
     )
     await async_setup_entry(hass, entry)
-    refreshed_items = hass.data["lovelace"].resources.async_get_items()
+    refreshed_items = hass.data["lovelace"].resources.async_items()
     assert len(refreshed_items) == 1
     assert refreshed_items[0]["url"] == card_url
 

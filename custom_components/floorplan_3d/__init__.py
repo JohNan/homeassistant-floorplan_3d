@@ -166,19 +166,60 @@ async def _async_register_panel(hass: Any) -> None:
 
 
 async def _async_register_lovelace_card(hass: Any) -> None:
-    """Auto-register Lovelace card resource in storage mode if available."""
+    """Register Lovelace card bundle via frontend extra JS and Lovelace resources."""
     card_cache_tag = await _async_get_bundle_cache_tag(hass, CARD_BUNDLE_FILENAME)
     card_url = f"{STATIC_URL_PATH}/{CARD_BUNDLE_FILENAME}?v={card_cache_tag}"
+
+    # 1. Inject module via frontend.add_extra_js_url so the card is always loaded
+    # immediately across storage-mode and YAML-mode dashboards.
+    try:
+        from homeassistant.components import frontend
+
+        if hasattr(frontend, "add_extra_js_url"):
+            frontend.add_extra_js_url(hass, card_url)
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.debug("Could not call frontend.add_extra_js_url: %s", exc)
+
+    frontend_comp = getattr(
+        getattr(hass, "components", None), "frontend", getattr(hass, "frontend", None)
+    )
+    if frontend_comp and hasattr(frontend_comp, "add_extra_js_url"):
+        try:
+            try:
+                frontend_comp.add_extra_js_url(hass, card_url)
+            except TypeError:
+                frontend_comp.add_extra_js_url(card_url)
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.debug("Could not call frontend_comp.add_extra_js_url: %s", exc)
+
+    # 2. Also register/update in Lovelace ResourceStorageCollection when available
     lovelace = hass.data.get("lovelace")
     if not lovelace:
         return
 
-    resources = getattr(lovelace, "resources", None)
-    if not resources or not hasattr(resources, "async_get_items"):
+    resources = (
+        lovelace.get("resources")
+        if isinstance(lovelace, dict)
+        else getattr(lovelace, "resources", None)
+    )
+    if not resources:
         return
 
     try:
-        items = resources.async_get_items()
+        if (
+            hasattr(resources, "loaded")
+            and not resources.loaded
+            and hasattr(resources, "async_load")
+        ):
+            await resources.async_load()
+
+        get_items = getattr(resources, "async_items", None) or getattr(
+            resources, "async_get_items", None
+        )
+        if not callable(get_items):
+            return
+
+        items = get_items()
         for item in items:
             url = item.get("url", "")
             if url.startswith(f"{STATIC_URL_PATH}/{CARD_BUNDLE_FILENAME}"):

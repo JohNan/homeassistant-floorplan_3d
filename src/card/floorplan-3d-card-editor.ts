@@ -1,5 +1,5 @@
 import { LitElement, html, css, nothing } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import type {
   FloorplanCardConfig,
   FloorplanSummary,
@@ -16,7 +16,6 @@ import { FloorplanWsClient } from '../api/ws-client';
  * Enables configuration of floorplan selection, dimensions, camera mode,
  * ambient lighting, quality tier, and overlay visibility without editing raw YAML.
  */
-@customElement('floorplan-3d-card-editor')
 export class Floorplan3DCardEditor extends LitElement implements LovelaceCardEditor {
   @property({ attribute: false })
   public set hass(newHass: HomeAssistant) {
@@ -511,4 +510,8 @@ export class Floorplan3DCardEditor extends LitElement implements LovelaceCardEdi
       transform: translateX(16px);
     }
   `;
+}
+
+if (!customElements.get('floorplan-3d-card-editor')) {
+  customElements.define('floorplan-3d-card-editor', Floorplan3DCardEditor);
 }
