@@ -42,6 +42,8 @@ export interface PaletteDragPayload {
   defaultDepth?: number;
   defaultHeight?: number;
   label?: string;
+  wallId?: string;
+  dropPoint?: Point2D;
 }
 
 export interface BlueprintCalibrationResult {

@@ -642,4 +642,262 @@ describe('Wave 3 UI Components (<floorplan-3d-card> & <floorplan-editor-panel>)'
     expect(canvas2d.wallChainStart).toBeNull();
     expect(anyPanel.currentDocument.floors[0].walls.length).toBe(7);
   });
+
+  it('prioritizes light entities (including light-classified switches and hass.entities registry entries) ahead of media_player and sensor in <floorplan-entity-palette>', async () => {
+    const panel = document.createElement('floorplan-editor-panel') as FloorplanEditorPanel;
+    document.body.appendChild(panel);
+    await panel.updateComplete;
+
+    const mockHass: HomeAssistant = {
+      language: 'en',
+      states: {
+        'media_player.living_room_tv': {
+          entity_id: 'media_player.living_room_tv',
+          state: 'playing',
+          attributes: { friendly_name: 'Living Room TV' },
+          last_changed: '',
+          last_updated: '',
+          context: { id: '1', parent_id: null, user_id: null }
+        },
+        'sensor.outdoor_temperature': {
+          entity_id: 'sensor.outdoor_temperature',
+          state: '18.4',
+          attributes: { friendly_name: 'Outdoor Temperature' },
+          last_changed: '',
+          last_updated: '',
+          context: { id: '2', parent_id: null, user_id: null }
+        },
+        'light.kitchen_ceiling': {
+          entity_id: 'light.kitchen_ceiling',
+          state: 'on',
+          attributes: { friendly_name: 'Kitchen Ceiling' },
+          last_changed: '',
+          last_updated: '',
+          context: { id: '3', parent_id: null, user_id: null }
+        },
+        'switch.hallway_sconce': {
+          entity_id: 'switch.hallway_sconce',
+          state: 'off',
+          attributes: { friendly_name: 'Hallway Sconce', device_class: 'light' },
+          last_changed: '',
+          last_updated: '',
+          context: { id: '4', parent_id: null, user_id: null }
+        }
+      },
+      entities: {
+        'light.bedroom_strip': {
+          entity_id: 'light.bedroom_strip',
+          name: 'Bedroom LED Strip',
+          platform: 'hue'
+        }
+      },
+      connection: {
+        subscribeMessage: async () => async () => {},
+        sendMessagePromise: async () => [] as never
+      },
+      callService: async () => ({}),
+      callWS: async () => [] as never
+    };
+
+    panel.hass = mockHass;
+    await panel.updateComplete;
+
+    const palette = panel.shadowRoot?.querySelector('floorplan-entity-palette') as unknown as HTMLElement & {
+      selectedDomain: string;
+      getFilteredEntities: () => Array<{ entity_id: string }>;
+      updateComplete: Promise<boolean>;
+    };
+    expect(palette).not.toBeNull();
+    await palette.updateComplete;
+
+    const allFiltered = palette.getFilteredEntities();
+    // All 3 light entities (light.bedroom_strip, switch.hallway_sconce [device_class=light], light.kitchen_ceiling)
+    // appear first in the list ahead of media_player and sensor
+    expect(allFiltered.slice(0, 3).map((e) => e.entity_id)).toEqual([
+      'light.bedroom_strip',
+      'switch.hallway_sconce',
+      'light.kitchen_ceiling'
+    ]);
+
+    // Selecting the 'light' domain chip returns all 3 light entities (including the light-classified switch and registry light)
+    palette.selectedDomain = 'light';
+    await palette.updateComplete;
+    const onlyLights = palette.getFilteredEntities();
+    expect(onlyLights.map((e) => e.entity_id)).toEqual([
+      'light.bedroom_strip',
+      'switch.hallway_sconce',
+      'light.kitchen_ceiling'
+    ]);
+  });
+
+  it('locks wall editing via L shortcut or toolbar toggle so walls/corners cannot be moved or deleted while objects remain movable', async () => {
+    const panel = document.createElement('floorplan-editor-panel') as FloorplanEditorPanel;
+    document.body.appendChild(panel);
+    await panel.updateComplete;
+
+    const anyPanel = panel as unknown as {
+      wallsLocked: boolean;
+      currentDocument: FloorplanDocument;
+      selection: { kind: string; id: string | null };
+      deleteSelection: () => void;
+    };
+
+    // Place a light entity right on top of corner n1 (-4, -3)
+    const origN1 = { ...anyPanel.currentDocument.floors[0].nodes.find((n) => n.id === 'n1')! };
+    panel.renderRoot.querySelector('floorplan-entity-palette')?.dispatchEvent(
+      new CustomEvent('palette-place', {
+        bubbles: true,
+        composed: true,
+        detail: {
+          kind: 'entity',
+          entityId: 'light.corner_lamp',
+          domain: 'light',
+          dropPoint: { x: origN1.x, y: origN1.y }
+        }
+      })
+    );
+    await panel.updateComplete;
+
+    const placedEntity = anyPanel.currentDocument.floors[0].entities[0]!;
+    expect(placedEntity.x).toBe(origN1.x);
+    expect(placedEntity.y).toBe(origN1.y);
+
+    // Press 'l' to lock walls
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'l', bubbles: true }));
+    await panel.updateComplete;
+    expect(anyPanel.wallsLocked).toBe(true);
+
+    const canvas2d = panel.shadowRoot?.querySelector('floorplan-canvas-2d') as unknown as HTMLElement & {
+      wallsLocked: boolean;
+      moveNodeTo: (nodeId: string, pt: { x: number; y: number }, commit?: boolean) => void;
+      moveWallByDelta: (wallId: string, dx: number, dy: number, commit?: boolean) => void;
+      hitTestSceneItem: (pt: { x: number; y: number }) => { kind: string; id: string | null };
+      updateComplete: Promise<boolean>;
+    };
+    await canvas2d.updateComplete;
+    expect(canvas2d.wallsLocked).toBe(true);
+
+    // Attempt to move node n1 or wall w1 while locked -> no-op
+    canvas2d.moveNodeTo('n1', { x: -10, y: -10 }, true);
+    canvas2d.moveWallByDelta('w1', 0, -5, true);
+    expect(anyPanel.currentDocument.floors[0].nodes.find((n) => n.id === 'n1')).toEqual(origN1);
+
+    // Hit-testing at corner n1 hits the placed entity instead of the locked corner node
+    expect(canvas2d.hitTestSceneItem({ x: origN1.x, y: origN1.y })).toEqual({
+      kind: 'entity',
+      id: placedEntity.id
+    });
+
+    // Hit-testing on bare wall w2 (4, 0) skips the locked wall edge and returns room
+    expect(canvas2d.hitTestSceneItem({ x: 4, y: 0 }).kind).not.toBe('wall');
+
+    // Attempting to delete a wall while locked is blocked
+    anyPanel.selection = { kind: 'wall', id: 'w1' };
+    anyPanel.deleteSelection();
+    expect(anyPanel.currentDocument.floors[0].walls.some((w) => w.id === 'w1')).toBe(true);
+  });
+
+  it('places doors/windows on the selected wall and supports moving a door across to another wall via drag or PropertyInspector', async () => {
+    const panel = document.createElement('floorplan-editor-panel') as FloorplanEditorPanel;
+    document.body.appendChild(panel);
+    await panel.updateComplete;
+
+    const anyPanel = panel as unknown as {
+      currentDocument: FloorplanDocument;
+      selection: { kind: string; id: string | null };
+    };
+
+    // Select wall w2 (East wall) and place a door from the palette
+    anyPanel.selection = { kind: 'wall', id: 'w2' };
+    panel.requestUpdate();
+    await panel.updateComplete;
+
+    panel.renderRoot.querySelector('floorplan-entity-palette')?.dispatchEvent(
+      new CustomEvent('palette-place', {
+        bubbles: true,
+        composed: true,
+        detail: {
+          kind: 'opening',
+          openingType: 'door_single',
+          label: 'Single Door',
+          defaultWidth: 0.9
+        }
+      })
+    );
+    await panel.updateComplete;
+
+    const openings = anyPanel.currentDocument.floors[0].openings;
+    expect(openings.length).toBe(1);
+    const door = openings[0]!;
+    // Placed on selected wall w2 instead of hardcoded w1
+    expect(door.wall_id).toBe('w2');
+
+    // Move the door across the room onto South wall w3 (midpoint (0, 3)) via canvas2d.moveOpeningTo
+    const canvas2d = panel.shadowRoot?.querySelector('floorplan-canvas-2d') as unknown as {
+      moveOpeningTo: (openingId: string, pt: { x: number; y: number }, commit?: boolean) => void;
+    };
+    canvas2d.moveOpeningTo(door.id, { x: 0, y: 3 }, true);
+    await panel.updateComplete;
+
+    const movedDoor = anyPanel.currentDocument.floors[0].openings[0]!;
+    expect(movedDoor.wall_id).toBe('w3');
+    expect(movedDoor.t).toBeCloseTo(0.5, 2);
+
+    // Reassign host wall to w4 via PropertyInspector Host Wall dropdown
+    const inspector = panel.shadowRoot?.querySelector('floorplan-property-inspector');
+    expect(inspector).not.toBeNull();
+    await inspector?.updateComplete;
+
+    const selects = Array.from(inspector?.shadowRoot?.querySelectorAll('select') ?? []);
+    const hostWallSelect = selects.find((s) =>
+      Array.from(s.options).some((opt) => opt.value === 'w4')
+    );
+    expect(hostWallSelect).toBeDefined();
+    hostWallSelect!.value = 'w4';
+    hostWallSelect!.dispatchEvent(new Event('change'));
+    await panel.updateComplete;
+
+    expect(anyPanel.currentDocument.floors[0].openings[0]?.wall_id).toBe('w4');
+  });
+
+  it('allows deleting the only floorplan (or an unsaved floorplan) via the in-editor confirmation modal and resets to a fresh plan', async () => {
+    const panel = document.createElement('floorplan-editor-panel') as FloorplanEditorPanel;
+    document.body.appendChild(panel);
+    await panel.updateComplete;
+
+    const anyPanel = panel as unknown as {
+      currentDocument: FloorplanDocument;
+      confirmDialog: { title: string; onConfirm: () => void } | null;
+    };
+
+    // Add a custom entity to the current floorplan so we can verify reset
+    panel.renderRoot.querySelector('floorplan-entity-palette')?.dispatchEvent(
+      new CustomEvent('palette-place', {
+        bubbles: true,
+        composed: true,
+        detail: { kind: 'entity', entityId: 'light.test_bulb', domain: 'light' }
+      })
+    );
+    await panel.updateComplete;
+    expect(anyPanel.currentDocument.floors[0].entities.length).toBe(1);
+
+    // Trigger floorplan-delete from toolbar even when floorplans.length <= 1
+    const toolbar = panel.shadowRoot?.querySelector('floorplan-editor-toolbar');
+    toolbar?.dispatchEvent(new CustomEvent('floorplan-delete', { bubbles: true, composed: true }));
+    await panel.updateComplete;
+
+    // In-editor confirmation dialog opens
+    expect(anyPanel.confirmDialog).not.toBeNull();
+    const confirmDangerBtn = panel.shadowRoot?.querySelector(
+      '.btn-confirm-danger'
+    ) as HTMLButtonElement | null;
+    expect(confirmDangerBtn).not.toBeNull();
+
+    confirmDangerBtn?.click();
+    await panel.updateComplete;
+
+    expect(anyPanel.confirmDialog).toBeNull();
+    expect(anyPanel.currentDocument.floors[0].entities.length).toBe(0);
+    expect(anyPanel.currentDocument.name).toBe('Main House');
+  });
 });

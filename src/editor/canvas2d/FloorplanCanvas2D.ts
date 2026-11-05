@@ -10,7 +10,7 @@ import type {
   WallNode,
   WallOpening
 } from '../../types/floorplan';
-import type { EditorSelection, EditorToolMode } from '../editor-contracts';
+import type { EditorSelection, EditorToolMode, PaletteDragPayload } from '../editor-contracts';
 import {
   computeCalibrationMetersPerPixel,
   computeFloorBoundingBox2D,
@@ -216,10 +216,18 @@ export class FloorplanCanvas2D extends LitElement {
       color: var(--primary-text-color, #f8fafc);
     }
 
-    .hud-tool-badge {
+    .hud-top-bar {
       position: absolute;
       top: 0.75rem;
       left: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .hud-tool-badge {
       background: var(--card-background-color, rgba(15, 23, 42, 0.9));
       color: var(--primary-color, #38bdf8);
       backdrop-filter: blur(4px);
@@ -232,7 +240,34 @@ export class FloorplanCanvas2D extends LitElement {
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      z-index: 10;
+    }
+
+    .hud-lock-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.65rem;
+      border-radius: 6px;
+      border: 1px solid var(--divider-color, #334155);
+      background: var(--card-background-color, rgba(15, 23, 42, 0.9));
+      color: var(--secondary-text-color, #94a3b8);
+      backdrop-filter: blur(4px);
+      font-size: 0.75rem;
+      font-weight: 600;
+      pointer-events: auto;
+      cursor: pointer;
+      transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .hud-lock-btn:hover {
+      background: var(--secondary-background-color, #334155);
+      color: var(--primary-text-color, #f8fafc);
+    }
+
+    .hud-lock-btn.locked {
+      background: rgba(245, 158, 11, 0.2);
+      border-color: #f59e0b;
+      color: #fbbf24;
     }
 
     .touch-action-bar {
@@ -351,6 +386,7 @@ export class FloorplanCanvas2D extends LitElement {
   @property({ type: Boolean }) snapToGrid = true;
   @property({ type: Boolean }) showGrid = true;
   @property({ type: Boolean }) showBlueprint = true;
+  @property({ type: Boolean }) wallsLocked = false;
 
   // Viewport Transform State (metric world coordinates at center + pixelsPerMeter)
   @state() panX = 0;
@@ -493,6 +529,7 @@ export class FloorplanCanvas2D extends LitElement {
       changedProps.has('ghostFloor') ||
       changedProps.has('selection') ||
       changedProps.has('toolMode') ||
+      changedProps.has('wallsLocked') ||
       changedProps.has('showGrid') ||
       changedProps.has('showBlueprint') ||
       changedProps.has('gridSize') ||
@@ -571,6 +608,34 @@ export class FloorplanCanvas2D extends LitElement {
     this.konvaMountEl.addEventListener('touchcancel', () => {
       this.activeTouchPoints.clear();
       this.wasMultiTouchGesture = false;
+    });
+
+    this.konvaMountEl.addEventListener('dragover', (ev: DragEvent) => {
+      ev.preventDefault();
+      if (ev.dataTransfer) {
+        ev.dataTransfer.dropEffect = 'copy';
+      }
+    });
+    this.konvaMountEl.addEventListener('drop', (ev: DragEvent) => {
+      ev.preventDefault();
+      const raw = ev.dataTransfer?.getData('application/x-floorplan-palette');
+      if (!raw) return;
+      try {
+        const payload = JSON.parse(raw) as PaletteDragPayload;
+        const rect = this.getBoundingClientRect();
+        const sx = rect.width > 0 ? ev.clientX - rect.left : ev.clientX;
+        const sy = rect.height > 0 ? ev.clientY - rect.top : ev.clientY;
+        const dropPoint = this.screenToWorld(sx, sy);
+        this.dispatchEvent(
+          new CustomEvent('palette-place', {
+            detail: { ...payload, dropPoint },
+            bubbles: true,
+            composed: true
+          })
+        );
+      } catch {
+        // ignore malformed drag payload
+      }
     });
 
     // Stage Wheel Zoom (zooms toward cursor)
@@ -711,6 +776,7 @@ export class FloorplanCanvas2D extends LitElement {
    * and its incident walls so it never self-snaps) and auto-synchronizes room polygons.
    */
   public moveNodeTo(nodeId: string, rawWorldPt: Point2D, commit = true): void {
+    if (this.wallsLocked) return;
     const baseFloor = this.floor;
     if (!baseFloor) return;
 
@@ -758,6 +824,7 @@ export class FloorplanCanvas2D extends LitElement {
    * while excluding both endpoints and their incident walls) and auto-synchronizes room polygons.
    */
   public moveWallByDelta(wallId: string, dx: number, dy: number, commit = true): void {
+    if (this.wallsLocked) return;
     const baseFloor = this.floor;
     if (!baseFloor) return;
 
@@ -811,20 +878,32 @@ export class FloorplanCanvas2D extends LitElement {
     }
   }
 
-  private moveOpeningTo(openingId: string, rawWorldPt: Point2D, commit = true): void {
+  public moveOpeningTo(openingId: string, rawWorldPt: Point2D, commit = true): void {
     const baseFloor = this.floor;
     if (!baseFloor) return;
     const nextFloor: FloorLevel = structuredClone(baseFloor);
     const targetOp = nextFloor.openings.find((o) => o.id === openingId);
     if (!targetOp) return;
-    const wall = nextFloor.walls.find((w) => w.id === targetOp.wall_id);
-    if (!wall) return;
-    const start = nextFloor.nodes.find((n) => n.id === wall.start_node_id);
-    const end = nextFloor.nodes.find((n) => n.id === wall.end_node_id);
-    if (!start || !end) return;
 
-    const proj = projectPointOntoSegment(rawWorldPt, start, end);
-    targetOp.t = Number(Math.max(0.05, Math.min(0.95, proj.t)).toFixed(4));
+    const nodeMap = new Map(nextFloor.nodes.map((n) => [n.id, n]));
+    let bestMatch: { wallId: string; t: number; dist: number; wallLen: number } | null = null;
+    for (const w of nextFloor.walls) {
+      const start = nodeMap.get(w.start_node_id);
+      const end = nodeMap.get(w.end_node_id);
+      if (!start || !end) continue;
+      const wallLen = distance2D(start, end);
+      if (wallLen < 0.2) continue;
+      const proj = projectPointOntoSegment(rawWorldPt, start, end);
+      if (!bestMatch || proj.distance < bestMatch.dist) {
+        bestMatch = { wallId: w.id, t: proj.t, dist: proj.distance, wallLen };
+      }
+    }
+    if (!bestMatch) return;
+    const halfRatio = Math.min(0.42, (targetOp.width / 2) / Math.max(0.25, bestMatch.wallLen));
+    const minT = Math.max(0.05, halfRatio);
+    const maxT = Math.min(0.95, 1 - halfRatio);
+    targetOp.wall_id = bestMatch.wallId;
+    targetOp.t = Number(Math.max(minT, Math.min(maxT, bestMatch.t)).toFixed(4));
 
     if (commit) {
       this.activeFloorDraft = null;
@@ -893,17 +972,18 @@ export class FloorplanCanvas2D extends LitElement {
     const openingHitRadius = Math.max(0.35, 22 * invScale);
     const wallHitRadius = Math.max(0.25, 20 * invScale);
 
-    // 1. Wall Anchor Nodes (highest priority so corners are always easy to grab)
+    // Wall Anchor Nodes check (only if not wallsLocked)
     let bestNode: { id: string; dist: number } | null = null;
-    for (const node of floor.nodes) {
-      const d = distance2D(worldPt, node);
-      if (d <= nodeHitRadius && (!bestNode || d < bestNode.dist)) {
-        bestNode = { id: node.id, dist: d };
+    if (!this.wallsLocked) {
+      for (const node of floor.nodes) {
+        const d = distance2D(worldPt, node);
+        if (d <= nodeHitRadius && (!bestNode || d < bestNode.dist)) {
+          bestNode = { id: node.id, dist: d };
+        }
       }
     }
-    if (bestNode) return { kind: 'node', id: bestNode.id };
 
-    // 2. Smart Home Entity Badges
+    // 1. Smart Home Entity Badges
     let bestEntity: { id: string; dist: number } | null = null;
     for (const ent of floor.entities) {
       const d = distance2D(worldPt, ent);
@@ -911,11 +991,11 @@ export class FloorplanCanvas2D extends LitElement {
         bestEntity = { id: ent.id, dist: d };
       }
     }
-    if (bestEntity) return { kind: 'entity', id: bestEntity.id };
 
-    // 3. Wall Openings (Doors / Windows)
+    // 2. Wall Openings (Doors / Windows)
     const nodeMap = new Map(floor.nodes.map((n) => [n.id, n]));
     const wallMap = new Map(floor.walls.map((w) => [w.id, w]));
+    let bestOpening: { id: string; dist: number } | null = null;
     for (const op of floor.openings) {
       const w = wallMap.get(op.wall_id);
       if (!w) continue;
@@ -924,12 +1004,37 @@ export class FloorplanCanvas2D extends LitElement {
       if (!a || !b) continue;
       const cx = a.x + (b.x - a.x) * op.t;
       const cy = a.y + (b.y - a.y) * op.t;
-      if (distance2D(worldPt, { x: cx, y: cy }) <= Math.max(openingHitRadius, op.width / 2)) {
-        return { kind: 'opening', id: op.id };
+      const d = distance2D(worldPt, { x: cx, y: cy });
+      const hitRadius = Math.max(openingHitRadius, op.width / 2);
+      if (d <= hitRadius && (!bestOpening || d < bestOpening.dist)) {
+        bestOpening = { id: op.id, dist: d };
       }
     }
 
-    // 4. Furniture Items (rotated bounding box)
+    // Compare Entity vs Opening hit
+    let bestEntityOrOpening: { kind: 'entity' | 'opening'; id: string; dist: number } | null = null;
+    if (bestEntity && bestOpening) {
+      bestEntityOrOpening = bestEntity.dist <= bestOpening.dist
+        ? { kind: 'entity', id: bestEntity.id, dist: bestEntity.dist }
+        : { kind: 'opening', id: bestOpening.id, dist: bestOpening.dist };
+    } else if (bestEntity) {
+      bestEntityOrOpening = { kind: 'entity', id: bestEntity.id, dist: bestEntity.dist };
+    } else if (bestOpening) {
+      bestEntityOrOpening = { kind: 'opening', id: bestOpening.id, dist: bestOpening.dist };
+    }
+
+    if (bestEntityOrOpening) {
+      if (bestNode && bestNode.dist < bestEntityOrOpening.dist) {
+        return { kind: 'node', id: bestNode.id };
+      }
+      return { kind: bestEntityOrOpening.kind, id: bestEntityOrOpening.id };
+    }
+
+    if (bestNode) {
+      return { kind: 'node', id: bestNode.id };
+    }
+
+    // 3. Furniture Items (rotated bounding box)
     for (let i = floor.furniture.length - 1; i >= 0; i--) {
       const item = floor.furniture[i];
       const dx = worldPt.x - item.x;
@@ -943,21 +1048,23 @@ export class FloorplanCanvas2D extends LitElement {
       }
     }
 
-    // 5. Wall Edges
-    let bestWall: { id: string; dist: number } | null = null;
-    for (const wall of floor.walls) {
-      const a = nodeMap.get(wall.start_node_id);
-      const b = nodeMap.get(wall.end_node_id);
-      if (!a || !b) continue;
-      const proj = projectPointOntoSegment(worldPt, a, b);
-      const tol = Math.max(wallHitRadius, wall.thickness / 2 + 0.12);
-      if (proj.distance <= tol && (!bestWall || proj.distance < bestWall.dist)) {
-        bestWall = { id: wall.id, dist: proj.distance };
+    // 4. Wall Edges (only if not wallsLocked)
+    if (!this.wallsLocked) {
+      let bestWall: { id: string; dist: number } | null = null;
+      for (const wall of floor.walls) {
+        const a = nodeMap.get(wall.start_node_id);
+        const b = nodeMap.get(wall.end_node_id);
+        if (!a || !b) continue;
+        const proj = projectPointOntoSegment(worldPt, a, b);
+        const tol = Math.max(wallHitRadius, wall.thickness / 2 + 0.12);
+        if (proj.distance <= tol && (!bestWall || proj.distance < bestWall.dist)) {
+          bestWall = { id: wall.id, dist: proj.distance };
+        }
       }
+      if (bestWall) return { kind: 'wall', id: bestWall.id };
     }
-    if (bestWall) return { kind: 'wall', id: bestWall.id };
 
-    // 6. Room Polygons
+    // 5. Room Polygons
     for (let i = floor.rooms.length - 1; i >= 0; i--) {
       const room = floor.rooms[i];
       if (room.points.length >= 3 && pointInPolygon2D(worldPt, room.points)) {
@@ -1109,8 +1216,10 @@ export class FloorplanCanvas2D extends LitElement {
     this.addOpeningsToLayer(activeFloor, invScale);
 
     // 7. Wall Anchor Nodes (Draggable Konva Groups)
-    for (const node of activeFloor.nodes) {
-      this.addWallNodeToLayer(node, invScale);
+    if (!this.wallsLocked) {
+      for (const node of activeFloor.nodes) {
+        this.addWallNodeToLayer(node, invScale);
+      }
     }
 
     // 8. Home Assistant Entity Badges
@@ -1204,7 +1313,7 @@ export class FloorplanCanvas2D extends LitElement {
       const wallGroup = new Konva.Group({
         id: wall.id,
         name: 'wall-group',
-        listening: this.toolMode === 'select'
+        listening: this.toolMode === 'select' && !this.wallsLocked
       });
 
       // Draw solid wall segments
@@ -1267,7 +1376,7 @@ export class FloorplanCanvas2D extends LitElement {
       }
 
       wallGroup.on('click tap', (e) => {
-        if (this.toolMode !== 'select') return;
+        if (this.toolMode !== 'select' || this.wallsLocked) return;
         e.cancelBubble = true;
         this.emitSelectionChange({ kind: 'wall', id: wall.id });
       });
@@ -2741,8 +2850,25 @@ export class FloorplanCanvas2D extends LitElement {
 
       ${this.renderTouchActionBar()}
 
-      <div class="hud-tool-badge">
-        <span>🛠️ ${toolLabels[this.toolMode]}</span>
+      <div class="hud-top-bar">
+        <div class="hud-tool-badge">
+          <span>🛠️ ${toolLabels[this.toolMode]}</span>
+        </div>
+        <button
+          type="button"
+          class="hud-lock-btn ${this.wallsLocked ? 'locked' : ''}"
+          title="Toggle Lock Wall Editing [L]"
+          @click=${() =>
+            this.dispatchEvent(
+              new CustomEvent('toggle-walls-locked', {
+                detail: { wallsLocked: !this.wallsLocked },
+                bubbles: true,
+                composed: true
+              })
+            )}
+        >
+          ${this.wallsLocked ? '🔒 Walls Locked [L]' : '🔓 Lock Walls [L]'}
+        </button>
       </div>
 
       <div class="hud-overlay">

@@ -11,11 +11,13 @@ import type { EditorToolMode, EditorViewLayout } from '../editor-contracts';
 export class EditorToolbar extends LitElement {
   @property({ type: Array }) public floorplans: FloorplanSummary[] = [];
   @property({ type: String }) public activeFloorplanId = '';
+  @property({ type: String }) public activeFloorplanName = '';
   @property({ type: Array }) public floors: FloorLevel[] = [];
   @property({ type: String }) public activeFloorId = '';
   @property({ type: String }) public activeTool: EditorToolMode = 'select';
   @property({ type: Number }) public gridSize = 0.1;
   @property({ type: Boolean }) public snapToGrid = true;
+  @property({ type: Boolean }) public wallsLocked = false;
   @property({ type: Boolean }) public canUndo = false;
   @property({ type: Boolean }) public canRedo = false;
   @property({ type: String }) public viewLayout: EditorViewLayout = 'split';
@@ -131,6 +133,12 @@ export class EditorToolbar extends LitElement {
       background: var(--primary-color, #2563eb);
       color: #ffffff;
       border-color: var(--primary-color, #3b82f6);
+    }
+
+    button.lock-active {
+      background: rgba(245, 158, 11, 0.25);
+      color: #fbbf24;
+      border-color: #f59e0b;
     }
 
     button.danger:hover:not(:disabled) {
@@ -319,6 +327,40 @@ export class EditorToolbar extends LitElement {
     );
   }
 
+  private handleWallsLockToggle(): void {
+    this.dispatchEvent(
+      new CustomEvent('toggle-walls-locked', {
+        bubbles: true,
+        composed: true,
+        detail: { wallsLocked: !this.wallsLocked }
+      })
+    );
+  }
+
+  private renderFloorplanOptions() {
+    if (this.floorplans.length === 0) {
+      return html`<option value=${this.activeFloorplanId || 'main_house'}>
+        ${this.activeFloorplanName || 'Default Floorplan'}
+      </option>`;
+    }
+    const isUnsaved =
+      Boolean(this.activeFloorplanId) &&
+      !this.floorplans.some((fp) => fp.id === this.activeFloorplanId);
+    return html`
+      ${isUnsaved
+        ? html`<option value=${this.activeFloorplanId} selected>
+            ${this.activeFloorplanName || this.activeFloorplanId} (Unsaved)
+          </option>`
+        : ''}
+      ${this.floorplans.map(
+        (fp) =>
+          html`<option value=${fp.id} ?selected=${fp.id === this.activeFloorplanId}>
+            ${fp.name}
+          </option>`
+      )}
+    `;
+  }
+
   private handleFloorplanSelect(ev: Event): void {
     const select = ev.target as HTMLSelectElement;
     this.dispatchEvent(
@@ -437,11 +479,7 @@ export class EditorToolbar extends LitElement {
             .value=${this.activeFloorplanId}
             @change=${this.handleFloorplanSelect}
           >
-            ${this.floorplans.length === 0
-              ? html`<option value="">Floorplan</option>`
-              : this.floorplans.map(
-                  (fp) => html`<option value=${fp.id}>${fp.name}</option>`
-                )}
+            ${this.renderFloorplanOptions()}
           </select>
 
           <select
@@ -509,7 +547,6 @@ export class EditorToolbar extends LitElement {
               </button>
               <button
                 class="popover-item"
-                ?disabled=${this.floorplans.length <= 1}
                 @click=${() => {
                   this.isMoreMenuOpen = false;
                   this.dispatchEvent(new CustomEvent('floorplan-delete', { bubbles: true, composed: true }));
@@ -550,6 +587,15 @@ export class EditorToolbar extends LitElement {
 
               <div class="popover-divider"></div>
 
+              <button
+                class="popover-item"
+                @click=${() => {
+                  this.isMoreMenuOpen = false;
+                  this.handleWallsLockToggle();
+                }}
+              >
+                <span>${this.wallsLocked ? '🔒 Walls Locked (Tap to Unlock)' : '🔓 Lock Wall Editing'}</span>
+              </button>
               <button
                 class="popover-item"
                 @click=${() => {
@@ -647,11 +693,7 @@ export class EditorToolbar extends LitElement {
           .value=${this.activeFloorplanId}
           @change=${this.handleFloorplanSelect}
         >
-          ${this.floorplans.length === 0
-            ? html`<option value="">Default Floorplan</option>`
-            : this.floorplans.map(
-                (fp) => html`<option value=${fp.id}>${fp.name}</option>`
-              )}
+          ${this.renderFloorplanOptions()}
         </select>
         <button
           title="Create New Floorplan"
@@ -662,7 +704,6 @@ export class EditorToolbar extends LitElement {
         <button
           class="danger"
           title="Delete Active Floorplan"
-          ?disabled=${this.floorplans.length <= 1}
           @click=${() => this.dispatchEvent(new CustomEvent('floorplan-delete', { bubbles: true, composed: true }))}
         >
           Delete
@@ -744,6 +785,13 @@ export class EditorToolbar extends LitElement {
             Measure [M]
           </button>
         </div>
+        <button
+          class=${this.wallsLocked ? 'active lock-active' : ''}
+          title="Lock / Unlock Wall Editing [L] (Prevents accidentally moving walls while moving objects)"
+          @click=${this.handleWallsLockToggle}
+        >
+          ${this.wallsLocked ? '🔒 Walls Locked [L]' : '🔓 Lock Walls [L]'}
+        </button>
         <button
           title="Calibrate 2-Point Blueprint Scale"
           @click=${() => this.dispatchEvent(new CustomEvent('calibrate-blueprint', { bubbles: true, composed: true }))}

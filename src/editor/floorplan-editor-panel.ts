@@ -21,6 +21,7 @@ import { EditorHistory } from './state/EditorHistory';
 import { FloorplanWsClient } from '../api/ws-client';
 import { FloorplanScene3D } from '../engine/FloorplanScene3D';
 import { WatchedEntityDiffer } from '../utils/ha-registry';
+import { projectPointOntoSegment } from '../utils/geometry2d';
 
 // Child components
 import './canvas2d/FloorplanCanvas2D';
@@ -58,6 +59,13 @@ export class FloorplanEditorPanel extends LitElement {
   @state() private isRightPaneCollapsed = false;
   @state() private isTopToolbarCollapsed = false;
   @state() private splitRatio = 0.65;
+  @state() private wallsLocked = false;
+  @state() private confirmDialog: {
+    title: string;
+    message: string;
+    confirmLabel: string;
+    onConfirm: () => void;
+  } | null = null;
 
   private history!: EditorHistory<FloorplanDocument>;
   private wsClient!: FloorplanWsClient;
@@ -420,7 +428,9 @@ export class FloorplanEditorPanel extends LitElement {
       bottom: 0;
       left: 0;
       right: 0;
+      height: 75%;
       max-height: 75%;
+      max-height: 75dvh;
       padding-bottom: env(safe-area-inset-bottom, 0px);
       background: var(--card-background-color, #0f172a);
       border-top: 1px solid var(--divider-color, #334155);
@@ -473,10 +483,86 @@ export class FloorplanEditorPanel extends LitElement {
     }
 
     .mobile-sheet-content {
-      flex: 1;
+      flex: 1 1 0%;
+      min-height: 0;
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
       display: flex;
       flex-direction: column;
+    }
+
+    .dock-btn.warning {
+      color: #fbbf24;
+      background: rgba(245, 158, 11, 0.15);
+    }
+
+    /* In-Editor Confirmation Dialog */
+    .confirm-modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.72);
+      z-index: 1200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      backdrop-filter: blur(3px);
+    }
+
+    .confirm-modal-card {
+      width: 100%;
+      max-width: 400px;
+      background: var(--card-background-color, #0f172a);
+      border: 1px solid var(--divider-color, #334155);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.65);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .confirm-modal-title {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--primary-text-color, #f8fafc);
+    }
+
+    .confirm-modal-msg {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--secondary-text-color, #cbd5e1);
+    }
+
+    .confirm-modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .btn-confirm-cancel {
+      background: var(--secondary-background-color, #1e293b);
+      color: var(--primary-text-color, #e2e8f0);
+      border: 1px solid var(--divider-color, #475569);
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-confirm-danger {
+      background: var(--error-color, #dc2626);
+      color: #ffffff;
+      border: 1px solid #ef4444;
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
     }
   `;
 
@@ -763,12 +849,25 @@ export class FloorplanEditorPanel extends LitElement {
     }
 
     // CAD Tool Shortcuts
+    if (this.confirmDialog && ev.key === 'Escape') {
+      ev.preventDefault();
+      this.confirmDialog = null;
+      return;
+    }
+
     switch (ev.key.toLowerCase()) {
       case 'v':
         this.activeTool = 'select';
         break;
       case 'w':
-        this.activeTool = 'draw_wall';
+        if (this.wallsLocked) {
+          this.showToast('Walls are locked. Press L or unlock walls to draw.');
+        } else {
+          this.activeTool = 'draw_wall';
+        }
+        break;
+      case 'l':
+        this.toggleWallsLocked(!this.wallsLocked);
         break;
       case 'r':
         this.activeTool = 'draw_room';
@@ -798,6 +897,21 @@ export class FloorplanEditorPanel extends LitElement {
     }
   };
 
+  private toggleWallsLocked(nextLocked: boolean): void {
+    this.wallsLocked = nextLocked;
+    if (nextLocked) {
+      if (this.activeTool === 'draw_wall') {
+        this.activeTool = 'select';
+      }
+      if (this.selection.kind === 'wall' || this.selection.kind === 'node') {
+        this.selection = { kind: 'none', id: null };
+      }
+      this.showToast('Walls locked (corners & walls protected)');
+    } else {
+      this.showToast('Walls unlocked');
+    }
+  }
+
   private handleUndo(): void {
     const prev = this.history.undo();
     if (prev) {
@@ -821,6 +935,11 @@ export class FloorplanEditorPanel extends LitElement {
   private deleteSelection(): void {
     if (this.selection.kind === 'none' || !this.selection.id) return;
     const { kind, id } = this.selection;
+
+    if ((kind === 'node' || kind === 'wall') && this.wallsLocked) {
+      this.showToast('Walls are locked. Unlock walls to delete walls or corners.');
+      return;
+    }
 
     const doc = structuredClone(this.currentDocument);
     const floor = doc.floors.find((f) => f.id === this.activeFloorId);
@@ -947,24 +1066,94 @@ export class FloorplanEditorPanel extends LitElement {
     this.showToast(`Created new floorplan: ${name}`);
   }
 
-  private async handleFloorplanDelete(): Promise<void> {
-    if (this.floorplans.length <= 1) {
-      this.showToast('Cannot delete the only remaining floorplan.');
+  private handleFloorplanDelete(): void {
+    const planId = this.activeFloorplanId || this.currentDocument.id;
+    const planName = this.currentDocument.name || planId;
+    const isLastSavedPlan =
+      this.floorplans.length === 0 ||
+      (this.floorplans.length === 1 && this.floorplans[0]?.id === planId);
+
+    this.confirmDialog = {
+      title: `Delete Floorplan "${planName}"?`,
+      message: isLastSavedPlan
+        ? `This will permanently delete "${planName}" and reset the workspace to a new blank floorplan.`
+        : `This will permanently delete "${planName}" and all of its floor levels, walls, rooms, and placed entities.`,
+      confirmLabel: 'Delete Floorplan',
+      onConfirm: () => {
+        this.confirmDialog = null;
+        void this.executeFloorplanDelete(planId, planName);
+      }
+    };
+  }
+
+  private async executeFloorplanDelete(planId: string, planName: string): Promise<void> {
+    const wasSavedInBackend = this.floorplans.some((fp) => fp.id === planId);
+    try {
+      if (wasSavedInBackend && this.hass) {
+        await this.wsClient.deleteFloorplan(planId);
+      }
+      const remaining = this.floorplans.filter((fp) => fp.id !== planId);
+      this.floorplans = remaining;
+
+      if (remaining.length > 0 && this.hass) {
+        const nextSummary = remaining[0];
+        const nextDoc = await this.wsClient.getFloorplan(nextSummary.id);
+        this.history.reset(nextDoc);
+        this.activeFloorplanId = nextDoc.id;
+        this.activeFloorId = nextDoc.floors[0]?.id ?? '';
+        this.selection = { kind: 'none', id: null };
+        this.updateHistoryFlags();
+        this.sync3DScene();
+        this.showToast(`Deleted "${planName}". Loaded "${nextDoc.name}".`);
+      } else {
+        const freshDoc = createDefaultFloorplanDocument('main_house', 'Main House');
+        this.history.reset(freshDoc);
+        this.activeFloorplanId = freshDoc.id;
+        this.activeFloorId = freshDoc.floors[0]?.id ?? '';
+        this.selection = { kind: 'none', id: null };
+        this.updateHistoryFlags();
+        this.sync3DScene();
+        if (wasSavedInBackend && this.hass) {
+          try {
+            await this.wsClient.saveFloorplan(freshDoc, freshDoc.revision);
+            this.history.markSaved();
+            this.updateHistoryFlags();
+            this.floorplans = await this.wsClient.listFloorplans();
+          } catch {
+            // Ignore offline fallback
+          }
+        }
+        this.showToast(`Deleted "${planName}" and reset to a new floorplan.`);
+      }
+      this.activeMobileSheet = 'none';
+      this.requestUpdate();
+    } catch (err: any) {
+      this.showToast(`Failed to delete floorplan: ${err?.message || err}`);
+    }
+  }
+
+  private handleFloorDelete(): void {
+    if (this.currentDocument.floors.length <= 1) {
+      this.showToast('Cannot delete the only floor level. Use Delete Floorplan instead.');
       return;
     }
+    const floor = this.activeFloor;
+    if (!floor) return;
 
-    const confirmed = window.confirm(
-      `Are you sure you want to delete the floorplan "${this.currentDocument.name}"?`
-    );
-    if (!confirmed) return;
-
-    try {
-      await this.wsClient.deleteFloorplan(this.activeFloorplanId);
-      this.showToast('Floorplan deleted.');
-      await this.loadInitialData();
-    } catch (err: any) {
-      this.showToast(`Failed to delete: ${err?.message || err}`);
-    }
+    this.confirmDialog = {
+      title: `Delete Floor Level "${floor.name}"?`,
+      message: `This will remove level "${floor.name}" and all walls, rooms, and entities on this level.`,
+      confirmLabel: 'Delete Floor Level',
+      onConfirm: () => {
+        this.confirmDialog = null;
+        const doc = structuredClone(this.currentDocument);
+        doc.floors = doc.floors.filter((f) => f.id !== floor.id);
+        this.activeFloorId = doc.floors[0]?.id ?? '';
+        this.selection = { kind: 'none', id: null };
+        this.pushHistory(doc, `Delete Floor ${floor.name}`);
+        this.showToast(`Deleted floor level: ${floor.name}`);
+      }
+    };
   }
 
   private handleFloorChange(ev: CustomEvent<{ floorId: string }>): void {
@@ -1182,8 +1371,8 @@ export class FloorplanEditorPanel extends LitElement {
         ? { x: canvas.panX, y: canvas.panY }
         : { x: 0, y: 0 });
 
-    const spawnX = Number(center.x.toFixed(2));
-    const spawnY = Number(center.y.toFixed(2));
+    const spawnX = Number((payload.dropPoint?.x ?? center.x).toFixed(2));
+    const spawnY = Number((payload.dropPoint?.y ?? center.y).toFixed(2));
 
     if (payload.kind === 'entity' && payload.entityId) {
       const newEntity = {
@@ -1234,12 +1423,64 @@ export class FloorplanEditorPanel extends LitElement {
         this.showToast('Please draw walls first before adding doors or windows.');
         return;
       }
-      const wall = floor.walls[0];
+
+      const nodeMap = new Map(floor.nodes.map((n) => [n.id, n]));
+      let targetWall = floor.walls[0];
+      let targetT = 0.5;
+
+      if (payload.wallId) {
+        const explicitWall = floor.walls.find((w) => w.id === payload.wallId);
+        if (explicitWall) {
+          targetWall = explicitWall;
+          if (payload.dropPoint) {
+            const ns = nodeMap.get(explicitWall.start_node_id);
+            const ne = nodeMap.get(explicitWall.end_node_id);
+            if (ns && ne) {
+              const proj = projectPointOntoSegment(payload.dropPoint, ns, ne);
+              targetT = Math.max(0.1, Math.min(0.9, Number(proj.t.toFixed(2))));
+            }
+          }
+        }
+      } else if (payload.dropPoint) {
+        let bestDist = Infinity;
+        for (const w of floor.walls) {
+          const ns = nodeMap.get(w.start_node_id);
+          const ne = nodeMap.get(w.end_node_id);
+          if (!ns || !ne) continue;
+          const proj = projectPointOntoSegment(payload.dropPoint, ns, ne);
+          if (proj.distance < bestDist) {
+            bestDist = proj.distance;
+            targetWall = w;
+            targetT = Math.max(0.1, Math.min(0.9, Number(proj.t.toFixed(2))));
+          }
+        }
+      } else if (this.selection.kind === 'wall' && this.selection.id) {
+        const selectedWall = floor.walls.find((w) => w.id === this.selection.id);
+        if (selectedWall) {
+          targetWall = selectedWall;
+          targetT = 0.5;
+        }
+      } else {
+        const refPt = { x: spawnX, y: spawnY };
+        let bestDist = Infinity;
+        for (const w of floor.walls) {
+          const ns = nodeMap.get(w.start_node_id);
+          const ne = nodeMap.get(w.end_node_id);
+          if (!ns || !ne) continue;
+          const proj = projectPointOntoSegment(refPt, ns, ne);
+          if (proj.distance < bestDist) {
+            bestDist = proj.distance;
+            targetWall = w;
+            targetT = Math.max(0.15, Math.min(0.85, Number(proj.t.toFixed(2))));
+          }
+        }
+      }
+
       const newOpening = {
         id: `open_${Math.random().toString(36).substring(2, 9)}`,
-        wall_id: wall.id,
+        wall_id: targetWall.id,
         type: payload.openingType,
-        t: 0.5,
+        t: targetT,
         width: payload.defaultWidth ?? 0.9,
         sill_height: payload.openingType.includes('window') ? 0.9 : 0.0,
         head_height: 2.1,
@@ -1249,7 +1490,7 @@ export class FloorplanEditorPanel extends LitElement {
       floor.openings.push(newOpening);
       this.selection = { kind: 'opening', id: newOpening.id };
       this.pushHistory(doc, `Add ${payload.label || 'Opening'}`);
-      this.showToast(`Added ${payload.label || 'Opening'} to wall`);
+      this.showToast(`Added ${payload.label || 'Opening'} to wall ${targetWall.id}`);
     }
 
     // Auto-close sheet after placing on mobile
@@ -1304,6 +1545,7 @@ export class FloorplanEditorPanel extends LitElement {
             <floorplan-editor-toolbar
               .floorplans=${this.floorplans}
               .activeFloorplanId=${this.activeFloorplanId}
+              .activeFloorplanName=${this.currentDocument.name}
               .floors=${this.currentDocument.floors}
               .activeFloorId=${this.activeFloorId}
               .activeTool=${this.activeTool}
@@ -1314,6 +1556,7 @@ export class FloorplanEditorPanel extends LitElement {
               .viewLayout=${this.viewLayout}
               .isDirty=${this.isDirty}
               .onionSkin=${this.onionSkin}
+              .wallsLocked=${this.wallsLocked}
               .narrow=${isMobile}
               .leftPaneCollapsed=${this.isLeftPaneCollapsed}
               .rightPaneCollapsed=${this.isRightPaneCollapsed}
@@ -1326,8 +1569,15 @@ export class FloorplanEditorPanel extends LitElement {
               @duplicate-perimeter=${this.handleDuplicatePerimeter}
               @toggle-onion-skin=${(ev: CustomEvent<{ onionSkin: boolean }>) =>
                 (this.onionSkin = ev.detail.onionSkin)}
-              @tool-change=${(ev: CustomEvent<{ tool: EditorToolMode }>) =>
-                (this.activeTool = ev.detail.tool)}
+              @toggle-walls-locked=${(ev: CustomEvent<{ wallsLocked: boolean }>) =>
+                this.toggleWallsLocked(ev.detail.wallsLocked)}
+              @tool-change=${(ev: CustomEvent<{ tool: EditorToolMode }>) => {
+                if (ev.detail.tool === 'draw_wall' && this.wallsLocked) {
+                  this.showToast('Walls are locked. Unlock walls first to draw.');
+                  return;
+                }
+                this.activeTool = ev.detail.tool;
+              }}
               @calibrate-blueprint=${() => (this.isBlueprintModalOpen = true)}
               @grid-size-change=${(ev: CustomEvent<{ gridSize: number }>) =>
                 (this.gridSize = ev.detail.gridSize)}
@@ -1373,6 +1623,40 @@ export class FloorplanEditorPanel extends LitElement {
       <!-- Toast Overlay -->
       ${this.toastMessage
         ? html`<div class="toast-overlay">${this.toastMessage}</div>`
+        : ''}
+
+      <!-- In-Editor Confirmation Modal -->
+      ${this.confirmDialog
+        ? html`
+            <div
+              class="confirm-modal-backdrop"
+              @click=${() => (this.confirmDialog = null)}
+            >
+              <div
+                class="confirm-modal-card"
+                role="dialog"
+                aria-modal="true"
+                @click=${(ev: Event) => ev.stopPropagation()}
+              >
+                <h3 class="confirm-modal-title">${this.confirmDialog.title}</h3>
+                <p class="confirm-modal-msg">${this.confirmDialog.message}</p>
+                <div class="confirm-modal-actions">
+                  <button
+                    class="btn-confirm-cancel"
+                    @click=${() => (this.confirmDialog = null)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    class="btn-confirm-danger"
+                    @click=${() => this.confirmDialog?.onConfirm()}
+                  >
+                    ${this.confirmDialog.confirmLabel}
+                  </button>
+                </div>
+              </div>
+            </div>
+          `
         : ''}
 
       <!-- Hidden file input for JSON import -->
@@ -1453,6 +1737,7 @@ export class FloorplanEditorPanel extends LitElement {
               .tool=${this.activeTool}
               .gridSize=${this.gridSize}
               .snapToGrid=${this.snapToGrid}
+              .wallsLocked=${this.wallsLocked}
               .ghostFloor=${this.onionSkin ? floorBelow : null}
               .onionSkinFloor=${this.onionSkin ? floorBelow : null}
               .selection=${this.selection}
@@ -1462,6 +1747,8 @@ export class FloorplanEditorPanel extends LitElement {
               @document-mutate=${this.handleDocumentMutate}
               @open-blueprint-modal=${() => (this.isBlueprintModalOpen = true)}
               @palette-place=${this.handlePalettePlace}
+              @toggle-walls-locked=${(ev: CustomEvent<{ wallsLocked: boolean }>) =>
+                this.toggleWallsLocked(ev.detail.wallsLocked)}
               @tool-change=${(ev: CustomEvent<{ tool: EditorToolMode }>) =>
                 (this.activeTool = ev.detail.tool)}
             ></floorplan-canvas-2d>
@@ -1590,6 +1877,9 @@ export class FloorplanEditorPanel extends LitElement {
                 @delete-selected=${() => this.deleteSelection()}
                 @open-blueprint-modal=${() => (this.isBlueprintModalOpen = true)}
                 @collapse-pane=${() => (this.isRightPaneCollapsed = true)}
+                @floorplan-delete=${this.handleFloorplanDelete}
+                @floor-delete=${this.handleFloorDelete}
+                @palette-place=${this.handlePalettePlace}
               ></floorplan-property-inspector>
             `
           : ''}
@@ -1615,6 +1905,7 @@ export class FloorplanEditorPanel extends LitElement {
               .tool=${this.activeTool}
               .gridSize=${this.gridSize}
               .snapToGrid=${this.snapToGrid}
+              .wallsLocked=${this.wallsLocked}
               .ghostFloor=${this.onionSkin ? floorBelow : null}
               .onionSkinFloor=${this.onionSkin ? floorBelow : null}
               .selection=${this.selection}
@@ -1624,6 +1915,8 @@ export class FloorplanEditorPanel extends LitElement {
               @document-mutate=${this.handleDocumentMutate}
               @open-blueprint-modal=${() => (this.isBlueprintModalOpen = true)}
               @palette-place=${this.handlePalettePlace}
+              @toggle-walls-locked=${(ev: CustomEvent<{ wallsLocked: boolean }>) =>
+                this.toggleWallsLocked(ev.detail.wallsLocked)}
               @tool-change=${(ev: CustomEvent<{ tool: EditorToolMode }>) =>
                 (this.activeTool = ev.detail.tool)}
             ></floorplan-canvas-2d>
@@ -1673,12 +1966,27 @@ export class FloorplanEditorPanel extends LitElement {
           <button
             class="dock-btn ${this.activeTool === 'draw_wall' && this.activeMobileSheet === 'none' ? 'active' : ''}"
             @click=${() => {
+              if (this.wallsLocked) {
+                this.showToast('Walls are locked. Tap Lock to unlock walls first.');
+                return;
+              }
               this.activeTool = 'draw_wall';
               this.activeMobileSheet = 'none';
             }}
           >
             <span class="dock-icon">🧱</span>
             <span class="dock-label">Wall</span>
+          </button>
+          <button
+            class="dock-btn ${this.wallsLocked ? 'warning' : ''}"
+            title="Lock or Unlock Wall Editing"
+            @click=${() => {
+              this.toggleWallsLocked(!this.wallsLocked);
+              this.activeMobileSheet = 'none';
+            }}
+          >
+            <span class="dock-icon">${this.wallsLocked ? '🔒' : '🔓'}</span>
+            <span class="dock-label">${this.wallsLocked ? 'Locked' : 'Lock'}</span>
           </button>
           <button
             class="dock-btn ${this.activeTool === 'draw_room' && this.activeMobileSheet === 'none' ? 'active' : ''}"
@@ -1778,6 +2086,9 @@ export class FloorplanEditorPanel extends LitElement {
                           @document-mutate=${this.handleDocumentMutate}
                           @delete-selected=${() => this.deleteSelection()}
                           @open-blueprint-modal=${() => (this.isBlueprintModalOpen = true)}
+                          @floorplan-delete=${this.handleFloorplanDelete}
+                          @floor-delete=${this.handleFloorDelete}
+                          @palette-place=${this.handlePalettePlace}
                         ></floorplan-property-inspector>
                       `}
                 </div>

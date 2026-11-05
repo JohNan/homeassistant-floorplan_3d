@@ -539,6 +539,17 @@ export class PropertyInspector extends LitElement {
             }}
           />
         </div>
+
+        <button
+          class="btn btn-danger"
+          title="Delete this floorplan"
+          @click=${() =>
+            this.dispatchEvent(
+              new CustomEvent('floorplan-delete', { bubbles: true, composed: true })
+            )}
+        >
+          Delete Floorplan
+        </button>
       </div>
 
       <!-- Active Floor Level Settings -->
@@ -644,6 +655,21 @@ export class PropertyInspector extends LitElement {
             )}
           </select>
         </div>
+
+        ${(doc.floors?.length ?? 0) > 1
+          ? html`
+              <button
+                class="btn btn-danger"
+                title="Delete this floor level"
+                @click=${() =>
+                  this.dispatchEvent(
+                    new CustomEvent('floor-delete', { bubbles: true, composed: true })
+                  )}
+              >
+                Delete Floor Level
+              </button>
+            `
+          : ''}
       </div>
 
       <!-- Blueprint Calibration & Overlay -->
@@ -853,6 +879,49 @@ export class PropertyInspector extends LitElement {
           />
         </div>
 
+        <div class="grid-2col">
+          <button
+            class="btn btn-primary"
+            @click=${() =>
+              this.dispatchEvent(
+                new CustomEvent('palette-place', {
+                  bubbles: true,
+                  composed: true,
+                  detail: {
+                    kind: 'opening',
+                    openingType: 'door_single',
+                    defaultWidth: 0.9,
+                    defaultHeight: 2.1,
+                    label: 'Single Door',
+                    wallId: wall.id
+                  }
+                })
+              )}
+          >
+            + Add Door
+          </button>
+          <button
+            class="btn btn-primary"
+            @click=${() =>
+              this.dispatchEvent(
+                new CustomEvent('palette-place', {
+                  bubbles: true,
+                  composed: true,
+                  detail: {
+                    kind: 'opening',
+                    openingType: 'window_standard',
+                    defaultWidth: 1.2,
+                    defaultHeight: 1.2,
+                    label: 'Standard Window',
+                    wallId: wall.id
+                  }
+                })
+              )}
+          >
+            + Add Window
+          </button>
+        </div>
+
         <button class="btn btn-danger" @click=${this.handleDeleteSelected}>
           Delete Wall
         </button>
@@ -1060,6 +1129,60 @@ export class PropertyInspector extends LitElement {
               (o) => html`<option value=${o.value}>${o.label}</option>`
             )}
           </select>
+        </div>
+
+        <div class="form-group">
+          <label>Host Wall</label>
+          <select
+            aria-label="Host wall selector"
+            .value=${opening.wall_id}
+            @change=${(ev: Event) => {
+              const newWallId = (ev.target as HTMLSelectElement).value;
+              this.mutate('Move opening to wall', (_d, f) => {
+                const target = f.openings.find((o) => o.id === opening.id);
+                if (!target) return;
+                target.wall_id = newWallId;
+                const newWall = f.walls.find((w) => w.id === newWallId);
+                const na = newWall ? f.nodes.find((n) => n.id === newWall.start_node_id) : undefined;
+                const nb = newWall ? f.nodes.find((n) => n.id === newWall.end_node_id) : undefined;
+                const wallLen = na && nb ? Math.hypot(nb.x - na.x, nb.y - na.y) : 0;
+                if (wallLen > 0.2) {
+                  const halfRatio = Math.min(0.45, (target.width / 2) / wallLen);
+                  target.t = Number(
+                    Math.max(halfRatio, Math.min(1 - halfRatio, target.t)).toFixed(4)
+                  );
+                }
+              });
+            }}
+          >
+            ${this.floor.walls.map((w, idx) => {
+              const a = this.floor?.nodes.find((n) => n.id === w.start_node_id);
+              const b = this.floor?.nodes.find((n) => n.id === w.end_node_id);
+              const len = a && b ? Math.hypot(b.x - a.x, b.y - a.y).toFixed(2) : '?';
+              return html`<option value=${w.id} ?selected=${w.id === opening.wall_id}>
+                Wall ${idx + 1} (${w.id} • ${len}m)
+              </option>`;
+            })}
+          </select>
+        </div>
+
+        <div class="form-row">
+          <label>Wall Pos</label>
+          <input
+            type="range"
+            min="0.05"
+            max="0.95"
+            step="0.01"
+            .value=${String(opening.t)}
+            @input=${(ev: Event) => {
+              const val = parseFloat((ev.target as HTMLInputElement).value);
+              this.mutate('Change opening position along wall', (_d, f) => {
+                const target = f.openings.find((o) => o.id === opening.id);
+                if (target) target.t = Number(val.toFixed(4));
+              });
+            }}
+          />
+          <span class="slider-val">${Math.round(opening.t * 100)}%</span>
         </div>
 
         <div class="grid-2col">

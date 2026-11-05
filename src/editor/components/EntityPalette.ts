@@ -62,13 +62,42 @@ const DOMAIN_FILTERS = [
   'all',
   'light',
   'switch',
-  'binary_sensor',
-  'sensor',
-  'media_player',
   'climate',
   'fan',
+  'cover',
+  'lock',
+  'media_player',
+  'binary_sensor',
+  'sensor',
+  'camera',
+  'scene',
   'button'
 ];
+
+const DOMAIN_SORT_PRIORITY: Record<string, number> = {
+  light: 0,
+  switch: 1,
+  climate: 2,
+  fan: 3,
+  cover: 4,
+  lock: 5,
+  media_player: 6,
+  binary_sensor: 7,
+  sensor: 8,
+  camera: 9,
+  scene: 10,
+  button: 11
+};
+
+const CORE_DOMAINS = new Set([
+  'all',
+  'light',
+  'switch',
+  'climate',
+  'media_player',
+  'binary_sensor',
+  'sensor'
+]);
 
 /**
  * Left-dock Palette for Home Assistant Entities, Openings & Procedural 3D Furniture.
@@ -95,6 +124,8 @@ export class EntityPalette extends LitElement {
       width: 260px;
       flex-shrink: 0;
       height: 100%;
+      min-height: 0;
+      overflow: hidden;
       background: var(--card-background-color, #0f172a);
       border-right: 1px solid var(--divider-color, #334155);
       color: var(--primary-text-color, #f8fafc);
@@ -107,13 +138,17 @@ export class EntityPalette extends LitElement {
     :host([mobile]) {
       width: 100%;
       border: none;
-      height: auto;
+      flex: 1 1 0%;
+      height: 100%;
+      min-height: 0;
       max-height: 100%;
+      overflow: hidden;
     }
 
     .tabs-header {
       display: flex;
       align-items: center;
+      flex-shrink: 0;
       background: var(--secondary-background-color, #1e293b);
       border-bottom: 1px solid var(--divider-color, #334155);
     }
@@ -165,12 +200,16 @@ export class EntityPalette extends LitElement {
     }
 
     .tab-content {
-      flex: 1;
+      flex: 1 1 0%;
+      min-height: 0;
       overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
       padding: 12px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
       box-sizing: border-box;
     }
 
@@ -179,6 +218,43 @@ export class EntityPalette extends LitElement {
     }
 
     .tab-content::-webkit-scrollbar-thumb {
+      background: var(--divider-color, #334155);
+      border-radius: 2px;
+    }
+
+    .entities-tab-layout {
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 0%;
+      min-height: 0;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .palette-controls {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px 12px 6px 12px;
+      border-bottom: 1px solid var(--divider-color, #334155);
+    }
+
+    .items-scroll-region {
+      flex: 1 1 0%;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+      padding: 8px 12px 16px 12px;
+    }
+
+    .items-scroll-region::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .items-scroll-region::-webkit-scrollbar-thumb {
       background: var(--divider-color, #334155);
       border-radius: 2px;
     }
@@ -207,7 +283,19 @@ export class EntityPalette extends LitElement {
     .chips-bar {
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
+      gap: 4px;
+      max-height: 76px;
+      overflow-y: auto;
+    }
+
+    .chips-bar::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+
+    .chips-bar::-webkit-scrollbar-thumb {
+      background: var(--divider-color, #334155);
+      border-radius: 2px;
     }
 
     .chip {
@@ -215,15 +303,17 @@ export class EntityPalette extends LitElement {
       color: var(--secondary-text-color, #94a3b8);
       border: 1px solid var(--divider-color, #334155);
       border-radius: 16px;
-      padding: 6px 12px;
-      font-size: 12px;
+      padding: 4px 8px;
+      font-size: 11px;
+      font-family: inherit;
+      min-height: 26px;
       cursor: pointer;
-      min-height: 34px;
       box-sizing: border-box;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      transition: background 0.15s, color 0.15s;
+      white-space: nowrap;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
     }
 
     .chip:hover {
@@ -283,6 +373,8 @@ export class EntityPalette extends LitElement {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-shrink: 0;
+      touch-action: pan-y;
       background: var(--secondary-background-color, #1e293b);
       border: 1px solid var(--divider-color, #334155);
       border-radius: 6px;
@@ -397,35 +489,87 @@ export class EntityPalette extends LitElement {
     );
   }
 
-  private getFilteredEntities(): HassEntity[] {
-    if (!this.hass?.states) return [];
+  private isLightEntity(entity: HassEntity): boolean {
+    return (
+      entity.entity_id.startsWith('light.') ||
+      (entity.entity_id.startsWith('switch.') && entity.attributes?.device_class === 'light')
+    );
+  }
 
+  private getEffectiveDomain(entity: HassEntity): string {
+    if (this.isLightEntity(entity)) {
+      return 'light';
+    }
+    return entity.entity_id.split('.')[0] || 'sensor';
+  }
+
+  private getAllEntities(): HassEntity[] {
+    if (!this.hass?.states && !this.hass?.entities) {
+      return [];
+    }
+
+    const map = new Map<string, HassEntity>();
+
+    for (const entity of Object.values(this.hass?.states ?? {})) {
+      if (!entity || !entity.entity_id) continue;
+      const reg = this.hass?.entities?.[entity.entity_id];
+      const entityToStore: HassEntity = (!entity.attributes?.friendly_name && reg?.name)
+        ? {
+            ...entity,
+            attributes: { ...entity.attributes, friendly_name: reg.name }
+          }
+        : entity;
+      map.set(entity.entity_id, entityToStore);
+    }
+
+    for (const reg of Object.values(this.hass?.entities ?? {})) {
+      if (!reg?.entity_id || map.has(reg.entity_id) || reg.hidden) continue;
+      map.set(reg.entity_id, {
+        entity_id: reg.entity_id,
+        state: 'unknown',
+        attributes: {
+          friendly_name: reg.name || reg.entity_id,
+          icon: reg.icon,
+          area_id: reg.area_id
+        },
+        last_changed: '',
+        last_updated: '',
+        context: { id: '', parent_id: null, user_id: null }
+      });
+    }
+
+    return Array.from(map.values());
+  }
+
+  private getBaseMatchingEntities(): HassEntity[] {
+    const all = this.getAllEntities();
     const query = this.searchQuery.trim().toLowerCase();
     const placedSet = new Set(
       this.activeFloor?.entities.map((e) => e.entity_id) ?? []
     );
 
-    return Object.values(this.hass.states).filter((entity) => {
+    return all.filter((entity) => {
       const entityId = entity.entity_id;
-      const domain = entityId.split('.')[0];
-      const friendlyName = entity.attributes.friendly_name || '';
+      const friendlyName = String(entity.attributes?.friendly_name ?? '');
+      const effectiveDomain = this.getEffectiveDomain(entity);
 
-      // 1. Domain filter
-      if (this.selectedDomain !== 'all' && domain !== this.selectedDomain) {
-        return false;
+      // 1. Search query filter
+      if (query) {
+        const matchesQuery =
+          entityId.toLowerCase().includes(query) ||
+          friendlyName.toLowerCase().includes(query) ||
+          effectiveDomain.toLowerCase().includes(query);
+        if (!matchesQuery) {
+          return false;
+        }
       }
 
-      // 2. Search query filter
-      if (query && !entityId.toLowerCase().includes(query) && !friendlyName.toLowerCase().includes(query)) {
-        return false;
-      }
-
-      // 3. Unplaced filter
+      // 2. Unplaced filter
       if (this.unplacedOnly && placedSet.has(entityId)) {
         return false;
       }
 
-      // 4. HA Area filter (if selected room area is active)
+      // 3. HA Area filter (if selected room area is active)
       if (this.filterByArea && this.selectedRoomAreaId) {
         const areaId = resolveEntityAreaId(entityId, this.hass);
         if (areaId !== this.selectedRoomAreaId) {
@@ -437,15 +581,62 @@ export class EntityPalette extends LitElement {
     });
   }
 
+  private getFilteredEntities(baseEntities?: HassEntity[]): HassEntity[] {
+    const source = baseEntities ?? this.getBaseMatchingEntities();
+
+    const filtered = source.filter((entity) => {
+      if (this.selectedDomain === 'all') {
+        return true;
+      }
+      if (this.selectedDomain === 'light') {
+        return this.isLightEntity(entity);
+      }
+      return entity.entity_id.split('.')[0] === this.selectedDomain;
+    });
+
+    return filtered.sort((a, b) => {
+      const prioA = DOMAIN_SORT_PRIORITY[this.getEffectiveDomain(a)] ?? 12;
+      const prioB = DOMAIN_SORT_PRIORITY[this.getEffectiveDomain(b)] ?? 12;
+      if (prioA !== prioB) {
+        return prioA - prioB;
+      }
+      const nameA = String(a.attributes?.friendly_name || a.entity_id);
+      const nameB = String(b.attributes?.friendly_name || b.entity_id);
+      return nameA.localeCompare(nameB);
+    });
+  }
+
+  private getDomainCounts(baseEntities: HassEntity[]): Map<string, number> {
+    const counts = new Map<string, number>();
+    for (const dom of DOMAIN_FILTERS) {
+      counts.set(dom, 0);
+    }
+    counts.set('all', baseEntities.length);
+
+    for (const e of baseEntities) {
+      const rawDom = e.entity_id.split('.')[0] || 'sensor';
+      counts.set(rawDom, (counts.get(rawDom) ?? 0) + 1);
+      if (rawDom !== 'light' && this.isLightEntity(e)) {
+        counts.set('light', (counts.get('light') ?? 0) + 1);
+      }
+    }
+
+    return counts;
+  }
+
   private getDomainIcon(domain: string): string {
     switch (domain) {
       case 'light': return '💡';
       case 'switch': return '🔌';
-      case 'binary_sensor': return '🔔';
-      case 'sensor': return '🌡️';
-      case 'media_player': return '📻';
       case 'climate': return '❄️';
       case 'fan': return '🌀';
+      case 'cover': return '🪟';
+      case 'lock': return '🔒';
+      case 'media_player': return '📻';
+      case 'binary_sensor': return '🔔';
+      case 'sensor': return '🌡️';
+      case 'camera': return '📷';
+      case 'scene': return '🎬';
       case 'button': return '🔘';
       default: return '⚙️';
     }
@@ -456,6 +647,13 @@ export class EntityPalette extends LitElement {
       this.selectedRoomAreaId && this.hass?.areas?.[this.selectedRoomAreaId]
         ? this.hass.areas[this.selectedRoomAreaId].name
         : this.selectedRoomAreaId;
+
+    const baseEntities = this.getBaseMatchingEntities();
+    const filteredEntities = this.getFilteredEntities(baseEntities);
+    const domainCounts = this.getDomainCounts(baseEntities);
+    const placedSet = new Set(
+      this.activeFloor?.entities.map((e) => e.entity_id) ?? []
+    );
 
     return html`
       <!-- Header Tabs -->
@@ -492,104 +690,119 @@ export class EntityPalette extends LitElement {
       <!-- Tab 1: HA Entities -->
       ${this.activeTab === 'entities'
         ? html`
-            <div class="tab-content">
-              <!-- Search box -->
-              <div class="search-box">
-                <input
-                  type="text"
-                  placeholder="Search entities..."
-                  .value=${this.searchQuery}
-                  @input=${(ev: InputEvent) =>
-                    (this.searchQuery = (ev.target as HTMLInputElement).value)}
-                />
-              </div>
-
-              <!-- Domain pills -->
-              <div class="chips-bar">
-                ${DOMAIN_FILTERS.map(
-                  (dom) => html`
-                    <div
-                      class="chip ${this.selectedDomain === dom ? 'active' : ''}"
-                      @click=${() => (this.selectedDomain = dom)}
-                    >
-                      ${dom}
-                    </div>
-                  `
-                )}
-              </div>
-
-              <!-- Filter Toggles -->
-              <div class="toggles-bar">
-                <label class="toggle-row">
+            <div class="entities-tab-layout">
+              <div class="palette-controls">
+                <!-- Search box -->
+                <div class="search-box">
                   <input
-                    type="checkbox"
-                    .checked=${this.filterByArea}
-                    ?disabled=${!this.selectedRoomAreaId}
-                    @change=${(ev: Event) =>
-                      (this.filterByArea = (ev.target as HTMLInputElement).checked)}
+                    type="text"
+                    placeholder="Search entities..."
+                    .value=${this.searchQuery}
+                    @input=${(ev: InputEvent) =>
+                      (this.searchQuery = (ev.target as HTMLInputElement).value)}
                   />
-                  <span>
-                    Filter by Selected Room's HA Area
-                    ${selectedAreaName ? html`<b>(${selectedAreaName})</b>` : ''}
-                  </span>
-                </label>
-                <label class="toggle-row">
-                  <input
-                    type="checkbox"
-                    .checked=${this.unplacedOnly}
-                    @change=${(ev: Event) =>
-                      (this.unplacedOnly = (ev.target as HTMLInputElement).checked)}
-                  />
-                  <span>Unplaced Only</span>
-                </label>
-              </div>
+                </div>
 
-              <!-- Entities List -->
-              <div class="section-title">
-                Entities (${this.getFilteredEntities().length})
-              </div>
-              <div class="items-list">
-                ${this.getFilteredEntities().length === 0
-                  ? html`<div class="empty-state">No entities match filters.</div>`
-                  : this.getFilteredEntities().map((entity) => {
-                      const domain = entity.entity_id.split('.')[0];
-                      const isPlaced = this.activeFloor?.entities.some(
-                        (e) => e.entity_id === entity.entity_id
-                      );
-                      const payload: PaletteDragPayload = {
-                        kind: 'entity',
-                        entityId: entity.entity_id,
-                        domain,
-                        label: entity.attributes.friendly_name || entity.entity_id
-                      };
+                <!-- Domain pills -->
+                <div class="chips-bar">
+                  ${DOMAIN_FILTERS.filter(
+                    (dom) =>
+                      CORE_DOMAINS.has(dom) ||
+                      (domainCounts.get(dom) ?? 0) > 0 ||
+                      this.selectedDomain === dom
+                  ).map(
+                    (dom) => {
+                      const count = domainCounts.get(dom) ?? 0;
                       return html`
-                        <div
-                          class="item-row"
-                          draggable="true"
-                          @dragstart=${(ev: DragEvent) => this.handleDragStart(ev, payload)}
+                        <button
+                          type="button"
+                          class="chip ${this.selectedDomain === dom ? 'active' : ''}"
+                          @click=${() => (this.selectedDomain = dom)}
                         >
-                          <div class="item-left">
-                            <span class="item-icon">${this.getDomainIcon(domain)}</span>
-                            <div class="item-details">
-                              <span class="item-name">
-                                ${entity.attributes.friendly_name || entity.entity_id}
-                                ${isPlaced ? html`<span class="placed-pill">Placed</span>` : ''}
-                              </span>
-                              <span class="item-subtext">
-                                ${entity.entity_id} • ${entity.state}
-                              </span>
-                            </div>
-                          </div>
-                          <button
-                            class="place-btn"
-                            title="Place in center of active floor"
-                            @click=${() => this.handlePlaceItem(payload)}
-                          >
-                            + Place
-                          </button>
-                        </div>
+                          ${dom === 'all' ? 'All' : `${this.getDomainIcon(dom)} ${dom}`} (${count})
+                        </button>
                       `;
-                    })}
+                    }
+                  )}
+                </div>
+
+                <!-- Filter Toggles -->
+                <div class="toggles-bar">
+                  <label class="toggle-row">
+                    <input
+                      type="checkbox"
+                      .checked=${this.filterByArea}
+                      ?disabled=${!this.selectedRoomAreaId}
+                      @change=${(ev: Event) =>
+                        (this.filterByArea = (ev.target as HTMLInputElement).checked)}
+                    />
+                    <span>
+                      Filter by Selected Room's HA Area
+                      ${selectedAreaName ? html`<b>(${selectedAreaName})</b>` : ''}
+                    </span>
+                  </label>
+                  <label class="toggle-row">
+                    <input
+                      type="checkbox"
+                      .checked=${this.unplacedOnly}
+                      @change=${(ev: Event) =>
+                        (this.unplacedOnly = (ev.target as HTMLInputElement).checked)}
+                    />
+                    <span>Unplaced Only</span>
+                  </label>
+                </div>
+
+                <!-- Section title -->
+                <div class="section-title">
+                  Entities (${filteredEntities.length})
+                </div>
+              </div>
+
+              <!-- Entities List (Scrollable) -->
+              <div class="items-scroll-region">
+                <div class="items-list">
+                  ${filteredEntities.length === 0
+                    ? html`<div class="empty-state">No entities match filters.</div>`
+                    : filteredEntities.map((entity) => {
+                        const isLight = this.isLightEntity(entity);
+                        const rawDomain = entity.entity_id.split('.')[0] || 'sensor';
+                        const domain = isLight ? 'light' : rawDomain;
+                        const isPlaced = placedSet.has(entity.entity_id);
+                        const payload: PaletteDragPayload = {
+                          kind: 'entity',
+                          entityId: entity.entity_id,
+                          domain,
+                          label: entity.attributes.friendly_name || entity.entity_id
+                        };
+                        return html`
+                          <div
+                            class="item-row"
+                            draggable=${this.mobile ? 'false' : 'true'}
+                            @dragstart=${(ev: DragEvent) => this.handleDragStart(ev, payload)}
+                          >
+                            <div class="item-left">
+                              <span class="item-icon">${this.getDomainIcon(domain)}</span>
+                              <div class="item-details">
+                                <span class="item-name">
+                                  ${entity.attributes.friendly_name || entity.entity_id}
+                                  ${isPlaced ? html`<span class="placed-pill">Placed</span>` : ''}
+                                </span>
+                                <span class="item-subtext">
+                                  ${entity.entity_id} • ${entity.state}
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              class="place-btn"
+                              title="Place in center of active floor"
+                              @click=${() => this.handlePlaceItem(payload)}
+                            >
+                              + Place
+                            </button>
+                          </div>
+                        `;
+                      })}
+                </div>
               </div>
             </div>
           `
@@ -610,7 +823,7 @@ export class EntityPalette extends LitElement {
                   return html`
                     <div
                       class="item-row"
-                      draggable="true"
+                      draggable=${this.mobile ? 'false' : 'true'}
                       @dragstart=${(ev: DragEvent) => this.handleDragStart(ev, payload)}
                     >
                       <div class="item-left">
@@ -639,12 +852,13 @@ export class EntityPalette extends LitElement {
               <div class="chips-bar">
                 ${['all', 'Living', 'Bedroom', 'Kitchen', 'Bathroom', 'Dining', 'Office', 'Decor'].map(
                   (cat) => html`
-                    <div
+                    <button
+                      type="button"
                       class="chip ${this.furnitureCategoryFilter === cat ? 'active' : ''}"
                       @click=${() => (this.furnitureCategoryFilter = cat)}
                     >
                       ${cat}
-                    </div>
+                    </button>
                   `
                 )}
               </div>
@@ -666,7 +880,7 @@ export class EntityPalette extends LitElement {
                   return html`
                     <div
                       class="item-row"
-                      draggable="true"
+                      draggable=${this.mobile ? 'false' : 'true'}
                       @dragstart=${(ev: DragEvent) => this.handleDragStart(ev, payload)}
                     >
                       <div class="item-left">
