@@ -4,6 +4,7 @@ import '../../src/editor/floorplan-editor-panel';
 import { Floorplan3DCard } from '../../src/card/floorplan-3d-card';
 import { FloorplanEditorPanel } from '../../src/editor/floorplan-editor-panel';
 import type { HomeAssistant } from '../../src/types/ha';
+import type { FloorplanDocument } from '../../src/types/floorplan';
 
 describe('Wave 3 UI Components (<floorplan-3d-card> & <floorplan-editor-panel>)', () => {
   beforeEach(() => {
@@ -200,5 +201,89 @@ describe('Wave 3 UI Components (<floorplan-3d-card> & <floorplan-editor-panel>)'
     expect(placed).toBeDefined();
     expect(placed?.x).toBe(2.5);
     expect(placed?.y).toBe(-1.5);
+  });
+
+  it('moves both endpoints and attached room vertices when dragging a wall edge in <floorplan-canvas-2d>', async () => {
+    const panel = document.createElement('floorplan-editor-panel') as FloorplanEditorPanel;
+    document.body.appendChild(panel);
+    await panel.updateComplete;
+
+    const anyPanel = panel as unknown as {
+      currentDocument: FloorplanDocument;
+      activeFloorId: string;
+    };
+
+    const origN1 = { ...anyPanel.currentDocument.floors[0].nodes.find((n) => n.id === 'n1')! };
+    const origN2 = { ...anyPanel.currentDocument.floors[0].nodes.find((n) => n.id === 'n2')! };
+    const origN3 = { ...anyPanel.currentDocument.floors[0].nodes.find((n) => n.id === 'n3')! };
+
+    // Link room polygon vertices to n1 and n2
+    anyPanel.currentDocument.floors[0].rooms[0].points[0].node_id = 'n1';
+    anyPanel.currentDocument.floors[0].rooms[0].points[1].node_id = 'n2';
+    panel.requestUpdate();
+    await panel.updateComplete;
+
+    const canvas2d = panel.shadowRoot?.querySelector('floorplan-canvas-2d') as HTMLElement & {
+      panX: number;
+      panY: number;
+      pixelsPerMeter: number;
+      canvasWidth: number;
+      canvasHeight: number;
+      updateComplete: Promise<boolean>;
+    };
+    expect(canvas2d).not.toBeNull();
+    canvas2d.panX = 0;
+    canvas2d.panY = 0;
+    canvas2d.pixelsPerMeter = 100;
+    canvas2d.canvasWidth = 800;
+    canvas2d.canvasHeight = 600;
+    await canvas2d.updateComplete;
+
+    const wallGroups = canvas2d.shadowRoot?.querySelectorAll('.wall-group');
+    expect(wallGroups?.length).toBe(4);
+
+    // Drag wall w1 (n1 -> n2) down by +1.0m in Y (100px at 100 px/m)
+    const wallGroup = wallGroups![0];
+    wallGroup.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        button: 0,
+        pointerId: 1,
+        clientX: 400,
+        clientY: 300,
+        bubbles: true,
+        composed: true
+      })
+    );
+
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        pointerId: 1,
+        clientX: 400,     // dx = 0
+        clientY: 300 + 100, // dy = +1.0m
+        bubbles: true
+      })
+    );
+
+    window.dispatchEvent(
+      new PointerEvent('pointerup', {
+        pointerId: 1,
+        clientX: 400,
+        clientY: 300 + 100,
+        bubbles: true
+      })
+    );
+    await panel.updateComplete;
+
+    const updatedFloor = anyPanel.currentDocument.floors[0];
+    const n1 = updatedFloor.nodes.find((n) => n.id === 'n1');
+    const n2 = updatedFloor.nodes.find((n) => n.id === 'n2');
+    const n3 = updatedFloor.nodes.find((n) => n.id === 'n3');
+    expect(n1).toEqual({ id: 'n1', x: origN1.x, y: origN1.y + 1 });
+    expect(n2).toEqual({ id: 'n2', x: origN2.x, y: origN2.y + 1 });
+    expect(n3).toEqual(origN3);
+
+    // Attached room polygon vertices for n1 and n2 also moved in lockstep
+    expect(updatedFloor.rooms[0].points[0]).toEqual({ x: origN1.x, y: origN1.y + 1, node_id: 'n1' });
+    expect(updatedFloor.rooms[0].points[1]).toEqual({ x: origN2.x, y: origN2.y + 1, node_id: 'n2' });
   });
 });

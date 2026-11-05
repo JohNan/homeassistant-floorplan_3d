@@ -75,8 +75,12 @@ export class FloorplanCanvas2D extends LitElement {
       cursor: grab;
     }
 
+    .wall-group {
+      cursor: move;
+    }
+
     .wall-footprint {
-      cursor: pointer;
+      cursor: move;
       transition: fill 0.15s, stroke 0.15s;
     }
 
@@ -354,11 +358,14 @@ export class FloorplanCanvas2D extends LitElement {
   @state() private measureLocked = false;
 
   // Selection Drag State
-  private dragKind: 'node' | 'furniture' | 'furniture_rotate' | 'entity' | 'opening' | 'strip_point' | null = null;
+  private dragKind: 'node' | 'wall' | 'furniture' | 'furniture_rotate' | 'entity' | 'opening' | 'strip_point' | null = null;
   private dragItemId: string | null = null;
   private dragStartWorld: Point2D = { x: 0, y: 0 };
   private itemOriginalPos: Point2D = { x: 0, y: 0 };
+  private dragWallOrigStart: Point2D = { x: 0, y: 0 };
+  private dragWallOrigEnd: Point2D = { x: 0, y: 0 };
   private isItemDragging = false;
+  private hasItemDragMoved = false;
 
   private resizeObserver?: ResizeObserver;
 
@@ -660,7 +667,31 @@ export class FloorplanCanvas2D extends LitElement {
     // Multi-Touch Pinch-to-Zoom & Two-Finger Pan (All Tool Modes)
     if (this.activePointers.size === 2) {
       if (this.isItemDragging) {
+        if (this.dragKind === 'wall' && this.floor && this.dragItemId) {
+          const wall = this.floor.walls.find((w) => w.id === this.dragItemId);
+          if (wall) {
+            const origStart = this.dragWallOrigStart;
+            const origEnd = this.dragWallOrigEnd;
+            this.floor = {
+              ...this.floor,
+              nodes: this.floor.nodes.map((n) => {
+                if (n.id === wall.start_node_id) return { ...n, x: origStart.x, y: origStart.y };
+                if (n.id === wall.end_node_id) return { ...n, x: origEnd.x, y: origEnd.y };
+                return n;
+              }),
+              rooms: this.floor.rooms.map((r) => ({
+                ...r,
+                points: r.points.map((p) => {
+                  if (p.node_id === wall.start_node_id) return { ...p, x: origStart.x, y: origStart.y };
+                  if (p.node_id === wall.end_node_id) return { ...p, x: origEnd.x, y: origEnd.y };
+                  return p;
+                })
+              }))
+            };
+          }
+        }
         this.isItemDragging = false;
+        this.hasItemDragMoved = false;
         this.dragKind = null;
         this.dragItemId = null;
       }
@@ -754,11 +785,14 @@ export class FloorplanCanvas2D extends LitElement {
 
     if (this.isItemDragging && this.floor) {
       this.isItemDragging = false;
-      const desc =
-        this.dragKind === 'furniture_rotate'
-          ? 'Rotated furniture'
-          : `Moved ${this.dragKind || 'item'}`;
-      this.emitFloorChange(this.floor, desc);
+      if (this.hasItemDragMoved) {
+        const desc =
+          this.dragKind === 'furniture_rotate'
+            ? 'Rotated furniture'
+            : `Moved ${this.dragKind || 'item'}`;
+        this.emitFloorChange(this.floor, desc);
+      }
+      this.hasItemDragMoved = false;
       this.dragKind = null;
       this.dragItemId = null;
     }
@@ -963,7 +997,7 @@ export class FloorplanCanvas2D extends LitElement {
   }
 
   private startNodeDrag(e: PointerEvent, node: WallNode): void {
-    if (this.toolMode !== 'select' || e.button !== 0) return;
+    if (this.toolMode !== 'select' || e.button !== 0 || this.spaceHeld) return;
     e.stopPropagation();
     this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     this.updateCursorFromPointerEvent(e);
@@ -973,10 +1007,29 @@ export class FloorplanCanvas2D extends LitElement {
     this.dragStartWorld = { x: node.x, y: node.y };
     this.itemOriginalPos = { x: node.x, y: node.y };
     this.isItemDragging = true;
+    this.hasItemDragMoved = false;
+  }
+
+  private startWallDrag(e: PointerEvent, wall: WallEdge): void {
+    if (this.toolMode !== 'select' || e.button !== 0 || this.spaceHeld || !this.floor) return;
+    const startNode = this.floor.nodes.find((n) => n.id === wall.start_node_id);
+    const endNode = this.floor.nodes.find((n) => n.id === wall.end_node_id);
+    if (!startNode || !endNode) return;
+    e.stopPropagation();
+    this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    this.updateCursorFromPointerEvent(e);
+    this.emitSelectionChange({ kind: 'wall', id: wall.id });
+    this.dragKind = 'wall';
+    this.dragItemId = wall.id;
+    this.dragStartWorld = { ...this.cursorWorld };
+    this.dragWallOrigStart = { x: startNode.x, y: startNode.y };
+    this.dragWallOrigEnd = { x: endNode.x, y: endNode.y };
+    this.isItemDragging = true;
+    this.hasItemDragMoved = false;
   }
 
   private startFurnitureDrag(e: PointerEvent, furniture: FurnitureItem): void {
-    if (this.toolMode !== 'select' || e.button !== 0) return;
+    if (this.toolMode !== 'select' || e.button !== 0 || this.spaceHeld) return;
     e.stopPropagation();
     this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     this.updateCursorFromPointerEvent(e);
@@ -986,10 +1039,11 @@ export class FloorplanCanvas2D extends LitElement {
     this.dragStartWorld = { ...this.cursorWorld };
     this.itemOriginalPos = { x: furniture.x, y: furniture.y };
     this.isItemDragging = true;
+    this.hasItemDragMoved = false;
   }
 
   private startFurnitureRotate(e: PointerEvent, furniture: FurnitureItem): void {
-    if (this.toolMode !== 'select' || e.button !== 0) return;
+    if (this.toolMode !== 'select' || e.button !== 0 || this.spaceHeld) return;
     e.stopPropagation();
     this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     this.updateCursorFromPointerEvent(e);
@@ -998,10 +1052,11 @@ export class FloorplanCanvas2D extends LitElement {
     this.dragItemId = furniture.id;
     this.itemOriginalPos = { x: furniture.x, y: furniture.y };
     this.isItemDragging = true;
+    this.hasItemDragMoved = false;
   }
 
   private startEntityDrag(e: PointerEvent, entity: EntityPlacement): void {
-    if (this.toolMode !== 'select' || e.button !== 0) return;
+    if (this.toolMode !== 'select' || e.button !== 0 || this.spaceHeld) return;
     e.stopPropagation();
     this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     this.updateCursorFromPointerEvent(e);
@@ -1011,10 +1066,11 @@ export class FloorplanCanvas2D extends LitElement {
     this.dragStartWorld = { ...this.cursorWorld };
     this.itemOriginalPos = { x: entity.x, y: entity.y };
     this.isItemDragging = true;
+    this.hasItemDragMoved = false;
   }
 
   private startOpeningDrag(e: PointerEvent, opening: WallOpening): void {
-    if (this.toolMode !== 'select' || e.button !== 0) return;
+    if (this.toolMode !== 'select' || e.button !== 0 || this.spaceHeld) return;
     e.stopPropagation();
     this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     this.updateCursorFromPointerEvent(e);
@@ -1022,10 +1078,12 @@ export class FloorplanCanvas2D extends LitElement {
     this.dragKind = 'opening';
     this.dragItemId = opening.id;
     this.isItemDragging = true;
+    this.hasItemDragMoved = false;
   }
 
   private handleItemDragMove(worldPt: Point2D): void {
     if (!this.floor || !this.dragItemId) return;
+    this.hasItemDragMoved = true;
 
     if (this.dragKind === 'node') {
       const snap = this.getSnapResult(worldPt, undefined, new Set([this.dragItemId]));
@@ -1038,6 +1096,48 @@ export class FloorplanCanvas2D extends LitElement {
       const updatedRooms = this.floor.rooms.map((r) => ({
         ...r,
         points: r.points.map((p) => (p.node_id === this.dragItemId ? { ...p, x: nx, y: ny } : p))
+      }));
+
+      this.floor = {
+        ...this.floor,
+        nodes: updatedNodes,
+        rooms: updatedRooms
+      };
+    } else if (this.dragKind === 'wall') {
+      const wall = this.floor.walls.find((w) => w.id === this.dragItemId);
+      if (!wall) return;
+
+      let dx = worldPt.x - this.dragStartWorld.x;
+      let dy = worldPt.y - this.dragStartWorld.y;
+
+      let newStartX = this.dragWallOrigStart.x + dx;
+      let newStartY = this.dragWallOrigStart.y + dy;
+
+      if (this.snapToGrid && this.gridSize > 0) {
+        newStartX = Math.round(newStartX / this.gridSize) * this.gridSize;
+        newStartY = Math.round(newStartY / this.gridSize) * this.gridSize;
+        dx = newStartX - this.dragWallOrigStart.x;
+        dy = newStartY - this.dragWallOrigStart.y;
+      }
+
+      const startX = Number((this.dragWallOrigStart.x + dx).toFixed(3));
+      const startY = Number((this.dragWallOrigStart.y + dy).toFixed(3));
+      const endX = Number((this.dragWallOrigEnd.x + dx).toFixed(3));
+      const endY = Number((this.dragWallOrigEnd.y + dy).toFixed(3));
+
+      const updatedNodes = this.floor.nodes.map((n) => {
+        if (n.id === wall.start_node_id) return { ...n, x: startX, y: startY };
+        if (n.id === wall.end_node_id) return { ...n, x: endX, y: endY };
+        return n;
+      });
+
+      const updatedRooms = this.floor.rooms.map((r) => ({
+        ...r,
+        points: r.points.map((p) => {
+          if (p.node_id === wall.start_node_id) return { ...p, x: startX, y: startY };
+          if (p.node_id === wall.end_node_id) return { ...p, x: endX, y: endY };
+          return p;
+        })
       }));
 
       this.floor = {
@@ -1560,27 +1660,24 @@ export class FloorplanCanvas2D extends LitElement {
       const labelPosY = this.sy(midY + normal.y * labelOffset);
 
       return svg`
-        <g class="wall-group">
+        <g
+          class="wall-group"
+          @pointerdown="${(e: PointerEvent) => this.startWallDrag(e, wall)}"
+        >
+          <!-- Enlarged transparent hit target for easy touch/mouse wall edge dragging -->
+          <line
+            class="wall-hit-target"
+            x1="${this.sx(a.x)}" y1="${this.sy(a.y)}"
+            x2="${this.sx(b.x)}" y2="${this.sy(b.y)}"
+            stroke="transparent"
+            stroke-width="24"
+          />
           <polygon
             class="wall-footprint"
             points="${quadPts}"
             fill="${wall.color_override || (isSelected ? '#0284c7' : '#475569')}"
             stroke="${isSelected ? '#38bdf8' : '#334155'}"
             stroke-width="${isSelected ? 2 : 1}"
-            @pointerdown="${(e: PointerEvent) => {
-              if (this.toolMode === 'select' && e.button === 0) {
-                e.stopPropagation();
-                this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-                this.emitSelectionChange({ kind: 'wall', id: wall.id });
-                if (this.activePointers.size === 1) {
-                  this.isPanning = true;
-                  this.panStartScreen = { x: e.clientX, y: e.clientY };
-                  this.panStartWorld = { x: this.panX, y: this.panY };
-                  this.didPanMove = false;
-                  this.panStartedOnSelectable = true;
-                }
-              }
-            }}"
           />
           ${wallLen > 0.6
             ? svg`
